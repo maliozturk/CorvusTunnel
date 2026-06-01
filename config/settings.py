@@ -14,56 +14,23 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables / .env file.
+    """Application settings loaded from environment variables.
 
-    The .env lives at ``~/.corvustunnel/.env`` — deliberately outside any
-    project tree so it is unreachable from the tunnel, folder browser,
-    or any remote command.
+    In Docker, all settings are passed via `-e` flags or set by
+    the boot orchestrator (boot.py).
     """
 
-    model_config = {
-        "env_file": str(Path.home() / ".corvustunnel" / ".env"),
-        "env_file_encoding": "utf-8",
-    }
+    model_config = {"env_file_encoding": "utf-8"}
 
     # ── Auth ──────────────────────────────────────────────────────────
     agent_token: str = Field(
         ...,
-        min_length=32,
         description="Bearer token for API authentication",
-    )
-
-    # Cloudflare Access (optional — not used with Quick Tunnel)
-    cf_team_domain: str | None = Field(
-        default=None,
-        description="Cloudflare Access team domain, e.g. https://team.cloudflareaccess.com",
-    )
-    cf_access_aud: str | None = Field(
-        default=None,
-        description="Cloudflare Access application audience tag",
     )
 
     # ── Server ────────────────────────────────────────────────────────
     public_port: int = Field(default=8000, ge=1024, le=65535)
     internal_port: int = Field(default=8001, ge=1024, le=65535)
-
-    # ── Executor ──────────────────────────────────────────────────────
-    work_dir: str = Field(
-        default="./workspace",
-        description="Isolated working directory for agent execution",
-    )
-    max_exec_timeout: int = Field(
-        default=300,
-        ge=10,
-        le=3600,
-        description="Maximum execution timeout in seconds",
-    )
-    max_output_size: int = Field(
-        default=5000,
-        ge=500,
-        le=50000,
-        description="Maximum output size in characters",
-    )
 
     # ── Audit ─────────────────────────────────────────────────────────
     audit_log_dir: str = Field(
@@ -73,18 +40,19 @@ class Settings(BaseSettings):
     deep_log_dir: str = Field(
         default="",
         description="Directory for deep (plaintext) logs. "
-                    "Defaults to ~/.corvustunnel/logs — MUST be outside ALLOWED_DIRS",
+                    "Defaults to /app/logs/deep inside container.",
     )
 
     @property
     def resolved_deep_log_dir(self) -> str:
         """Return the deep log directory, defaulting to a secure location."""
-        import os
         if self.deep_log_dir:
             return self.deep_log_dir
         return os.path.join(os.path.expanduser("~"), ".corvustunnel", "logs")
+
+    # ── Workspace ─────────────────────────────────────────────────────
     allowed_dirs: str = Field(
-        default="",
+        default="/workspace",
         description="Comma-separated directories visible in folder browser",
     )
 
@@ -95,7 +63,9 @@ class Settings(BaseSettings):
             return []
         return [d.strip() for d in self.allowed_dirs.split(',') if d.strip()]
 
-    @field_validator("work_dir", "audit_log_dir")
+    # ── Validators ────────────────────────────────────────────────────
+
+    @field_validator("audit_log_dir")
     @classmethod
     def ensure_directory_exists(cls, v: str) -> str:
         """Create the directory if it doesn't exist."""
@@ -112,11 +82,6 @@ class Settings(BaseSettings):
             if "public_port" in data and data["public_port"] == v:
                 raise ValueError("public_port and internal_port must be different")
         return v
-
-    @property
-    def cf_access_enabled(self) -> bool:
-        """Check if Cloudflare Access authentication is configured."""
-        return bool(self.cf_team_domain and self.cf_access_aud)
 
 
 @lru_cache(maxsize=1)

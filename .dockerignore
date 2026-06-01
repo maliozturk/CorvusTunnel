@@ -1,0 +1,14 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+logs/
+workspace/
+.env
+*.log
+*.txt
+!requirements.txt
+!LICENSE.txt
+.antigravitycli/
+projects/
+.gemini/

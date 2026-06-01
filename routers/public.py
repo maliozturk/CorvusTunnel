@@ -9,20 +9,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import shutil
 import time
 import logging
-from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from auth.dependencies import require_public_auth
 from audit.logger import get_audit_logger
-from config.allowlist import is_target_allowed, sanitize_prompt
-from models.requests import PromptRequest
-from models.responses import JobResponse, JobListResponse, HealthResponse
-from jobqueue.manager import get_job_manager
-from jobqueue.notifier import notify_new_job
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +27,20 @@ router = APIRouter(prefix="/api")
 _start_time = time.time()
 
 
+# ── Response models ──────────────────────────────────────────────────
+class HealthResponse(BaseModel):
+    status: str
+    version: str
+    uptime_seconds: float
+
+
 # ── Health (no auth) ─────────────────────────────────────────────────
 @router.get("/health", response_model=HealthResponse)
 async def health():
     """Health check endpoint (no authentication required)."""
     return HealthResponse(
         status="ok",
-        version="0.1.0",
+        version="0.2.0",
         uptime_seconds=round(time.time() - _start_time, 1),
     )
 
@@ -63,7 +65,7 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
 
     if not roots:
         raise HTTPException(
-            400, "No allowed directories configured — set ALLOWED_DIRS in .env"
+            400, "No allowed directories configured — set ALLOWED_DIRS"
         )
 
     # No path → return the whitelisted root directories
@@ -113,17 +115,16 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
     return {"current": str(target), "parent": parent, "directories": dirs}
 
 
-# ── Check agy availability ───────────────────────────────────────
+# ── Check agy availability ───────────────────────────────────────────
 @router.get("/check-agy", dependencies=[Depends(require_public_auth)])
 async def check_agy():
-    """Check if agy.exe is available on this system."""
-    import os
-    agy_path = os.path.join(r"C:\Users\alini\AppData\Local\agy\bin", "agy.exe")
-    available = os.path.isfile(agy_path)
-    return {"available": available, "path": agy_path if available else None}
+    """Check if agy is available on the system PATH."""
+    agy_path = shutil.which("agy")
+    available = agy_path is not None
+    return {"available": available, "path": agy_path}
 
 
-# ── Create new directory ─────────────────────────────────────────
+# ── Create new directory ─────────────────────────────────────────────
 @router.post("/browse/mkdir", dependencies=[Depends(require_public_auth)])
 async def create_directory(request: Request):
     """Create a new subdirectory within an allowed directory."""
@@ -185,200 +186,6 @@ async def create_directory(request: Request):
     return {"created": True, "path": str(new_dir)}
 
 
-# ── Submit prompt ────────────────────────────────────────────────────
-@router.post(
-    "/prompt",
-    response_model=JobResponse,
-    dependencies=[Depends(require_public_auth)],
-)
-async def submit_prompt(req: PromptRequest, request: Request):
-    """
-    Submit a new prompt to an executor.
-    
-    If require_approval is True (default), the job enters 'pending' state
-    and waits for manual approval via the internal API.
-    """
-    audit = get_audit_logger()
-    client_ip = request.client.host if request.client else "unknown"
-
-    # Validate target
-    if not is_target_allowed(req.target):
-        audit.log(
-            action="blocked",
-            target=req.target,
-            prompt=req.prompt,
-            client_ip=client_ip,
-            detail=f"Target '{req.target}' not in allowlist",
-        )
-        raise HTTPException(400, f"Target '{req.target}' is not allowed")
-
-    # Sanitize prompt
-    prompt = sanitize_prompt(req.prompt)
-
-    # Submit to queue
-    manager = get_job_manager()
-    job = await manager.submit(
-        target=req.target,
-        prompt=prompt,
-        require_approval=req.require_approval,
-        work_dir=req.work_dir,
-    )
-
-    audit.log(
-        action="submit",
-        job_id=job.job_id,
-        target=req.target,
-        prompt=prompt,
-        client_ip=client_ip,
-    )
-
-    # Deep log: full plaintext prompt and metadata
-    from audit.deep_logger import get_deep_logger
-    get_deep_logger().prompt_submitted(
-        job_id=job.job_id,
-        prompt=prompt,
-        target=req.target,
-        client_ip=client_ip,
-        work_dir=req.work_dir,
-        require_approval=req.require_approval,
-        is_shell=prompt.startswith("$"),
-    )
-
-    # Send desktop notification for pending jobs
-    if req.require_approval:
-        try:
-            notify_new_job(job.job_id, req.target, prompt)
-        except Exception as e:
-            logger.warning(f"Notification failed: {e}")
-
-    logger.info(
-        f"Job {job.job_id} submitted: target={req.target}, "
-        f"status={job.status}, approval={'required' if req.require_approval else 'auto'}"
-    )
-
-    return job.to_response()
-
-
-# ── Job status ───────────────────────────────────────────────────────
-@router.get(
-    "/status/{job_id}",
-    response_model=JobResponse,
-    dependencies=[Depends(require_public_auth)],
-)
-async def get_status(job_id: str):
-    """Get the current status of a job."""
-    manager = get_job_manager()
-    job = await manager.get_job(job_id)
-
-    if job is None:
-        raise HTTPException(404, f"Job '{job_id}' not found")
-
-    return job.to_response()
-
-
-# ── Job list ─────────────────────────────────────────────────────────
-@router.get(
-    "/jobs",
-    response_model=JobListResponse,
-    dependencies=[Depends(require_public_auth)],
-)
-async def list_jobs(limit: int = Query(default=50, ge=1, le=200)):
-    """List all jobs, most recent first."""
-    manager = get_job_manager()
-    jobs = await manager.get_all_jobs(limit=limit)
-
-    return JobListResponse(
-        jobs=[j.to_response() for j in jobs],
-        total=len(jobs),
-    )
-
-
-# ── SSE Stream ───────────────────────────────────────────────────────
-@router.get("/stream/{job_id}")
-async def stream_job(
-    job_id: str,
-    token: str = Query(..., description="Bearer token for SSE auth"),
-):
-    """
-    Server-Sent Events stream for real-time job output.
-    
-    SSE doesn't support custom headers, so the token is passed
-    as a query parameter. This is acceptable because:
-    1. The connection is over HTTPS (via Cloudflare)
-    2. The token is not logged in access logs (POST body would be)
-    """
-    from auth.bearer import verify_bearer_token
-
-    if not verify_bearer_token(f"Bearer {token}"):
-        raise HTTPException(401, "Invalid token")
-
-    manager = get_job_manager()
-    job = await manager.get_job(job_id)
-
-    if job is None:
-        raise HTTPException(404, f"Job '{job_id}' not found")
-
-    async def event_generator() -> AsyncGenerator[str, None]:
-        """Generate SSE events from the job's output queue."""
-        # Send current status
-        yield _sse_format("status", job.status, job_id)
-
-        # Send any existing output
-        if job.output_text:
-            yield _sse_format("output", job.output_text, job_id)
-
-        # If job is already done, send done event and close
-        if job.status in ("done", "failed", "timeout", "rejected"):
-            result_str = json.dumps(job.result) if job.result else ""
-            yield _sse_format("done", result_str, job_id)
-            return
-
-        # Subscribe to live updates
-        queue = job.subscribe_sse()
-        try:
-            while True:
-                try:
-                    event_type, content = await asyncio.wait_for(
-                        queue.get(), timeout=30.0
-                    )
-                    yield _sse_format(event_type, content, job_id)
-
-                    if event_type == "done":
-                        # Send final result
-                        if job.result:
-                            yield _sse_format(
-                                "result",
-                                json.dumps(job.result),
-                                job_id,
-                            )
-                        break
-                except asyncio.TimeoutError:
-                    # Send keepalive comment
-                    yield ": keepalive\n\n"
-        finally:
-            job.unsubscribe_sse(queue)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-
-def _sse_format(event_type: str, content: str, job_id: str) -> str:
-    """Format data as an SSE event."""
-    data = json.dumps({
-        "type": event_type,
-        "content": content,
-        "job_id": job_id,
-    })
-    return f"data: {data}\n\n"
-
-
 # ══════════════════════════════════════════════════════════════════════
 #  WebSocket Terminal
 # ══════════════════════════════════════════════════════════════════════
@@ -410,7 +217,7 @@ async def terminal_ws(
     """WebSocket endpoint for interactive terminal sessions.
 
     Provides a full-duplex connection between the browser and
-    a winpty PTY running agy.exe on the server.
+    a pexpect PTY running agy on the server.
 
     Auth is via query-param token (WebSocket upgrade can't set headers).
     All I/O is forensically logged.
@@ -567,4 +374,3 @@ async def terminal_ws(
             work_dir=work_dir,
         )
         logger.info("Terminal WebSocket disconnected")
-

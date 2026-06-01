@@ -1,0 +1,10 @@
+services:
+  corvustunnel:
+    build: .
+    container_name: corvustunnel
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    volumes:
+      - ./projects:/workspace
+    restart: unless-stopped

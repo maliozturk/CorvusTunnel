@@ -1,12 +1,12 @@
 """
 CorvusTunnel Terminal Session — WebSocket-backed interactive PTY.
 
-Manages a single persistent winpty PTY process (agy.exe) with:
+Manages a single persistent pexpect PTY process (agy) with:
 - Pub/Sub output broadcasting to multiple WebSocket subscribers
 - 64KB replay buffer for reconnection catch-up
 - 5-minute grace period after last subscriber disconnects
 - Deep forensic logging of all input and output
-- Dynamic terminal resizing via pty.set_size()
+- Dynamic terminal resizing via process.setwinsize()
 """
 
 from __future__ import annotations
@@ -18,38 +18,22 @@ import threading
 import time
 from typing import Any
 
+import pexpect
+
 logger = logging.getLogger(__name__)
 
-AGY_BIN_DIR = r"C:\Users\alini\AppData\Local\agy\bin"
 REPLAY_BUFFER_MAX = 65536  # 64KB
 GRACE_PERIOD_S = 300  # 5 minutes
 LOG_FLUSH_INTERVAL_S = 2.0  # Batch deep-log output every 2s
 
 
-def _build_env_string() -> str:
-    """Build null-delimited environment string for winpty.PTY.spawn().
-
-    winpty expects env as a single string:  "KEY1=VAL1\\0KEY2=VAL2\\0"
-    We clone os.environ and prepend the agy bin dir to PATH.
-    """
-    env = os.environ.copy()
-
-    # Prepend agy bin dir to PATH so `agy` is available immediately
-    current_path = env.get("PATH", "")
-    if AGY_BIN_DIR.lower() not in current_path.lower():
-        env["PATH"] = AGY_BIN_DIR + ";" + current_path
-
-    # Serialize to null-delimited string
-    return "\0".join(f"{k}={v}" for k, v in env.items()) + "\0"
-
-
 class TerminalSession:
-    """Persistent interactive terminal session backed by winpty.
+    """Persistent interactive terminal session backed by pexpect.
 
     Lifecycle:
         start(work_dir, cols, rows)  → spawn PTY, start reader thread
-        send_input(data)             → pty.write(data), deep-log
-        resize(cols, rows)           → pty.set_size(cols, rows)
+        send_input(data)             → process.send(data), deep-log
+        resize(cols, rows)           → process.setwinsize(rows, cols)
         stop()                       → graceful shutdown
 
     Pub/Sub:
@@ -58,7 +42,7 @@ class TerminalSession:
     """
 
     def __init__(self) -> None:
-        self._pty: Any = None
+        self._process: pexpect.spawn | None = None
         self._alive: bool = False
         self._work_dir: str | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -86,7 +70,7 @@ class TerminalSession:
 
     @property
     def is_alive(self) -> bool:
-        return self._alive and self._pty is not None
+        return self._alive and self._process is not None
 
     @property
     def work_dir(self) -> str | None:
@@ -98,8 +82,6 @@ class TerminalSession:
         """Start a new terminal session in work_dir."""
         if self.is_alive:
             self.stop()
-
-        import winpty
 
         self._work_dir = work_dir
         self._loop = asyncio.get_event_loop()
@@ -115,22 +97,22 @@ class TerminalSession:
             self._grace_timer.cancel()
             self._grace_timer = None
 
-        # Build environment with agy on PATH
-        env_str = _build_env_string()
+        # Build command args
+        args = list(flags) if flags else []
+        cmd = "agy"
 
-        # Build agy command with optional flags
-        agy_path = os.path.join(AGY_BIN_DIR, "agy.exe")
-        cmd = agy_path
-        if flags:
-            cmd = cmd + " " + " ".join(flags)
+        logger.info(
+            "Starting terminal session in %s (%dx%d) cmd=%s args=%s",
+            work_dir, cols, rows, cmd, args,
+        )
 
-        logger.info("Starting terminal session in %s (%dx%d) cmd=%s", work_dir, cols, rows, cmd)
-
-        self._pty = winpty.PTY(cols, rows)
-        self._pty.spawn(
+        self._process = pexpect.spawn(
             cmd,
+            args=args,
             cwd=work_dir,
-            env=env_str,
+            dimensions=(rows, cols),
+            encoding=None,  # raw bytes mode
+            codec_errors="replace",
         )
 
         self._reader_thread = threading.Thread(
@@ -150,7 +132,7 @@ class TerminalSession:
         if not self.is_alive:
             raise RuntimeError("Terminal session is not running")
 
-        self._pty.write(data)
+        self._process.send(data)
 
         # Flush any pending output to deep log before logging input
         self._flush_log_buffer(force=True)
@@ -170,7 +152,7 @@ class TerminalSession:
         if not self.is_alive:
             return
         try:
-            self._pty.set_size(cols, rows)
+            self._process.setwinsize(rows, cols)
             logger.debug("Terminal resized to %dx%d", cols, rows)
         except Exception as e:
             logger.warning("Failed to resize terminal: %s", e)
@@ -189,10 +171,14 @@ class TerminalSession:
             self._grace_timer = None
 
         # Try graceful exit
-        if self._pty:
+        if self._process and self._process.isalive():
             try:
-                self._pty.write("exit\r\n")
+                self._process.sendline("exit")
                 time.sleep(0.3)
+            except Exception:
+                pass
+            try:
+                self._process.terminate(force=True)
             except Exception:
                 pass
 
@@ -211,7 +197,7 @@ class TerminalSession:
             work_dir=self._work_dir,
         )
 
-        self._pty = None
+        self._process = None
 
     # ── Pub/Sub ───────────────────────────────────────────────────────
 
@@ -290,8 +276,16 @@ class TerminalSession:
         - Detects process death and broadcasts 'exited' event
         """
         while self._alive:
-            # Check if process is still alive
-            if self._pty and not self._pty.isalive():
+            try:
+                raw = self._process.read_nonblocking(4096, timeout=0.05)
+                if isinstance(raw, bytes):
+                    data = raw.decode("utf-8", errors="replace")
+                else:
+                    data = raw
+            except pexpect.TIMEOUT:
+                self._flush_log_buffer(force=False)
+                continue
+            except pexpect.EOF:
                 exit_code = self._get_exit_status()
                 logger.info("PTY process exited (code=%s)", exit_code)
                 self._broadcast({"type": "exited", "code": exit_code})
@@ -304,16 +298,11 @@ class TerminalSession:
                 )
                 self._alive = False
                 break
-
-            # Read from PTY (non-blocking)
-            try:
-                data = self._pty.read(blocking=False)
             except Exception:
                 time.sleep(0.03)
                 continue
 
             if not data:
-                # Periodically flush log buffer even when idle
                 self._flush_log_buffer(force=False)
                 time.sleep(0.03)
                 continue
@@ -377,9 +366,9 @@ class TerminalSession:
 
     def _get_exit_status(self) -> int | None:
         """Get the exit status of the PTY process, or None if unavailable."""
-        if self._pty:
+        if self._process:
             try:
-                return self._pty.get_exitstatus()
+                return self._process.exitstatus
             except Exception:
                 return None
         return None

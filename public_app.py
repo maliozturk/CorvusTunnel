@@ -3,7 +3,7 @@ CorvusTunnel Public Application — Port 8000.
 
 Serves:
 - /api/* — Public REST API (authenticated)
-- /       — Chat UI (static HTML)
+- /       — Terminal UI (static HTML)
 - /health — Health check (no auth)
 """
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="CorvusTunnel",
     description="Remote Agent Control System",
-    version="0.1.0",
+    version="0.2.0",
     docs_url="/docs",
     redoc_url=None,
 )
@@ -47,7 +47,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 @app.get("/", include_in_schema=False)
 async def serve_ui():
-    """Serve the chat UI."""
+    """Serve the terminal UI."""
     index_path = STATIC_DIR / "index.html"
     if index_path.exists():
         return FileResponse(index_path, media_type="text/html")
