@@ -45,6 +45,48 @@ async def health():
     )
 
 
+# ── Claim boot token (no auth — boot token IS the auth) ─────────────
+@router.post("/claim")
+async def claim_token(request: Request):
+    """Exchange the one-time boot token for a session token.
+
+    The boot token (from QR code) can only be used once.
+    After claiming, all subsequent API calls use the returned session token.
+    """
+    from auth.bearer import get_token_manager
+    from audit.deep_logger import get_deep_logger
+
+    deep = get_deep_logger()
+    client_ip = request.client.host if request.client else "unknown"
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid request body")
+
+    boot_token = body.get("token", "")
+    if not boot_token:
+        raise HTTPException(400, "token is required")
+
+    manager = get_token_manager()
+    session_token = manager.claim_boot_token(boot_token)
+
+    if session_token is None:
+        deep.log(
+            "claim_rejected", category="auth",
+            client_ip=client_ip,
+            reason="Invalid or already consumed boot token",
+        )
+        raise HTTPException(401, "Invalid or already consumed token")
+
+    deep.log(
+        "claim_success", category="auth",
+        client_ip=client_ip,
+    )
+
+    return {"session_token": session_token}
+
+
 # ── Browse directories (folder picker) ───────────────────────────────
 @router.get("/browse", dependencies=[Depends(require_public_auth)])
 async def browse_directory(request: Request, path: str = Query(default=None)):

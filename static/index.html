@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="/static/vendor/xterm.css">
 <script src="/static/vendor/xterm.js"></script>
 <script src="/static/vendor/xterm-addon-fit.js"></script>
+<script src="/static/vendor/xterm-addon-web-links.js"></script>
 <style>
 /* ===== CSS Custom Properties ===== */
 :root {
@@ -803,6 +804,42 @@ body {
   color: var(--text-primary);
 }
 
+/* ===== URL Toast (floating link detector) ===== */
+.url-toast {
+  display: none;
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(139,92,246,0.95));
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(99,102,241,0.4);
+  backdrop-filter: blur(12px);
+  animation: toastSlide 0.3s ease;
+  max-width: 90vw;
+  text-align: center;
+  text-decoration: none;
+}
+.url-toast:active {
+  transform: translateX(-50%) scale(0.96);
+}
+.url-toast .toast-dismiss {
+  margin-left: 12px;
+  opacity: 0.7;
+  font-size: 18px;
+  vertical-align: middle;
+}
+@keyframes toastSlide {
+  from { top: -60px; opacity: 0; }
+  to   { top: 60px; opacity: 1; }
+}
+
 /* ===== Virtual Keypad ===== */
 .virtual-keypad {
   display: flex;
@@ -1287,18 +1324,20 @@ body {
       <button class="quick-btn" onclick="sendAgyCommand('/clear')" title="Clear terminal">&#x1F5D1; Clear</button>
       <button class="quick-btn danger" onclick="exitSession()" title="Exit agy and return to launcher">&#x23FB; Exit</button>
     </div>
+    <!-- URL Toast -->
+    <a class="url-toast" id="urlToast" href="#" target="_blank" rel="noopener">
+      <span id="urlToastText">🔗 Open Link</span>
+      <span class="toast-dismiss" onclick="event.preventDefault();event.stopPropagation();hideUrlToast();">✕</span>
+    </a>
     <!-- Terminal -->
     <div id="terminalContainer"></div>
     <!-- Virtual Keypad -->
     <div class="virtual-keypad" id="virtualKeypad">
       <button class="vk-btn enter" onclick="sendVK('\r')" title="Enter">&#x23CE; Enter</button>
-      <div class="vk-separator"></div>
-      <button class="vk-btn" onclick="sendVK('\t')" title="Tab">Tab</button>
       <button class="vk-btn" onclick="sendVK('\x1b')" title="Escape">Esc</button>
-      <button class="vk-btn" onclick="sendVK('\x03')" title="Ctrl+C">^C</button>
       <div class="vk-separator"></div>
-      <button class="vk-btn" id="vkCtrl" onclick="toggleVK('ctrl')" title="Ctrl modifier">Ctrl</button>
-      <button class="vk-btn" id="vkAlt" onclick="toggleVK('alt')" title="Alt modifier">Alt</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[1;2A')" title="Shift+Up">&#x21E7;&uarr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[1;2B')" title="Shift+Down">&#x21E7;&darr;</button>
       <div class="vk-separator"></div>
       <button class="vk-btn" onclick="sendVK('\x1b[A')" title="Up">&uarr;</button>
       <button class="vk-btn" onclick="sendVK('\x1b[B')" title="Down">&darr;</button>
@@ -1357,11 +1396,39 @@ const connText = $('connectionText');
    Auth
    ========================================================================== */
 function handleAuth() {
-  const t = $('tokenInput').value.trim();
+  var t = $('tokenInput').value.trim();
   if (!t) { showAuthErr('Please enter a valid token.'); return; }
-  STATE.token = t;
-  localStorage.setItem('corvus_token', t);
-  bootApp();
+  claimAndBoot(t);
+}
+
+async function claimAndBoot(token) {
+  // Try to claim boot token for a session token
+  try {
+    var resp = await fetch('/api/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token }),
+    });
+    if (resp.ok) {
+      var data = await resp.json();
+      STATE.token = data.session_token;
+      localStorage.setItem('corvus_token', data.session_token);
+      bootApp();
+      return;
+    }
+    // If claim fails (already consumed), try token directly as session token
+    STATE.token = token;
+    localStorage.setItem('corvus_token', token);
+    // Verify it works
+    var health = await fetch('/api/health');
+    if (health.ok) {
+      bootApp();
+    } else {
+      showAuthErr('Token rejected — it may have already been used.');
+    }
+  } catch (e) {
+    showAuthErr('Connection error: ' + e.message);
+  }
 }
 
 function handleLogout() {
@@ -1626,7 +1693,9 @@ function initTerminal() {
   });
 
   const fitAddon = new FitAddon.FitAddon();
+  const webLinksAddon = new WebLinksAddon.WebLinksAddon();
   term.loadAddon(fitAddon);
+  term.loadAddon(webLinksAddon);
   term.open($('terminalContainer'));
   fitAddon.fit();
 
@@ -1702,7 +1771,10 @@ function connectTerminalWS(workDir, flags) {
     try {
       const msg = JSON.parse(ev.data);
       if (msg.type === 'output' || msg.type === 'replay') {
-        if (TERMINAL.term && msg.data) TERMINAL.term.write(msg.data);
+        if (TERMINAL.term && msg.data) {
+          TERMINAL.term.write(msg.data);
+          detectUrl(msg.data);
+        }
       } else if (msg.type === 'exited') {
         setQBStatus('exited');
         if (TERMINAL.term) {
@@ -1771,6 +1843,95 @@ function setQBStatus(state) {
 
 function clearTerminal() {
   if (TERMINAL.term) TERMINAL.term.clear();
+}
+
+// ── URL Detection (catches long wrapped URLs in terminal output) ────
+var _urlBuf = '';
+var _urlToastTimer = null;
+var _lastShownLen = 0;
+var _autoScrollSent = false;
+
+function detectUrl(chunk) {
+  // Strip ANSI escape codes and accumulate
+  var clean = chunk.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  _urlBuf += clean;
+  // Keep only last 8KB
+  if (_urlBuf.length > 8192) _urlBuf = _urlBuf.slice(-8192);
+
+  // Strip pager UI artifacts before URL detection
+  var stripped = _urlBuf;
+  stripped = stripped.replace(/\(\d+-\d+\s*of\s*\d+\s*lines?\)/gi, ' ');
+  stripped = stripped.replace(/shift\+up\/down\s*Navigate/gi, ' ');
+  stripped = stripped.replace(/Press\s*q\s*to\s*quit/gi, ' ');
+  stripped = stripped.replace(/\(END\)/g, ' ');
+  stripped = stripped.replace(/Open\s*this\s*link\s*in\s*the\s*browser[^h]*/gi, ' ');
+
+  // Remove all whitespace/newlines to reassemble wrapped URLs
+  var flat = stripped.replace(/[\r\n\s]+/g, '');
+
+  // Match https:// URLs — stop at characters that shouldn't be in URLs
+  var matches = flat.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g);
+  if (!matches) return;
+
+  // Take the longest (most complete) URL found
+  var url = matches.reduce(function(a, b) { return a.length >= b.length ? a : b; });
+
+  // Trim trailing artifacts
+  url = url.replace(/[)}\]]+$/, '');
+
+  // Skip short URLs
+  if (url.length < 40) return;
+
+  // Only track URLs that look like auth URLs (Google OAuth, etc)
+  var isAuthUrl = url.indexOf('accounts.google.com') !== -1 || url.indexOf('oauth') !== -1;
+  if (!isAuthUrl && url.length < 80) return;
+
+  // Check if URL looks complete (has key OAuth params)
+  var looksComplete = !isAuthUrl ||
+    (url.indexOf('response_type') !== -1 && url.indexOf('scope') !== -1);
+
+  // Update toast if URL grew longer
+  if (url.length > _lastShownLen) {
+    _lastShownLen = url.length;
+    showUrlToast(url, looksComplete);
+
+    // If URL is incomplete and we haven't auto-scrolled yet, send Down keys to advance pager
+    if (!looksComplete && !_autoScrollSent && TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+      _autoScrollSent = true;
+      // Send space/down keys with delay to scroll through the pager
+      var scrollCount = 0;
+      var scrollInterval = setInterval(function() {
+        if (scrollCount >= 15 || !TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) {
+          clearInterval(scrollInterval);
+          return;
+        }
+        TERMINAL.ws.send(JSON.stringify({ type: 'input', data: '\x1b[1;2B' })); // shift+down in agy pager
+        scrollCount++;
+      }, 300);
+    }
+  }
+}
+
+function showUrlToast(url, complete) {
+  var toast = $('urlToast');
+  toast.href = url;
+  if (complete) {
+    $('urlToastText').textContent = '\ud83d\udd17 Tap to Open Link';
+  } else {
+    $('urlToastText').textContent = '\u23f3 Loading full URL...';
+  }
+  toast.style.display = 'block';
+
+  // Auto-hide after 60s
+  if (_urlToastTimer) clearTimeout(_urlToastTimer);
+  _urlToastTimer = setTimeout(hideUrlToast, 60000);
+}
+
+function hideUrlToast() {
+  $('urlToast').style.display = 'none';
+  if (_urlToastTimer) { clearTimeout(_urlToastTimer); _urlToastTimer = null; }
+  _lastShownLen = 0;
+  _autoScrollSent = false;
 }
 
 function sendAgyCommand(cmd) {
@@ -1986,11 +2147,31 @@ async function createNewFolder() {
 /* ==========================================================================
    Boot
    ========================================================================== */
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   var saved = localStorage.getItem('corvus_workdir');
   if (saved) $('workDirInput').value = saved;
 
-  if (STATE.token) bootApp();
+  // Check for token in URL fragment (#token=xxx)
+  var hash = window.location.hash;
+  if (hash && hash.indexOf('#token=') === 0) {
+    var bootToken = hash.substring(7); // strip '#token='
+    // Clear fragment from URL bar immediately (security)
+    history.replaceState(null, '', window.location.pathname);
+    // Claim the boot token
+    await claimAndBoot(bootToken);
+  } else if (STATE.token) {
+    // Have a saved session token — verify it still works
+    try {
+      var resp = await fetch('/api/health');
+      if (resp.ok) {
+        bootApp();
+      } else {
+        // Token is stale (container restarted)
+        localStorage.removeItem('corvus_token');
+        STATE.token = '';
+      }
+    } catch (e) { /* show auth screen */ }
+  }
 
   $('tokenInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleAuth(); });
 

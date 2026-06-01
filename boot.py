@@ -2,6 +2,7 @@
 """CorvusTunnel Boot Helpers.
 
 Provides compact QR code generation and banner printing for the entrypoint.
+Single QR code contains URL#token for one-scan onboarding.
 """
 
 import sys
@@ -52,7 +53,7 @@ def print_qr(data: str, label: str) -> None:
 
 
 def print_banner(tunnel_url: str, token: str) -> None:
-    """Print the startup banner with QR codes."""
+    """Print the startup banner with a single QR code."""
     W = 50
     print()
     print("╔" + "═" * W + "╗")
@@ -61,23 +62,21 @@ def print_banner(tunnel_url: str, token: str) -> None:
     print("╠" + "═" * W + "╣")
 
     if tunnel_url:
-        print("║" + "  1. SCAN TO OPEN:".ljust(W) + "║")
+        # Single QR: URL with token in fragment (fragment never sent to server/proxy)
+        combined = f"{tunnel_url}#token={token}"
+        print("║" + "  Scan QR to connect:".ljust(W) + "║")
         print("╚" + "═" * W + "╝")
         print()
-        print_qr(tunnel_url, "URL")
+        print_qr(combined, "Scan with phone camera")
     else:
         print("║" + "  ⚠ Tunnel not detected".ljust(W) + "║")
         print("║" + "  Local: http://localhost:8000".ljust(W) + "║")
         print("╚" + "═" * W + "╝")
         print()
 
-    print("╔" + "═" * W + "╗")
-    print("║" + "  2. SCAN TO COPY TOKEN:".ljust(W) + "║")
-    print("╚" + "═" * W + "╝")
-    print()
-    print_qr(token, "Token")
     print("─" * W)
-    print("  Workspace: /workspace")
+    print("  Token is one-time-use (consumed on first login)")
+    print("  Restart container for a new token")
     print("─" * W)
     print()
     sys.stdout.flush()
