@@ -1,0 +1,32 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Logs & Audit
+logs/
+audit*.jsonl
+
+# Workspace
+workspace/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Cloudflare
+*.json
+!package.json

@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<title>CorvusTunnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Vendor: local copies -->
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<script src="/static/vendor/xterm.js"></script>
+<script src="/static/vendor/xterm-addon-fit.js"></script>
+<style>
+/* ===== CSS Custom Properties ===== */
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a2e;
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --bg-card-hover: rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(18, 18, 26, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-light: rgba(255, 255, 255, 0.12);
+
+  --purple: #8b5cf6;
+  --purple-dim: #7c3aed;
+  --purple-glow: rgba(139, 92, 246, 0.3);
+  --purple-soft: rgba(139, 92, 246, 0.12);
+
+  --blue-dark: #1e293b;
+  --blue-deep: #0f172a;
+
+  --cyan: #06b6d4;
+  --cyan-glow: rgba(6, 182, 212, 0.25);
+  --cyan-soft: rgba(6, 182, 212, 0.1);
+
+  --green: #22c55e;
+  --green-glow: rgba(34, 197, 94, 0.3);
+  --red: #ef4444;
+  --red-glow: rgba(239, 68, 68, 0.3);
+  --yellow: #eab308;
+  --yellow-glow: rgba(234, 179, 8, 0.3);
+  --orange: #f97316;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow-purple: 0 0 20px var(--purple-glow);
+  --shadow-glow-cyan: 0 0 20px var(--cyan-glow);
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px var(--purple-glow), 0 0 10px rgba(139,92,246,0.1); }
+  50% { box-shadow: 0 0 15px var(--purple-glow), 0 0 30px rgba(139,92,246,0.15); }
+}
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes textReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Auth Screen ===== */
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  z-index: 1000;
+  animation: fadeIn 0.6s ease;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.auth-screen::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--purple-glow) 0%, transparent 70%);
+  top: -150px;
+  right: -100px;
+  pointer-events: none;
+  animation: breathe 6s ease-in-out infinite;
+}
+
+.auth-screen::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 70%);
+  bottom: -100px;
+  left: -80px;
+  pointer-events: none;
+  animation: breathe 8s ease-in-out infinite 2s;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 40px 28px;
+  position: relative;
+  z-index: 1;
+  animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-logo-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: var(--shadow-glow-purple);
+  animation: float 4s ease-in-out infinite;
+  position: relative;
+}
+
+.auth-logo-icon::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  z-index: -1;
+  opacity: 0.4;
+  filter: blur(8px);
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.auth-field {
+  margin-bottom: 20px;
+}
+
+.auth-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  outline: none;
+  transition: all var(--transition-normal);
+}
+
+.auth-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px var(--purple-soft), var(--shadow-glow-purple);
+  background: rgba(255,255,255,0.06);
+}
+
+.auth-input::placeholder {
+  color: var(--text-dim);
+}
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-purple), var(--shadow-md);
+}
+
+.auth-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.auth-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+.auth-error {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  font-size: 13px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+  display: none;
+}
+
+.auth-error.visible { display: block; }
+
+/* ===== App Layout ===== */
+.app {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+}
+
+.app.active {
+  display: flex;
+  animation: fadeIn 0.4s ease;
+}
+
+/* ===== Header ===== */
+.header {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-top: calc(12px + var(--safe-top));
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 10;
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--purple-glow), var(--cyan-glow), transparent);
+  opacity: 0.5;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 0 12px var(--purple-glow);
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all var(--transition-normal);
+  position: relative;
+}
+
+.status-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow);
+}
+
+.status-dot.connected::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--green);
+  opacity: 0.3;
+  animation: pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red-glow);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.header-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+.header-btn:active {
+  transform: scale(0.92);
+}
+
+
+
+/* ===== Browse Button ===== */
+.browse-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.browse-btn:hover {
+  background: rgba(6,182,212,0.12);
+  color: var(--cyan);
+  border-color: rgba(6,182,212,0.4);
+}
+.browse-btn:active { transform: scale(0.9); }
+
+/* ===== Folder Browser Modal ===== */
+.folder-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.folder-modal.active {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+@media (min-width: 768px) {
+  .folder-modal.active { align-items: center; }
+}
+.folder-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 75dvh;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border-light);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .folder-panel {
+    border-radius: var(--radius-xl);
+    max-height: 65vh;
+  }
+}
+.folder-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.folder-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.folder-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.folder-close:hover {
+  background: rgba(239,68,68,0.12);
+  color: var(--red);
+  border-color: rgba(239,68,68,0.3);
+}
+.folder-path {
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid var(--glass-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  word-break: break-all;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.folder-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  -webkit-overflow-scrolling: touch;
+}
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+}
+.folder-item:hover {
+  background: rgba(139,92,246,0.08);
+  color: var(--text-primary);
+}
+.folder-item:active { background: rgba(139,92,246,0.14); }
+.folder-item-icon {
+  font-size: 17px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+.folder-item.up-dir { color: var(--text-muted); }
+.folder-item.up-dir:hover { color: var(--cyan); }
+.folder-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.folder-actions {
+  padding: 12px 20px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.folder-select-btn {
+  flex: 1;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.folder-select-btn:hover {
+  box-shadow: var(--shadow-glow-purple);
+  transform: translateY(-1px);
+}
+.folder-select-btn:active { transform: scale(0.97); }
+.folder-cancel-btn {
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.folder-cancel-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+.folder-loading {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.folder-loading::after {
+  content: '';
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--glass-border);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+
+
+#terminalPanel {
+  position: relative;
+}
+
+#terminalContainer {
+  flex: 1;
+  overflow: hidden;
+  padding: 4px;
+  background: #0a0a0f;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Override xterm.js background to match our theme */
+#terminalContainer .xterm {
+  padding: 8px;
+}
+
+/* ===== Terminal Status Bar ===== */
+.term-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.term-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.term-status .status-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.term-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.term-ctrl-btn {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.term-ctrl-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+.term-ctrl-btn:active { transform: scale(0.93); }
+
+.term-font-select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.term-font-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ===== Virtual Keypad ===== */
+.virtual-keypad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  padding-bottom: calc(8px + var(--safe-bottom));
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.vk-btn {
+  min-width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.vk-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+.vk-btn:active {
+  transform: scale(0.9);
+  background: rgba(139,92,246,0.2);
+}
+
+.vk-btn.active {
+  background: rgba(139,92,246,0.25);
+  border-color: var(--purple);
+  color: var(--purple);
+  box-shadow: 0 0 10px var(--purple-glow);
+}
+
+.vk-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--glass-border);
+  margin: 0 2px;
+}
+
+/* ===== Launcher Screen ===== */
+.launcher {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  gap: 24px;
+  animation: fadeIn 0.5s ease;
+}
+
+.launcher-logo {
+  font-size: 48px;
+  filter: drop-shadow(0 0 24px var(--purple-glow));
+  animation: float 5s ease-in-out infinite;
+}
+
+.launcher-title {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--text-primary), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+}
+
+.launcher-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* Selected folder card */
+.launcher-folder-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 14px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.launcher-folder-card:hover {
+  border-color: var(--glass-border-light);
+  background: var(--bg-card-hover);
+}
+.launcher-folder-icon { font-size: 20px; flex-shrink: 0; }
+.launcher-folder-text { flex: 1; min-width: 0; }
+.launcher-folder-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.launcher-folder-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--cyan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.launcher-folder-name.empty { color: var(--text-dim); font-style: italic; }
+.launcher-folder-arrow { color: var(--text-dim); font-size: 14px; }
+
+/* Checkboxes */
+.launcher-options {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.launcher-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+.launcher-option:hover {
+  border-color: var(--glass-border-light);
+  background: var(--bg-card-hover);
+}
+.launcher-option input[type="checkbox"] { display: none; }
+.launcher-option .checkbox-visual {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--glass-border-light);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  font-size: 11px;
+  color: transparent;
+}
+.launcher-option input:checked + .checkbox-visual {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: white;
+}
+.launcher-option .option-info { flex: 1; }
+.launcher-option .option-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.launcher-option .option-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* Glowing Connect Button */
+.connect-btn {
+  width: 100%;
+  max-width: 380px;
+  padding: 16px 24px;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+  color: white;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  box-shadow: 0 0 30px var(--purple-glow), 0 0 60px rgba(6,182,212,0.15);
+  letter-spacing: 0.3px;
+}
+.connect-btn::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--purple), var(--cyan), var(--purple));
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0.6;
+}
+.connect-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px var(--purple-glow), 0 0 80px rgba(6,182,212,0.25);
+}
+.connect-btn:active { transform: scale(0.97); }
+.connect-btn:disabled {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-dim);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.connect-btn:disabled::before { display: none; }
+.connect-btn-text { position: relative; z-index: 1; }
+
+.connect-btn-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: -8px;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ===== Quick Action Bar ===== */
+.quick-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.quick-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.quick-badge .badge-icon { flex-shrink: 0; }
+.quick-badge.folder { color: var(--cyan); border-color: rgba(6,182,212,0.2); }
+.quick-badge.status { color: var(--green); border-color: rgba(34,197,94,0.2); }
+
+.quick-spacer { flex: 1; }
+
+.quick-btn {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.quick-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.quick-btn:active { transform: scale(0.93); }
+.quick-btn.danger:hover { background: rgba(239,68,68,0.12); color: var(--red); border-color: rgba(239,68,68,0.3); }
+
+/* ===== Create Folder in Modal ===== */
+.folder-create-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.folder-create-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+.folder-create-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 2px var(--purple-soft);
+}
+.folder-create-input::placeholder { color: var(--text-dim); }
+.folder-create-btn {
+  padding: 8px 14px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.folder-create-btn:hover { box-shadow: var(--shadow-glow-purple); }
+.folder-create-btn:active { transform: scale(0.95); }
+.folder-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.folder-create-error {
+  padding: 0 20px 8px;
+  font-size: 11px;
+  color: var(--red);
+  display: none;
+}
+.folder-create-error.visible { display: block; }
+
+/* ===== Utility ===== */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===== Auth Screen ===== -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">C</div>
+      <div class="auth-title">CorvusTunnel</div>
+      <div class="auth-subtitle">Remote Agent Control</div>
+    </div>
+    <div class="auth-field">
+      <label class="auth-label" for="tokenInput">Bearer Token</label>
+      <input
+        type="password"
+        id="tokenInput"
+        class="auth-input"
+        placeholder="Enter your authentication token"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+    <button class="auth-btn" id="authBtn" onclick="handleAuth()">
+      Connect to Tunnel
+    </button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- ===== Main App ===== -->
+<div class="app" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">C</div>
+      <div class="header-info">
+        <div class="header-title">CorvusTunnel</div>
+        <div class="header-status">
+          <div class="status-dot" id="connectionDot"></div>
+          <span id="connectionText">Connecting...</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" onclick="handleLogout()" title="Logout">&#x23FB;</button>
+    </div>
+  </div>
+
+  <!-- ===== Phase 1: Launcher ===== -->
+  <div class="launcher" id="launcherScreen">
+    <div class="launcher-logo">&#x26A1;</div>
+    <div class="launcher-title">Agy Terminal</div>
+    <div class="launcher-subtitle">Select a project folder and launch your AI coding agent securely.</div>
+
+    <!-- Folder card -->
+    <div class="launcher-folder-card" onclick="openFolderBrowser()" id="folderCard">
+      <div class="launcher-folder-icon">&#x1F4C2;</div>
+      <div class="launcher-folder-text">
+        <div class="launcher-folder-label">Project Folder</div>
+        <div class="launcher-folder-name empty" id="launcherFolderName">No folder selected</div>
+      </div>
+      <div class="launcher-folder-arrow">&#x25B8;</div>
+    </div>
+
+    <!-- Options -->
+    <div class="launcher-options">
+      <label class="launcher-option">
+        <input type="checkbox" id="optAutoApprove">
+        <div class="checkbox-visual">&#x2713;</div>
+        <div class="option-info">
+          <div class="option-label">Auto-approve</div>
+          <div class="option-desc">Skip tool permission prompts</div>
+        </div>
+      </label>
+      <label class="launcher-option">
+        <input type="checkbox" id="optSandbox">
+        <div class="checkbox-visual">&#x2713;</div>
+        <div class="option-info">
+          <div class="option-label">Sandbox</div>
+          <div class="option-desc">Extra safety with terminal restrictions</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Connect Button -->
+    <button class="connect-btn" id="connectBtn" onclick="handleConnect()" disabled>
+      <span class="connect-btn-text" id="connectBtnText">Checking agy...</span>
+    </button>
+    <div class="connect-btn-hint" id="connectHint"></div>
+  </div>
+
+  <!-- ===== Phase 2: Terminal ===== -->
+  <div id="terminalScreen" class="hidden" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+    <!-- Quick Action Bar -->
+    <div class="quick-bar">
+      <div class="quick-badge folder" id="qbFolder">
+        <span class="badge-icon">&#x1F4C1;</span>
+        <span id="qbFolderName">—</span>
+      </div>
+      <div class="quick-badge status" id="qbStatus">
+        <span class="badge-icon">&#x25CF;</span>
+        <span id="qbStatusText">Connected</span>
+      </div>
+      <div class="quick-spacer"></div>
+      <select class="term-font-select" id="termFontSize" onchange="setTermFontSize(this.value)">
+        <option value="12">12px</option>
+        <option value="14" selected>14px</option>
+        <option value="16">16px</option>
+        <option value="18">18px</option>
+      </select>
+      <button class="quick-btn" onclick="clearTerminal()" title="Clear scrollback">&#x1F5D1; Clear</button>
+      <button class="quick-btn danger" onclick="exitSession()" title="Exit agy and return to launcher">&#x23FB; Exit</button>
+    </div>
+    <!-- Terminal -->
+    <div id="terminalContainer"></div>
+    <!-- Virtual Keypad -->
+    <div class="virtual-keypad" id="virtualKeypad">
+      <button class="vk-btn" onclick="sendVK('\t')" title="Tab">Tab</button>
+      <button class="vk-btn" onclick="sendVK('\x1b')" title="Escape">Esc</button>
+      <button class="vk-btn" onclick="sendVK('\x03')" title="Ctrl+C">^C</button>
+      <div class="vk-separator"></div>
+      <button class="vk-btn" id="vkCtrl" onclick="toggleVK('ctrl')" title="Ctrl modifier">Ctrl</button>
+      <button class="vk-btn" id="vkAlt" onclick="toggleVK('alt')" title="Alt modifier">Alt</button>
+      <div class="vk-separator"></div>
+      <button class="vk-btn" onclick="sendVK('\x1b[A')" title="Up">&uarr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[B')" title="Down">&darr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[D')" title="Left">&larr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[C')" title="Right">&rarr;</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== Folder Browser Modal ===== -->
+<div class="folder-modal" id="folderModal">
+  <div class="folder-panel">
+    <div class="folder-header">
+      <span class="folder-header-title">&#x1F4C2; Select Folder</span>
+      <button class="folder-close" onclick="closeFolderBrowser()">&times;</button>
+    </div>
+    <div class="folder-path" id="folderPath">Loading...</div>
+    <div class="folder-create-row" id="folderCreateRow">
+      <input type="text" class="folder-create-input" id="newFolderInput" placeholder="New folder name..." spellcheck="false">
+      <button class="folder-create-btn" id="newFolderBtn" onclick="createNewFolder()">Create</button>
+    </div>
+    <div class="folder-create-error" id="folderCreateError"></div>
+    <div class="folder-list" id="folderList"></div>
+    <div class="folder-actions">
+      <button class="folder-cancel-btn" onclick="closeFolderBrowser()">Cancel</button>
+      <button class="folder-select-btn" id="folderSelectBtn" onclick="selectFolder()">Select This Folder</button>
+    </div>
+  </div>
+</div>
+
+<input type="hidden" id="workDirInput" value="">
+
+<script>
+/* ==========================================================================
+   CorvusTunnel — Secure Agy Launcher
+   ========================================================================== */
+
+/* ---------- state ---------- */
+const STATE = {
+  token: localStorage.getItem('corvus_token') || '',
+  connected: false,
+  healthTimer: null,
+  agyAvailable: false,
+  phase: 'launcher', // 'launcher' | 'terminal'
+};
+
+/* ---------- DOM refs ---------- */
+const $ = id => document.getElementById(id);
+const connDot  = $('connectionDot');
+const connText = $('connectionText');
+
+/* ==========================================================================
+   Auth
+   ========================================================================== */
+function handleAuth() {
+  const t = $('tokenInput').value.trim();
+  if (!t) { showAuthErr('Please enter a valid token.'); return; }
+  STATE.token = t;
+  localStorage.setItem('corvus_token', t);
+  bootApp();
+}
+
+function handleLogout() {
+  STATE.token = '';
+  localStorage.removeItem('corvus_token');
+  clearInterval(STATE.healthTimer);
+  if (TERMINAL.ws) { TERMINAL.ws.close(); TERMINAL.ws = null; }
+  if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); }
+  clearTimeout(TERMINAL.reconnectTimer);
+  $('app').classList.remove('active');
+  $('authScreen').style.display = 'flex';
+  $('tokenInput').value = '';
+  $('authError').classList.remove('visible');
+  showPhase('launcher');
+}
+
+function showAuthErr(msg) {
+  const e = $('authError');
+  e.textContent = msg;
+  e.classList.add('visible');
+}
+
+function bootApp() {
+  $('authScreen').style.display = 'none';
+  $('app').classList.add('active');
+  startHealth();
+  checkAgyAvailability();
+
+  // Restore saved folder
+  const wd = $('workDirInput').value.trim();
+  updateLauncherFolder(wd);
+
+  showPhase('launcher');
+}
+
+/* ==========================================================================
+   Phase Management
+   ========================================================================== */
+function showPhase(phase) {
+  STATE.phase = phase;
+  if (phase === 'launcher') {
+    $('launcherScreen').classList.remove('hidden');
+    $('launcherScreen').style.display = '';
+    $('terminalScreen').classList.add('hidden');
+    $('terminalScreen').style.display = 'none';
+    updateConnectButton();
+    releaseWakeLock();
+  } else {
+    $('launcherScreen').classList.add('hidden');
+    $('launcherScreen').style.display = 'none';
+    $('terminalScreen').classList.remove('hidden');
+    $('terminalScreen').style.display = 'flex';
+    if (TERMINAL.fitAddon) {
+      setTimeout(function() { TERMINAL.fitAddon.fit(); sendResize(); }, 100);
+    }
+    acquireWakeLock();
+  }
+}
+
+/* ── Screen Wake Lock ─────────────────────────────────────────────── */
+var _wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return; // Unsupported browser
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', function() { _wakeLock = null; });
+    console.log('[wakelock] Screen wake lock acquired');
+  } catch (e) {
+    console.warn('[wakelock] Failed to acquire:', e.message);
+  }
+}
+
+function releaseWakeLock() {
+  if (_wakeLock) {
+    _wakeLock.release();
+    _wakeLock = null;
+    console.log('[wakelock] Screen wake lock released');
+  }
+}
+
+// Re-acquire wake lock when page becomes visible again (e.g. tab switch)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && STATE.phase === 'terminal') {
+    acquireWakeLock();
+  }
+});
+
+/* ==========================================================================
+   Launcher
+   ========================================================================== */
+function updateLauncherFolder(path) {
+  const nameEl = $('launcherFolderName');
+  if (path) {
+    // Show last segment as name
+    var name = path.split('\\').pop() || path.split('/').pop() || path;
+    nameEl.textContent = name;
+    nameEl.classList.remove('empty');
+    nameEl.title = path;
+  } else {
+    nameEl.textContent = 'No folder selected';
+    nameEl.classList.add('empty');
+    nameEl.title = '';
+  }
+  updateConnectButton();
+}
+
+async function checkAgyAvailability() {
+  try {
+    var r = await api('/api/check-agy');
+    var data = await r.json();
+    STATE.agyAvailable = data.available;
+  } catch (e) {
+    STATE.agyAvailable = false;
+  }
+  updateConnectButton();
+}
+
+function updateConnectButton() {
+  var btn = $('connectBtn');
+  var text = $('connectBtnText');
+  var hint = $('connectHint');
+  var hasFolder = !!$('workDirInput').value.trim();
+
+  if (!STATE.agyAvailable) {
+    btn.disabled = true;
+    text.textContent = 'agy not available';
+    hint.textContent = 'Install agy first to use this terminal';
+  } else if (!hasFolder) {
+    btn.disabled = true;
+    text.textContent = 'Select a folder first';
+    hint.textContent = 'Choose a project directory to get started';
+  } else {
+    btn.disabled = false;
+    text.textContent = '\u26A1 Connect Agy Terminal';
+    hint.textContent = '';
+  }
+}
+
+function handleConnect() {
+  var wd = $('workDirInput').value.trim();
+  if (!wd || !STATE.agyAvailable) return;
+
+  // Init terminal if needed
+  if (!TERMINAL.initialized) {
+    initTerminal();
+    TERMINAL.initialized = true;
+  }
+
+  // Update quick bar
+  var name = wd.split('\\').pop() || wd.split('/').pop() || wd;
+  $('qbFolderName').textContent = name;
+  $('qbFolderName').title = wd;
+
+  showPhase('terminal');
+
+  // Build flags
+  var flags = [];
+  if ($('optAutoApprove').checked) flags.push('--dangerously-skip-permissions');
+  if ($('optSandbox').checked) flags.push('--sandbox');
+
+  connectTerminalWS(wd, flags);
+}
+
+/* ==========================================================================
+   Health
+   ========================================================================== */
+function startHealth() {
+  checkHealth();
+  STATE.healthTimer = setInterval(checkHealth, 15000);
+}
+
+async function checkHealth() {
+  try {
+    const r = await fetch('/health', { signal: AbortSignal.timeout(5000) });
+    setConn(r.ok);
+  } catch { setConn(false); }
+}
+
+function setConn(ok) {
+  STATE.connected = ok;
+  connDot.className = 'status-dot ' + (ok ? 'connected' : 'disconnected');
+  connText.textContent = ok ? 'Connected' : 'Disconnected';
+}
+
+/* ==========================================================================
+   API helper
+   ========================================================================== */
+function authHdr() {
+  return { Authorization: 'Bearer ' + STATE.token, 'Content-Type': 'application/json' };
+}
+
+async function api(url, opts) {
+  opts = opts || {};
+  const r = await fetch(url, {
+    ...opts,
+    headers: { ...authHdr(), ...(opts.headers || {}) },
+    signal: opts.signal || AbortSignal.timeout(30000),
+  });
+  if (r.status === 401 || r.status === 403) {
+    handleLogout();
+    showAuthErr('Session expired. Please re-authenticate.');
+    throw new Error('Unauthorized');
+  }
+  return r;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* ==========================================================================
+   WebSocket Terminal Controller
+   ========================================================================== */
+
+const TERMINAL = {
+  ws: null,
+  term: null,
+  fitAddon: null,
+  ctrlActive: false,
+  altActive: false,
+  pingInterval: null,
+  reconnectTimer: null,
+  reconnectAttempt: 0,
+  maxReconnect: 10,
+  initialized: false,
+  userExited: false,
+};
+
+function initTerminal() {
+  const term = new Terminal({
+    cursorBlink: true,
+    cursorStyle: 'bar',
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    theme: {
+      background: '#0a0a0f',
+      foreground: '#f1f5f9',
+      cursor: '#8b5cf6',
+      cursorAccent: '#0a0a0f',
+      selectionBackground: 'rgba(139, 92, 246, 0.35)',
+      black: '#1a1a2e',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#eab308',
+      blue: '#3b82f6',
+      magenta: '#8b5cf6',
+      cyan: '#06b6d4',
+      white: '#f1f5f9',
+      brightBlack: '#64748b',
+      brightRed: '#f87171',
+      brightGreen: '#4ade80',
+      brightYellow: '#fde047',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#a78bfa',
+      brightCyan: '#22d3ee',
+      brightWhite: '#ffffff',
+    },
+    scrollback: 5000,
+    allowProposedApi: true,
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  term.loadAddon(fitAddon);
+  term.open($('terminalContainer'));
+  fitAddon.fit();
+
+  term.onData(function(data) {
+    if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+
+    if (TERMINAL.ctrlActive && data.length === 1) {
+      const code = data.toUpperCase().charCodeAt(0);
+      if (code >= 64 && code <= 95) {
+        data = String.fromCharCode(code - 64);
+      }
+      TERMINAL.ctrlActive = false;
+      $('vkCtrl').classList.remove('active');
+    }
+    if (TERMINAL.altActive && data.length === 1) {
+      data = '\x1b' + data;
+      TERMINAL.altActive = false;
+      $('vkAlt').classList.remove('active');
+    }
+
+    TERMINAL.ws.send(JSON.stringify({ type: 'input', data: data }));
+  });
+
+  TERMINAL.term = term;
+  TERMINAL.fitAddon = fitAddon;
+
+  function onResize() {
+    if (!TERMINAL.fitAddon || STATE.phase !== 'terminal') return;
+    TERMINAL.fitAddon.fit();
+    sendResize();
+  }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', function() { setTimeout(onResize, 200); });
+}
+
+function connectTerminalWS(workDir, flags) {
+  if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+    TERMINAL.ws.close();
+  }
+
+  TERMINAL.userExited = false;
+  clearTimeout(TERMINAL.reconnectTimer);
+  if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  var url = proto + '://' + location.host + '/api/terminal/ws'
+    + '?token=' + encodeURIComponent(STATE.token)
+    + '&work_dir=' + encodeURIComponent(workDir);
+  if (flags && flags.length > 0) {
+    url += '&flags=' + encodeURIComponent(flags.join(','));
+  }
+
+  setQBStatus('connecting');
+  if (TERMINAL.term) {
+    TERMINAL.term.writeln('\r\n\x1b[33mConnecting to ' + workDir + '...\x1b[0m\r\n');
+  }
+
+  const ws = new WebSocket(url);
+  TERMINAL.ws = ws;
+
+  ws.onopen = function() {
+    TERMINAL.reconnectAttempt = 0;
+    setQBStatus('connected');
+    sendResize();
+    TERMINAL.pingInterval = setInterval(function() {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 15000);
+  };
+
+  ws.onmessage = function(ev) {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'output' || msg.type === 'replay') {
+        if (TERMINAL.term && msg.data) TERMINAL.term.write(msg.data);
+      } else if (msg.type === 'exited') {
+        setQBStatus('exited');
+        if (TERMINAL.term) {
+          TERMINAL.term.writeln('\r\n\x1b[31m[agy exited with code ' + (msg.code ?? '?') + ']\x1b[0m');
+        }
+        // Auto-return to launcher after exit
+        setTimeout(function() { backToLauncher(); }, 2000);
+      }
+    } catch (e) {
+      console.warn('[terminal] parse error', e);
+    }
+  };
+
+  ws.onclose = function() {
+    if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
+    setQBStatus('disconnected');
+
+    // Don't auto-reconnect if user explicitly exited
+    if (TERMINAL.userExited) return;
+
+    if (TERMINAL.reconnectAttempt < TERMINAL.maxReconnect) {
+      const delay = Math.min(1000 * Math.pow(2, TERMINAL.reconnectAttempt), 30000);
+      TERMINAL.reconnectAttempt++;
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[33mDisconnected. Reconnecting in ' + (delay/1000) + 's... (attempt ' + TERMINAL.reconnectAttempt + ')\x1b[0m');
+      }
+      TERMINAL.reconnectTimer = setTimeout(function() {
+        const wd = $('workDirInput').value.trim();
+        if (wd) connectTerminalWS(wd, []);
+      }, delay);
+    } else {
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[31mMax reconnection attempts reached.\x1b[0m');
+      }
+      setTimeout(function() { backToLauncher(); }, 2000);
+    }
+  };
+
+  ws.onerror = function() {};
+}
+
+/* ── Quick Action Bar ───────────────────────────────────────────────── */
+function setQBStatus(state) {
+  var statusEl = $('qbStatus');
+  var textEl = $('qbStatusText');
+  if (state === 'connected') {
+    statusEl.classList.remove('disconnected');
+    statusEl.classList.add('status');
+    statusEl.style.borderColor = 'rgba(34,197,94,0.2)';
+    statusEl.style.color = 'var(--green)';
+    textEl.textContent = 'Connected';
+  } else if (state === 'connecting') {
+    statusEl.style.borderColor = 'rgba(234,179,8,0.2)';
+    statusEl.style.color = 'var(--yellow)';
+    textEl.textContent = 'Connecting...';
+  } else if (state === 'disconnected') {
+    statusEl.style.borderColor = 'rgba(239,68,68,0.2)';
+    statusEl.style.color = 'var(--red)';
+    textEl.textContent = 'Disconnected';
+  } else if (state === 'exited') {
+    statusEl.style.borderColor = 'rgba(239,68,68,0.2)';
+    statusEl.style.color = 'var(--red)';
+    textEl.textContent = 'Exited';
+  }
+}
+
+function clearTerminal() {
+  if (TERMINAL.term) TERMINAL.term.clear();
+}
+
+function exitSession() {
+  TERMINAL.userExited = true;
+  clearTimeout(TERMINAL.reconnectTimer);
+  if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+    // Send exit to agy
+    TERMINAL.ws.send(JSON.stringify({ type: 'input', data: 'exit\r\n' }));
+    setTimeout(function() {
+      if (TERMINAL.ws) { TERMINAL.ws.close(); TERMINAL.ws = null; }
+      backToLauncher();
+    }, 500);
+  } else {
+    backToLauncher();
+  }
+}
+
+function backToLauncher() {
+  if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
+  clearTimeout(TERMINAL.reconnectTimer);
+  // Clear terminal for fresh start next time
+  if (TERMINAL.term) TERMINAL.term.clear();
+  showPhase('launcher');
+}
+
+function sendResize() {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN || !TERMINAL.term) return;
+  TERMINAL.ws.send(JSON.stringify({
+    type: 'resize',
+    cols: TERMINAL.term.cols,
+    rows: TERMINAL.term.rows,
+  }));
+}
+
+function setTermFontSize(size) {
+  if (TERMINAL.term) {
+    TERMINAL.term.options.fontSize = parseInt(size, 10);
+    if (TERMINAL.fitAddon) TERMINAL.fitAddon.fit();
+    sendResize();
+  }
+}
+
+function sendVK(seq) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: seq }));
+  if (TERMINAL.term) TERMINAL.term.focus();
+}
+
+function toggleVK(which) {
+  if (which === 'ctrl') {
+    TERMINAL.ctrlActive = !TERMINAL.ctrlActive;
+    $('vkCtrl').classList.toggle('active', TERMINAL.ctrlActive);
+    TERMINAL.altActive = false;
+    $('vkAlt').classList.remove('active');
+  } else {
+    TERMINAL.altActive = !TERMINAL.altActive;
+    $('vkAlt').classList.toggle('active', TERMINAL.altActive);
+    TERMINAL.ctrlActive = false;
+    $('vkCtrl').classList.remove('active');
+  }
+  if (TERMINAL.term) TERMINAL.term.focus();
+}
+
+/* ==========================================================================
+   Folder Browser
+   ========================================================================== */
+var _folderCurrent = '';
+
+function openFolderBrowser() {
+  $('folderModal').classList.add('active');
+  $('newFolderInput').value = '';
+  $('folderCreateError').classList.remove('visible');
+  var current = $('workDirInput').value.trim();
+  loadFolder(current || null);
+}
+
+function closeFolderBrowser() {
+  $('folderModal').classList.remove('active');
+}
+
+async function loadFolder(path) {
+  var list = $('folderList');
+  var pathEl = $('folderPath');
+  var selectBtn = $('folderSelectBtn');
+  var createRow = $('folderCreateRow');
+  list.innerHTML = '<div class="folder-loading">Loading</div>';
+  pathEl.textContent = 'Loading...';
+
+  try {
+    var url = (path !== null && path !== '') ? '/api/browse?path=' + encodeURIComponent(path) : '/api/browse';
+    var r = await api(url);
+    if (!r.ok) {
+      var e = await r.json().catch(function() { return {}; });
+      throw new Error(e.detail || 'Failed to browse');
+    }
+    var data = await r.json();
+    _folderCurrent = data.current;
+    pathEl.textContent = data.current;
+
+    // Show/hide select button and create row based on depth
+    var isRoot = (data.parent === null);
+    selectBtn.style.display = isRoot ? 'none' : '';
+    createRow.style.display = isRoot ? 'none' : '';
+
+    list.innerHTML = '';
+
+    if (data.parent !== null && data.parent !== undefined) {
+      var up = document.createElement('button');
+      up.className = 'folder-item up-dir';
+      up.innerHTML = '<span class="folder-item-icon">\u2B06\uFE0F</span> ..';
+      up.onclick = function() { loadFolder(data.parent || null); };
+      list.appendChild(up);
+    }
+
+    if (data.directories.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'folder-empty';
+      empty.textContent = isRoot ? 'No projects configured in ALLOWED_DIRS' : 'Empty folder';
+      list.appendChild(empty);
+      return;
+    }
+
+    data.directories.forEach(function(dir) {
+      var item = document.createElement('button');
+      item.className = 'folder-item';
+      item.innerHTML = '<span class="folder-item-icon">\uD83D\uDCC1</span> ' + escapeHtml(dir.name);
+      item.onclick = function() { loadFolder(dir.path); };
+      list.appendChild(item);
+    });
+  } catch (err) {
+    list.innerHTML = '<div class="folder-empty">\u26A0 ' + escapeHtml(err.message) + '</div>';
+    pathEl.textContent = 'Error';
+  }
+}
+
+function selectFolder() {
+  if (_folderCurrent && _folderCurrent !== 'Projects') {
+    $('workDirInput').value = _folderCurrent;
+    localStorage.setItem('corvus_workdir', _folderCurrent);
+    updateLauncherFolder(_folderCurrent);
+    closeFolderBrowser();
+    return;
+  }
+  closeFolderBrowser();
+}
+
+/* ── Create New Folder ──────────────────────────────────────────────── */
+async function createNewFolder() {
+  var name = $('newFolderInput').value.trim();
+  var errEl = $('folderCreateError');
+  errEl.classList.remove('visible');
+
+  if (!name) {
+    errEl.textContent = 'Please enter a folder name';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  if (!_folderCurrent || _folderCurrent === 'Projects') {
+    errEl.textContent = 'Navigate into a directory first';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  $('newFolderBtn').disabled = true;
+
+  try {
+    var r = await api('/api/browse/mkdir', {
+      method: 'POST',
+      body: JSON.stringify({ parent: _folderCurrent, name: name }),
+    });
+    if (!r.ok) {
+      var e = await r.json().catch(function() { return {}; });
+      throw new Error(e.detail || 'Failed to create folder');
+    }
+    // Success — reload current folder to show new dir
+    $('newFolderInput').value = '';
+    loadFolder(_folderCurrent);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('visible');
+  } finally {
+    $('newFolderBtn').disabled = false;
+  }
+}
+
+/* ==========================================================================
+   Boot
+   ========================================================================== */
+document.addEventListener('DOMContentLoaded', function() {
+  var saved = localStorage.getItem('corvus_workdir');
+  if (saved) $('workDirInput').value = saved;
+
+  if (STATE.token) bootApp();
+
+  $('tokenInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleAuth(); });
+
+  $('folderModal').addEventListener('click', function(e) {
+    if (e.target === this) closeFolderBrowser();
+  });
+
+  $('newFolderInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') createNewFolder();
+  });
+});
+</script>
+
+</body>
+</html>
