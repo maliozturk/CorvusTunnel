@@ -1269,7 +1269,8 @@ body {
         <option value="16">16px</option>
         <option value="18">18px</option>
       </select>
-      <button class="quick-btn" onclick="clearTerminal()" title="Clear scrollback">&#x1F5D1; Clear</button>
+      <button class="quick-btn" onclick="sendAgyCommand('/model')" title="Change model">&#x1F916; Model</button>
+      <button class="quick-btn" onclick="sendAgyCommand('/clear')" title="Clear terminal">&#x1F5D1; Clear</button>
       <button class="quick-btn danger" onclick="exitSession()" title="Exit agy and return to launcher">&#x23FB; Exit</button>
     </div>
     <!-- Terminal -->
@@ -1755,16 +1756,27 @@ function clearTerminal() {
   if (TERMINAL.term) TERMINAL.term.clear();
 }
 
+function sendAgyCommand(cmd) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
+  if (TERMINAL.term) TERMINAL.term.focus();
+}
+
 function exitSession() {
   TERMINAL.userExited = true;
   clearTimeout(TERMINAL.reconnectTimer);
   if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
-    // Send exit to agy
-    TERMINAL.ws.send(JSON.stringify({ type: 'input', data: 'exit\r\n' }));
+    // Interrupt anything running, then exit agy
+    TERMINAL.ws.send(JSON.stringify({ type: 'input', data: '\x03' }));
     setTimeout(function() {
-      if (TERMINAL.ws) { TERMINAL.ws.close(); TERMINAL.ws = null; }
-      backToLauncher();
-    }, 500);
+      if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+        TERMINAL.ws.send(JSON.stringify({ type: 'input', data: '/exit\r\n' }));
+      }
+      setTimeout(function() {
+        if (TERMINAL.ws) { TERMINAL.ws.close(); TERMINAL.ws = null; }
+        backToLauncher();
+      }, 500);
+    }, 200);
   } else {
     backToLauncher();
   }
@@ -1773,8 +1785,9 @@ function exitSession() {
 function backToLauncher() {
   if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
   clearTimeout(TERMINAL.reconnectTimer);
-  // Clear terminal for fresh start next time
+  // Reset terminal so next connect starts fresh
   if (TERMINAL.term) TERMINAL.term.clear();
+  TERMINAL.reconnectAttempt = 0;
   showPhase('launcher');
 }
 
