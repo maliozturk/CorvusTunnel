@@ -5,6 +5,13 @@ Serves:
 - /api/* — Public REST API (authenticated)
 - /       — Terminal UI (static HTML)
 - /health — Health check (no auth)
+
+Security middleware chain (order matters):
+1. IP Ban check (cheapest — rejects banned IPs immediately)
+2. Body size limits (reject oversized payloads before parsing)
+3. Security headers (added to every response)
+4. CORS (restricted — no credentials)
+5. Rate limiting (slowapi)
 """
 
 from __future__ import annotations
@@ -12,7 +19,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -24,19 +31,61 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="CorvusTunnel",
     description="Remote Agent Control System",
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/docs",
     redoc_url=None,
 )
 
-# ── CORS (allow all for Cloudflare Quick Tunnel random domains) ──────
+
+# ── 1. Security Headers ─────────────────────────────────────────────
+from middleware.security_headers import add_security_headers
+add_security_headers(app)
+
+
+# ── 2. CORS (no credentials — Bearer tokens don't need them) ────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,     # Fixed: was True (dangerous with *)
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+
+
+# ── 3. Rate Limiting ────────────────────────────────────────────────
+from middleware.rate_limit import setup_rate_limiting
+setup_rate_limiting(app)
+
+
+# ── 4. IP Ban Middleware ─────────────────────────────────────────────
+from middleware.ip_ban import add_ip_ban_middleware
+add_ip_ban_middleware(app)
+
+
+# ── 5. Request Body Size Limits ──────────────────────────────────────
+MAX_BODY_SIZES = {
+    "/api/claim": 1024,          # 1 KB
+    "/api/browse/mkdir": 1024,   # 1 KB
+    "/api/ws-ticket": 512,       # 512 B
+}
+DEFAULT_MAX_BODY = 4096          # 4 KB
+
+
+@app.middleware("http")
+async def body_size_limiter(request: Request, call_next):
+    """Reject oversized request bodies before parsing."""
+    content_length = request.headers.get("content-length")
+    if content_length:
+        size = int(content_length)
+        max_size = MAX_BODY_SIZES.get(request.url.path, DEFAULT_MAX_BODY)
+        if size > max_size:
+            return Response(
+                content='{"detail":"Payload too large"}',
+                status_code=413,
+                media_type="application/json",
+            )
+    return await call_next(request)
+
 
 # ── Mount API router ─────────────────────────────────────────────────
 app.include_router(public_router)

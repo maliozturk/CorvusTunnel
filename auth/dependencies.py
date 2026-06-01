@@ -15,17 +15,28 @@ from audit.logger import get_audit_logger
 async def require_public_auth(request: Request) -> None:
     """
     Dependency: Require valid Bearer token for public endpoints.
-    
+
     In Quick Tunnel mode (no Cloudflare Access), Bearer token is the
     primary auth layer. When Access is enabled, both JWT and Bearer
     are validated.
+
+    The real client IP is extracted from ``X-Forwarded-For`` (first
+    entry) when available, falling back to ``request.client.host``.
+    This IP is forwarded to :func:`verify_bearer_token` so that
+    IP-binding checks are enforced.
     """
     from audit.deep_logger import get_deep_logger
 
     authorization = request.headers.get("Authorization", "")
-    client_ip = request.client.host if request.client else "unknown"
 
-    if not verify_bearer_token(authorization):
+    # Prefer X-Forwarded-For for the real client IP behind a proxy
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        client_ip = forwarded_for.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else "unknown"
+
+    if not verify_bearer_token(authorization, client_ip=client_ip):
         # Log failed auth attempt
         logger = get_audit_logger()
         logger.log(

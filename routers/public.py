@@ -3,6 +3,13 @@ CorvusTunnel Public API Router.
 
 Exposed through Cloudflare Tunnel on port 8000.
 All endpoints (except /health) require Bearer token authentication.
+
+Security features:
+- Rate limiting on all endpoints (slowapi)
+- WebSocket ticket system (one-time, 30s expiry)
+- IP auto-ban on repeated auth failures
+- WebSocket connection limits per IP
+- WebSocket input throttling (anti-flood)
 """
 
 from __future__ import annotations
@@ -12,12 +19,14 @@ import json
 import shutil
 import time
 import logging
+from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from auth.dependencies import require_public_auth
 from audit.logger import get_audit_logger
+from middleware.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +34,11 @@ router = APIRouter(prefix="/api")
 
 # ── Startup time for uptime calculation ──────────────────────────────
 _start_time = time.time()
+
+# ── WebSocket connection tracking (per IP) ───────────────────────────
+_ws_connections: dict[str, int] = defaultdict(int)
+_ws_lock = asyncio.Lock()
+MAX_WS_PER_IP = 3
 
 
 # ── Response models ──────────────────────────────────────────────────
@@ -36,17 +50,19 @@ class HealthResponse(BaseModel):
 
 # ── Health (no auth) ─────────────────────────────────────────────────
 @router.get("/health", response_model=HealthResponse)
-async def health():
+@limiter.limit("30/minute")
+async def health(request: Request):
     """Health check endpoint (no authentication required)."""
     return HealthResponse(
         status="ok",
-        version="0.2.0",
+        version="0.3.0",
         uptime_seconds=round(time.time() - _start_time, 1),
     )
 
 
 # ── Claim boot token (no auth — boot token IS the auth) ─────────────
 @router.post("/claim")
+@limiter.limit("5/minute")
 async def claim_token(request: Request):
     """Exchange the one-time boot token for a session token.
 
@@ -55,9 +71,11 @@ async def claim_token(request: Request):
     """
     from auth.bearer import get_token_manager
     from audit.deep_logger import get_deep_logger
+    from middleware.ip_ban import get_ban_tracker
 
     deep = get_deep_logger()
-    client_ip = request.client.host if request.client else "unknown"
+    ban_tracker = get_ban_tracker()
+    client_ip = _get_client_ip(request)
 
     try:
         body = await request.json()
@@ -69,9 +87,11 @@ async def claim_token(request: Request):
         raise HTTPException(400, "token is required")
 
     manager = get_token_manager()
-    session_token = manager.claim_boot_token(boot_token)
+    session_token = manager.claim_boot_token(boot_token, client_ip=client_ip)
 
     if session_token is None:
+        # Record failure for IP ban tracking
+        ban_tracker.record_failure(client_ip)
         deep.log(
             "claim_rejected", category="auth",
             client_ip=client_ip,
@@ -89,6 +109,7 @@ async def claim_token(request: Request):
 
 # ── Browse directories (folder picker) ───────────────────────────────
 @router.get("/browse", dependencies=[Depends(require_public_auth)])
+@limiter.limit("60/minute")
 async def browse_directory(request: Request, path: str = Query(default=None)):
     """List subdirectories for the folder picker UI.
 
@@ -100,7 +121,7 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
 
     from audit.deep_logger import get_deep_logger
     deep = get_deep_logger()
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
 
     settings = get_settings()
     roots = [P(d).resolve() for d in settings.allowed_dir_list]
@@ -157,9 +178,10 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
     return {"current": str(target), "parent": parent, "directories": dirs}
 
 
-# ── Check agy availability ───────────────────────────────────────────
+# ── Check agent availability ─────────────────────────────────────────
 @router.get("/check-agents", dependencies=[Depends(require_public_auth)])
-async def check_agents():
+@limiter.limit("20/minute")
+async def check_agents(request: Request):
     """Check which AI agents are available on the system PATH."""
     agy_path = shutil.which("agy")
     codex_path = shutil.which("codex")
@@ -175,6 +197,7 @@ async def check_agents():
 
 # ── Create new directory ─────────────────────────────────────────────
 @router.post("/browse/mkdir", dependencies=[Depends(require_public_auth)])
+@limiter.limit("10/minute")
 async def create_directory(request: Request):
     """Create a new subdirectory within an allowed directory."""
     from pathlib import Path as P
@@ -193,7 +216,7 @@ async def create_directory(request: Request):
     if not re.match(r'^[a-zA-Z0-9_\-. ]+$', name):
         raise HTTPException(
             400,
-            "Invalid folder name \u2014 only letters, numbers, dashes, "
+            "Invalid folder name — only letters, numbers, dashes, "
             "underscores, dots, and spaces allowed",
         )
 
@@ -223,8 +246,8 @@ async def create_directory(request: Request):
 
     try:
         new_dir.mkdir(parents=False, exist_ok=False)
-    except Exception as e:
-        raise HTTPException(500, f"Failed to create directory: {e}")
+    except Exception:
+        raise HTTPException(500, "Failed to create directory")
 
     deep = get_deep_logger()
     deep.log(
@@ -233,6 +256,27 @@ async def create_directory(request: Request):
     )
 
     return {"created": True, "path": str(new_dir)}
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  WebSocket Ticket System
+# ══════════════════════════════════════════════════════════════════════
+
+@router.post("/ws-ticket", dependencies=[Depends(require_public_auth)])
+@limiter.limit("10/minute")
+async def create_ws_ticket(request: Request):
+    """Issue a one-time WebSocket connection ticket.
+
+    The ticket is valid for 30 seconds and can only be used once.
+    This replaces passing the session token in the WebSocket URL.
+    """
+    from auth.bearer import get_token_manager
+
+    client_ip = _get_client_ip(request)
+    manager = get_token_manager()
+    ticket = manager.create_ws_ticket(client_ip)
+
+    return {"ticket": ticket}
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -256,9 +300,22 @@ def _validate_work_dir(work_dir: str) -> bool:
     )
 
 
+def _get_client_ip(request) -> str:
+    """Extract client IP, preferring X-Forwarded-For (set by Cloudflare)."""
+    forwarded = None
+    if hasattr(request, 'headers'):
+        forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    if hasattr(request, 'client') and request.client:
+        return request.client.host
+    return "unknown"
+
+
 # ── Terminal status (used by client to check before reconnecting) ────
 @router.get("/terminal/status", dependencies=[Depends(require_public_auth)])
-async def terminal_status():
+@limiter.limit("30/minute")
+async def terminal_status(request: Request):
     """Check if the terminal process is still alive."""
     from executor.term_session import get_terminal_session
     session = get_terminal_session()
@@ -271,7 +328,7 @@ async def terminal_status():
 @router.websocket("/terminal/ws")
 async def terminal_ws(
     websocket: WebSocket,
-    token: str = Query(""),
+    ticket: str = Query(""),
     work_dir: str = Query(""),
     flags: str = Query(""),
     agent: str = Query("agy"),
@@ -279,9 +336,9 @@ async def terminal_ws(
     """WebSocket endpoint for interactive terminal sessions.
 
     Provides a full-duplex connection between the browser and
-    a pexpect PTY running an AI agent (agy or codex) on the server.
+    a pexpect PTY running an AI agent (agy, codex, or claude).
 
-    Auth is via query-param token (WebSocket upgrade can't set headers).
+    Auth is via one-time ticket (obtained from POST /api/ws-ticket).
     All I/O is forensically logged.
 
     Client messages:
@@ -296,152 +353,216 @@ async def terminal_ws(
         {"type": "pong"}                            → keep-alive reply
         {"type": "error",  "message": "..."}        → error
     """
-    from auth.bearer import verify_bearer_token
+    from auth.bearer import get_token_manager
     from executor.term_session import get_terminal_session
     from audit.deep_logger import get_deep_logger
+    from middleware.ip_ban import get_ban_tracker
 
     deep = get_deep_logger()
+    ban_tracker = get_ban_tracker()
 
-    # ── Auth ──────────────────────────────────────────────────────
-    if not verify_bearer_token(f"Bearer {token}"):
+    # ── Extract client IP ─────────────────────────────────────────
+    client_ip = "unknown"
+    forwarded = websocket.headers.get("x-forwarded-for")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+    elif websocket.client:
+        client_ip = websocket.client.host
+
+    # ── Check IP ban ──────────────────────────────────────────────
+    if ban_tracker.is_banned(client_ip):
+        await websocket.close(code=4403, reason="Temporarily banned")
+        return
+
+    # ── Auth via ticket ───────────────────────────────────────────
+    manager = get_token_manager()
+    if not ticket or not manager.consume_ws_ticket(ticket, client_ip):
+        ban_tracker.record_failure(client_ip)
         deep.log(
             "terminal_ws_auth_fail", category="terminal",
-            reason="Invalid token",
+            reason="Invalid or expired ticket",
+            client_ip=client_ip,
         )
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
-    # ── Validate work_dir ─────────────────────────────────────────
-    if not work_dir:
-        await websocket.close(code=4003, reason="work_dir is required")
-        return
-
-    if not _validate_work_dir(work_dir):
-        deep.log(
-            "terminal_ws_blocked", category="terminal",
-            work_dir=work_dir, reason="Not in ALLOWED_DIRS",
-        )
-        await websocket.close(code=4003, reason="work_dir not allowed")
-        return
-
-    # ── Validate agent ────────────────────────────────────────────
-    ALLOWED_AGENTS = {"agy", "codex", "claude"}
-    if agent not in ALLOWED_AGENTS:
-        await websocket.close(code=4003, reason=f"Unknown agent: {agent}")
-        return
-    if not shutil.which(agent):
-        await websocket.close(code=4003, reason=f"{agent} not found on PATH")
-        return
-
-    # ── Accept ────────────────────────────────────────────────────
-    await websocket.accept()
-    logger.info("Terminal WebSocket connected (agent=%s, work_dir=%s)", agent, work_dir)
-    deep.log(
-        "terminal_ws_connected", category="terminal",
-        work_dir=work_dir,
-    )
-
-    # ── Session ───────────────────────────────────────────────────
-    session = get_terminal_session()
-
-    # If session is alive but for a different work_dir, restart it
-    if session.is_alive and session.work_dir != work_dir:
-        logger.info(
-            "Switching terminal work_dir: %s → %s",
-            session.work_dir, work_dir,
-        )
-        session.stop()
-
-    # Start session if not alive
-    if not session.is_alive:
-        # Parse flags from comma-separated string
-        flag_list = [f.strip() for f in flags.split(",") if f.strip()] if flags else None
-        # Security: only allow known safe flags
-        ALLOWED_FLAGS = {"--dangerously-skip-permissions"}
-        if flag_list:
-            flag_list = [f for f in flag_list if f in ALLOWED_FLAGS]
-        session.start(work_dir, command=agent, flags=flag_list if flag_list else None)
-
-    # Subscribe to output
-    queue, replay_text = session.subscribe()
+    # ── Connection limit per IP ───────────────────────────────────
+    async with _ws_lock:
+        if _ws_connections[client_ip] >= MAX_WS_PER_IP:
+            await websocket.close(code=4429, reason="Too many connections")
+            return
+        _ws_connections[client_ip] += 1
 
     try:
-        # Send replay buffer for reconnect catch-up
-        if replay_text:
-            await websocket.send_json({"type": "replay", "data": replay_text})
+        # ── Validate work_dir ─────────────────────────────────────
+        if not work_dir:
+            await websocket.close(code=4003, reason="work_dir is required")
+            return
 
-        # ── Concurrent read/write loops ───────────────────────────
+        if not _validate_work_dir(work_dir):
+            deep.log(
+                "terminal_ws_blocked", category="terminal",
+                work_dir=work_dir, reason="Not in ALLOWED_DIRS",
+            )
+            await websocket.close(code=4003, reason="work_dir not allowed")
+            return
 
-        async def ws_to_pty():
-            """Read messages from WebSocket, forward to PTY."""
-            while True:
-                try:
-                    raw = await websocket.receive_text()
-                except WebSocketDisconnect:
-                    return
+        # ── Validate agent ────────────────────────────────────────
+        ALLOWED_AGENTS = {"agy", "codex", "claude"}
+        if agent not in ALLOWED_AGENTS:
+            await websocket.close(code=4003, reason=f"Unknown agent: {agent}")
+            return
+        if not shutil.which(agent):
+            await websocket.close(code=4003, reason=f"{agent} not found on PATH")
+            return
 
-                try:
-                    msg = json.loads(raw)
-                except (json.JSONDecodeError, TypeError):
-                    continue
-
-                msg_type = msg.get("type", "")
-
-                if msg_type == "input":
-                    data = msg.get("data", "")
-                    if data and session.is_alive:
-                        session.send_input(data)
-
-                elif msg_type == "resize":
-                    cols = msg.get("cols", 120)
-                    rows = msg.get("rows", 30)
-                    if session.is_alive:
-                        session.resize(int(cols), int(rows))
-
-                elif msg_type == "ping":
-                    await websocket.send_json({"type": "pong"})
-
-        async def pty_to_ws():
-            """Read output from PTY queue, forward to WebSocket."""
-            while True:
-                try:
-                    msg = await queue.get()
-                except asyncio.CancelledError:
-                    return
-
-                try:
-                    await websocket.send_json(msg)
-                except Exception:
-                    return
-
-                # If process exited, we're done
-                if msg.get("type") == "exited":
-                    return
-
-        # Run both loops; when either finishes, cancel the other
-        done, pending = await asyncio.wait(
-            [asyncio.create_task(ws_to_pty()),
-             asyncio.create_task(pty_to_ws())],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
-        for task in pending:
-            task.cancel()
-            try:
-                await task
-            except asyncio.CancelledError:
-                pass
-
-    except WebSocketDisconnect:
-        pass
-    except Exception as e:
-        logger.error("Terminal WebSocket error: %s", e, exc_info=True)
-        deep.error(
-            "terminal_ws_error", error=str(e), work_dir=work_dir,
-        )
-    finally:
-        session.unsubscribe(queue)
+        # ── Accept ────────────────────────────────────────────────
+        await websocket.accept()
+        logger.info("Terminal WebSocket connected (agent=%s, work_dir=%s, ip=%s)", agent, work_dir, client_ip)
         deep.log(
-            "terminal_ws_disconnected", category="terminal",
-            work_dir=work_dir,
+            "terminal_ws_connected", category="terminal",
+            work_dir=work_dir, client_ip=client_ip,
         )
-        logger.info("Terminal WebSocket disconnected")
+
+        # ── Session ───────────────────────────────────────────────
+        session = get_terminal_session()
+
+        # If session is alive but for a different work_dir, restart it
+        if session.is_alive and session.work_dir != work_dir:
+            logger.info(
+                "Switching terminal work_dir: %s → %s",
+                session.work_dir, work_dir,
+            )
+            session.stop()
+
+        # Start session if not alive
+        if not session.is_alive:
+            # Parse flags from comma-separated string
+            flag_list = [f.strip() for f in flags.split(",") if f.strip()] if flags else None
+            # Security: only allow known safe flags
+            ALLOWED_FLAGS = {"--dangerously-skip-permissions"}
+            if flag_list:
+                flag_list = [f for f in flag_list if f in ALLOWED_FLAGS]
+            session.start(work_dir, command=agent, flags=flag_list if flag_list else None)
+
+        # Subscribe to output
+        queue, replay_text = session.subscribe()
+
+        try:
+            # Send replay buffer for reconnect catch-up
+            if replay_text:
+                await websocket.send_json({"type": "replay", "data": replay_text})
+
+            # ── Concurrent read/write loops ───────────────────────
+
+            # Input throttling state (token bucket)
+            _input_tokens = 100.0       # current tokens
+            _input_max = 100.0          # max burst
+            _input_rate = 100.0         # tokens/second refill
+            _input_last = time.monotonic()
+            _input_flood_count = 0      # sustained abuse counter
+            _input_flood_window = time.monotonic()
+
+            async def ws_to_pty():
+                """Read messages from WebSocket, forward to PTY."""
+                nonlocal _input_tokens, _input_last, _input_flood_count, _input_flood_window
+
+                while True:
+                    try:
+                        raw = await websocket.receive_text()
+                    except WebSocketDisconnect:
+                        return
+
+                    try:
+                        msg = json.loads(raw)
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+
+                    msg_type = msg.get("type", "")
+
+                    if msg_type == "input":
+                        # ── Input throttling ──────────────────────
+                        now = time.monotonic()
+                        elapsed = now - _input_last
+                        _input_tokens = min(_input_max, _input_tokens + elapsed * _input_rate)
+                        _input_last = now
+
+                        if _input_tokens < 1.0:
+                            # Rate exceeded — track for sustained abuse
+                            _input_flood_count += 1
+                            if now - _input_flood_window > 5.0:
+                                _input_flood_window = now
+                                _input_flood_count = 1
+
+                            if _input_flood_count > 500:
+                                # Sustained abuse — disconnect
+                                logger.warning("WS input flood from %s — disconnecting", client_ip)
+                                await websocket.close(code=4429, reason="Input rate exceeded")
+                                return
+                            continue  # silently drop this message
+
+                        _input_tokens -= 1.0
+                        data = msg.get("data", "")
+                        if data and session.is_alive:
+                            session.send_input(data)
+
+                    elif msg_type == "resize":
+                        cols = msg.get("cols", 120)
+                        rows = msg.get("rows", 30)
+                        if session.is_alive:
+                            session.resize(int(cols), int(rows))
+
+                    elif msg_type == "ping":
+                        await websocket.send_json({"type": "pong"})
+
+            async def pty_to_ws():
+                """Read output from PTY queue, forward to WebSocket."""
+                while True:
+                    try:
+                        msg = await queue.get()
+                    except asyncio.CancelledError:
+                        return
+
+                    try:
+                        await websocket.send_json(msg)
+                    except Exception:
+                        return
+
+                    # If process exited, we're done
+                    if msg.get("type") == "exited":
+                        return
+
+            # Run both loops; when either finishes, cancel the other
+            done, pending = await asyncio.wait(
+                [asyncio.create_task(ws_to_pty()),
+                 asyncio.create_task(pty_to_ws())],
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+            for task in pending:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        except WebSocketDisconnect:
+            pass
+        except Exception as e:
+            logger.error("Terminal WebSocket error: %s", e, exc_info=True)
+            deep.error(
+                "terminal_ws_error", error=str(e), work_dir=work_dir,
+            )
+        finally:
+            session.unsubscribe(queue)
+            deep.log(
+                "terminal_ws_disconnected", category="terminal",
+                work_dir=work_dir,
+            )
+            logger.info("Terminal WebSocket disconnected")
+
+    finally:
+        # ── Decrement connection counter ──────────────────────────
+        async with _ws_lock:
+            _ws_connections[client_ip] = max(0, _ws_connections[client_ip] - 1)
+            if _ws_connections[client_ip] == 0:
+                del _ws_connections[client_ip]

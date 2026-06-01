@@ -1837,22 +1837,27 @@ function connectTerminalWS(workDir, flags) {
   clearTimeout(TERMINAL.reconnectTimer);
   if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
 
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  var url = proto + '://' + location.host + '/api/terminal/ws'
-    + '?token=' + encodeURIComponent(STATE.token)
-    + '&work_dir=' + encodeURIComponent(workDir)
-    + '&agent=' + encodeURIComponent(STATE.selectedAgent);
-  if (flags && flags.length > 0) {
-    url += '&flags=' + encodeURIComponent(flags.join(','));
-  }
-
   setQBStatus('connecting');
   if (TERMINAL.term) {
     TERMINAL.term.writeln('\r\n\x1b[33mConnecting to ' + workDir + '...\x1b[0m\r\n');
   }
 
-  const ws = new WebSocket(url);
-  TERMINAL.ws = ws;
+  // Step 1: Get a one-time WS ticket (replaces token-in-URL)
+  api('/api/ws-ticket', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var ticket = data.ticket;
+      var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      var url = proto + '://' + location.host + '/api/terminal/ws'
+        + '?ticket=' + encodeURIComponent(ticket)
+        + '&work_dir=' + encodeURIComponent(workDir)
+        + '&agent=' + encodeURIComponent(STATE.selectedAgent);
+      if (flags && flags.length > 0) {
+        url += '&flags=' + encodeURIComponent(flags.join(','));
+      }
+
+      var ws = new WebSocket(url);
+      TERMINAL.ws = ws;
 
   ws.onopen = function() {
     TERMINAL.reconnectAttempt = 0;
@@ -1944,6 +1949,15 @@ function connectTerminalWS(workDir, flags) {
   };
 
   ws.onerror = function() {};
+
+    }) // end .then(ticket)
+    .catch(function(err) {
+      console.error('[terminal] Failed to get WS ticket:', err);
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[31m[Failed to authenticate — try refreshing]\x1b[0m');
+      }
+      setQBStatus('disconnected');
+    });
 }
 
 /* ── Quick Action Bar ───────────────────────────────────────────────── */

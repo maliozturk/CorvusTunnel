@@ -6,3 +6,4 @@ pydantic>=2.0
 pydantic-settings>=2.0
 pexpect>=4.9.0
 qrcode>=7.4.0
+slowapi>=0.1.9
