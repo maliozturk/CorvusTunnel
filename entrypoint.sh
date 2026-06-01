@@ -8,6 +8,11 @@ mkdir -p /workspace
 export AGENT_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(48))")
 export ALLOWED_DIRS="${ALLOWED_DIRS:-/workspace}"
 
+# 2. Validate license (if key is set)
+if [ -n "$CORVUS_LICENSE_KEY" ]; then
+    python -c "from licensing.validator import validate_or_exit; validate_or_exit()" || exit 1
+fi
+
 # 2. Start cloudflared Quick Tunnel in background
 cloudflared tunnel --url http://localhost:8000 --no-autoupdate 2>/tmp/cloudflared.log &
 TUNNEL_PID=$!

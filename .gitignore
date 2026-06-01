@@ -30,3 +30,7 @@ Thumbs.db
 # Cloudflare
 *.json
 !package.json
+
+# Licensing keys (NEVER commit)
+licensing/.keys/
+*.key

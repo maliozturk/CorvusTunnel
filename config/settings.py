@@ -28,6 +28,13 @@ class Settings(BaseSettings):
         description="Bearer token for API authentication",
     )
 
+    # ── Licensing ─────────────────────────────────────────────────────
+    corvus_license_key: str = Field(
+        default="",
+        description="License key for commercial deployments (JWT). "
+                    "Empty = development mode (no restrictions).",
+    )
+
     # ── Server ────────────────────────────────────────────────────────
     public_port: int = Field(default=8000, ge=1024, le=65535)
     internal_port: int = Field(default=8001, ge=1024, le=65535)
