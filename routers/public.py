@@ -158,12 +158,19 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
 
 
 # ── Check agy availability ───────────────────────────────────────────
-@router.get("/check-agy", dependencies=[Depends(require_public_auth)])
-async def check_agy():
-    """Check if agy is available on the system PATH."""
+@router.get("/check-agents", dependencies=[Depends(require_public_auth)])
+async def check_agents():
+    """Check which AI agents are available on the system PATH."""
     agy_path = shutil.which("agy")
-    available = agy_path is not None
-    return {"available": available, "path": agy_path}
+    codex_path = shutil.which("codex")
+    claude_path = shutil.which("claude")
+    return {
+        "agents": [
+            {"name": "agy", "available": agy_path is not None, "path": agy_path},
+            {"name": "codex", "available": codex_path is not None, "path": codex_path},
+            {"name": "claude", "available": claude_path is not None, "path": claude_path},
+        ]
+    }
 
 
 # ── Create new directory ─────────────────────────────────────────────
@@ -249,17 +256,30 @@ def _validate_work_dir(work_dir: str) -> bool:
     )
 
 
+# ── Terminal status (used by client to check before reconnecting) ────
+@router.get("/terminal/status", dependencies=[Depends(require_public_auth)])
+async def terminal_status():
+    """Check if the terminal process is still alive."""
+    from executor.term_session import get_terminal_session
+    session = get_terminal_session()
+    return {
+        "alive": session.is_alive,
+        "work_dir": session.work_dir if session.is_alive else None,
+    }
+
+
 @router.websocket("/terminal/ws")
 async def terminal_ws(
     websocket: WebSocket,
     token: str = Query(""),
     work_dir: str = Query(""),
     flags: str = Query(""),
+    agent: str = Query("agy"),
 ):
     """WebSocket endpoint for interactive terminal sessions.
 
     Provides a full-duplex connection between the browser and
-    a pexpect PTY running agy on the server.
+    a pexpect PTY running an AI agent (agy or codex) on the server.
 
     Auth is via query-param token (WebSocket upgrade can't set headers).
     All I/O is forensically logged.
@@ -304,9 +324,18 @@ async def terminal_ws(
         await websocket.close(code=4003, reason="work_dir not allowed")
         return
 
+    # ── Validate agent ────────────────────────────────────────────
+    ALLOWED_AGENTS = {"agy", "codex", "claude"}
+    if agent not in ALLOWED_AGENTS:
+        await websocket.close(code=4003, reason=f"Unknown agent: {agent}")
+        return
+    if not shutil.which(agent):
+        await websocket.close(code=4003, reason=f"{agent} not found on PATH")
+        return
+
     # ── Accept ────────────────────────────────────────────────────
     await websocket.accept()
-    logger.info("Terminal WebSocket connected (work_dir=%s)", work_dir)
+    logger.info("Terminal WebSocket connected (agent=%s, work_dir=%s)", agent, work_dir)
     deep.log(
         "terminal_ws_connected", category="terminal",
         work_dir=work_dir,
@@ -331,7 +360,7 @@ async def terminal_ws(
         ALLOWED_FLAGS = {"--dangerously-skip-permissions"}
         if flag_list:
             flag_list = [f for f in flag_list if f in ALLOWED_FLAGS]
-        session.start(work_dir, flags=flag_list if flag_list else None)
+        session.start(work_dir, command=agent, flags=flag_list if flag_list else None)
 
     # Subscribe to output
     queue, replay_text = session.subscribe()

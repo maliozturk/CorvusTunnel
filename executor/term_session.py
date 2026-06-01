@@ -78,7 +78,8 @@ class TerminalSession:
 
     # ── Lifecycle ─────────────────────────────────────────────────────
 
-    def start(self, work_dir: str, cols: int = 120, rows: int = 30, flags: list[str] | None = None) -> None:
+    def start(self, work_dir: str, cols: int = 120, rows: int = 30,
+              command: str = "agy", flags: list[str] | None = None) -> None:
         """Start a new terminal session in work_dir."""
         if self.is_alive:
             self.stop()
@@ -99,7 +100,7 @@ class TerminalSession:
 
         # Build command args
         args = list(flags) if flags else []
-        cmd = "agy"
+        cmd = command
 
         logger.info(
             "Starting terminal session in %s (%dx%d) cmd=%s args=%s",

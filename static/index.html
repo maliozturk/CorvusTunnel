@@ -830,10 +830,21 @@ body {
   transform: translateX(-50%) scale(0.96);
 }
 .url-toast .toast-dismiss {
-  margin-left: 12px;
-  opacity: 0.7;
-  font-size: 18px;
-  vertical-align: middle;
+  margin-left: 16px;
+  opacity: 0.8;
+  font-size: 20px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.url-toast .toast-dismiss:active {
+  background: rgba(255,255,255,0.3);
+  transform: scale(0.9);
 }
 @keyframes toastSlide {
   from { top: -60px; opacity: 0; }
@@ -997,6 +1008,39 @@ body {
 }
 .launcher-folder-name.empty { color: var(--text-dim); font-style: italic; }
 .launcher-folder-arrow { color: var(--text-dim); font-size: 14px; }
+
+/* Agent Selector */
+.agent-selector {
+  display: flex;
+  gap: 8px;
+}
+.agent-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+}
+.agent-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.agent-btn.selected {
+  border-color: var(--primary);
+  background: rgba(99,102,241,0.15);
+  color: var(--text-primary);
+  box-shadow: 0 0 16px rgba(99,102,241,0.2);
+}
+.agent-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 
 /* Checkboxes */
 .launcher-options {
@@ -1269,8 +1313,8 @@ body {
   <!-- ===== Phase 1: Launcher ===== -->
   <div class="launcher" id="launcherScreen">
     <div class="launcher-logo">&#x26A1;</div>
-    <div class="launcher-title">Agy Terminal</div>
-    <div class="launcher-subtitle">Select a project folder and launch your AI coding agent securely.</div>
+    <div class="launcher-title">CorvusTunnel</div>
+    <div class="launcher-subtitle">Select an agent, pick a folder, and launch your AI coding session.</div>
 
     <!-- Folder card -->
     <div class="launcher-folder-card" onclick="openFolderBrowser()" id="folderCard">
@@ -1280,6 +1324,14 @@ body {
         <div class="launcher-folder-name empty" id="launcherFolderName">No folder selected</div>
       </div>
       <div class="launcher-folder-arrow">&#x25B8;</div>
+    </div>
+
+    <!-- Agent Selector -->
+    <div class="launcher-options" style="margin-bottom: 8px;">
+      <div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px; font-weight:600;">Agent</div>
+      <div class="agent-selector" id="agentSelector">
+        <!-- Populated dynamically by checkAgentAvailability() -->
+      </div>
     </div>
 
     <!-- Options -->
@@ -1383,8 +1435,9 @@ const STATE = {
   token: localStorage.getItem('corvus_token') || '',
   connected: false,
   healthTimer: null,
-  agyAvailable: false,
-  phase: 'launcher', // 'launcher' | 'terminal'
+  agents: [],       // [{name, available}]
+  selectedAgent: localStorage.getItem('corvus_agent') || 'agy',
+  phase: 'launcher',
 };
 
 /* ---------- DOM refs ---------- */
@@ -1455,7 +1508,7 @@ function bootApp() {
   $('authScreen').style.display = 'none';
   $('app').classList.add('active');
   startHealth();
-  checkAgyAvailability();
+  checkAgentAvailability();
 
   // Restore saved folder
   const wd = $('workDirInput').value.trim();
@@ -1536,13 +1589,47 @@ function updateLauncherFolder(path) {
   updateConnectButton();
 }
 
-async function checkAgyAvailability() {
+async function checkAgentAvailability() {
   try {
-    var r = await api('/api/check-agy');
+    var r = await api('/api/check-agents');
     var data = await r.json();
-    STATE.agyAvailable = data.available;
+    STATE.agents = data.agents;
+
+    // Build agent selector buttons
+    var container = $('agentSelector');
+    container.innerHTML = '';
+    data.agents.forEach(function(agent) {
+      var btn = document.createElement('button');
+      btn.className = 'agent-btn' + (agent.name === STATE.selectedAgent ? ' selected' : '');
+      btn.disabled = !agent.available;
+      btn.textContent = agent.name;
+      btn.title = agent.available ? agent.path : 'Not installed';
+      btn.onclick = function() {
+        if (!agent.available) return;
+        STATE.selectedAgent = agent.name;
+        localStorage.setItem('corvus_agent', agent.name);
+        // Update button styles
+        container.querySelectorAll('.agent-btn').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        updateConnectButton();
+      };
+      container.appendChild(btn);
+    });
+
+    // If selected agent is unavailable, auto-select first available
+    var selectedAvailable = data.agents.some(function(a) { return a.name === STATE.selectedAgent && a.available; });
+    if (!selectedAvailable) {
+      var first = data.agents.find(function(a) { return a.available; });
+      if (first) {
+        STATE.selectedAgent = first.name;
+        localStorage.setItem('corvus_agent', first.name);
+        container.querySelectorAll('.agent-btn').forEach(function(b) {
+          b.classList.toggle('selected', b.textContent === first.name);
+        });
+      }
+    }
   } catch (e) {
-    STATE.agyAvailable = false;
+    STATE.agents = [];
   }
   updateConnectButton();
 }
@@ -1553,24 +1640,27 @@ function updateConnectButton() {
   var hint = $('connectHint');
   var hasFolder = !!$('workDirInput').value.trim();
 
-  if (!STATE.agyAvailable) {
+  var hasAgent = STATE.agents.some(function(a) { return a.name === STATE.selectedAgent && a.available; });
+
+  if (!hasAgent) {
     btn.disabled = true;
-    text.textContent = 'agy not available';
-    hint.textContent = 'Install agy first to use this terminal';
+    text.textContent = STATE.selectedAgent + ' not available';
+    hint.textContent = 'Selected agent is not installed in the container';
   } else if (!hasFolder) {
     btn.disabled = true;
     text.textContent = 'Select a folder first';
     hint.textContent = 'Choose a project directory to get started';
   } else {
     btn.disabled = false;
-    text.textContent = '\u26A1 Connect Agy Terminal';
+    text.textContent = '\u26A1 Connect ' + STATE.selectedAgent;
     hint.textContent = '';
   }
 }
 
 function handleConnect() {
   var wd = $('workDirInput').value.trim();
-  if (!wd || !STATE.agyAvailable) return;
+  var hasAgent = STATE.agents.some(function(a) { return a.name === STATE.selectedAgent && a.available; });
+  if (!wd || !hasAgent) return;
 
   // Init terminal if needed
   if (!TERMINAL.initialized) {
@@ -1737,13 +1827,21 @@ function connectTerminalWS(workDir, flags) {
   }
 
   TERMINAL.userExited = false;
+  TERMINAL.processExited = false;
+
+  // Clear URL detection state from previous session
+  _urlBuf = '';
+  _lastShownLen = 0;
+  _autoScrollSent = false;
+  hideUrlToast();
   clearTimeout(TERMINAL.reconnectTimer);
   if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
 
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   var url = proto + '://' + location.host + '/api/terminal/ws'
     + '?token=' + encodeURIComponent(STATE.token)
-    + '&work_dir=' + encodeURIComponent(workDir);
+    + '&work_dir=' + encodeURIComponent(workDir)
+    + '&agent=' + encodeURIComponent(STATE.selectedAgent);
   if (flags && flags.length > 0) {
     url += '&flags=' + encodeURIComponent(flags.join(','));
   }
@@ -1776,9 +1874,10 @@ function connectTerminalWS(workDir, flags) {
           detectUrl(msg.data);
         }
       } else if (msg.type === 'exited') {
+        TERMINAL.processExited = true; // prevent reconnect loop
         setQBStatus('exited');
         if (TERMINAL.term) {
-          TERMINAL.term.writeln('\r\n\x1b[31m[agy exited with code ' + (msg.code ?? '?') + ']\x1b[0m');
+          TERMINAL.term.writeln('\r\n\x1b[31m[' + STATE.selectedAgent + ' exited with code ' + (msg.code ?? '?') + ']\x1b[0m');
         }
         // Auto-return to launcher after exit
         setTimeout(function() { backToLauncher(); }, 2000);
@@ -1788,23 +1887,54 @@ function connectTerminalWS(workDir, flags) {
     }
   };
 
-  ws.onclose = function() {
+  ws.onclose = function(ev) {
     if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
     setQBStatus('disconnected');
 
-    // Don't auto-reconnect if user explicitly exited
-    if (TERMINAL.userExited) return;
+    // Don't auto-reconnect if user explicitly exited or process exited naturally
+    if (TERMINAL.userExited || TERMINAL.processExited) return;
+
+    // Normal close (1000) or process-exited close (4100) = don't reconnect
+    if (ev.code === 1000 || ev.code === 4100) {
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[31m[Session ended]\x1b[0m');
+      }
+      setTimeout(function() { backToLauncher(); }, 2000);
+      return;
+    }
 
     if (TERMINAL.reconnectAttempt < TERMINAL.maxReconnect) {
-      const delay = Math.min(1000 * Math.pow(2, TERMINAL.reconnectAttempt), 30000);
+      var delay = Math.min(2000 * Math.pow(2, TERMINAL.reconnectAttempt), 30000);
       TERMINAL.reconnectAttempt++;
-      if (TERMINAL.term) {
-        TERMINAL.term.writeln('\r\n\x1b[33mDisconnected. Reconnecting in ' + (delay/1000) + 's... (attempt ' + TERMINAL.reconnectAttempt + ')\x1b[0m');
-      }
-      TERMINAL.reconnectTimer = setTimeout(function() {
-        const wd = $('workDirInput').value.trim();
-        if (wd) connectTerminalWS(wd, []);
-      }, delay);
+
+      // Before reconnecting, check if the process is still alive
+      api('/api/terminal/status').then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.alive) {
+          // Process is dead — no point reconnecting
+          if (TERMINAL.term) {
+            TERMINAL.term.writeln('\r\n\x1b[31m[' + STATE.selectedAgent + ' is no longer running]\x1b[0m');
+          }
+          setTimeout(function() { backToLauncher(); }, 2000);
+          return;
+        }
+        // Process still alive — reconnect (likely a network blip)
+        if (TERMINAL.term) {
+          TERMINAL.term.writeln('\r\n\x1b[33mReconnecting in ' + (delay/1000) + 's... (attempt ' + TERMINAL.reconnectAttempt + ')\x1b[0m');
+        }
+        TERMINAL.reconnectTimer = setTimeout(function() {
+          var wd = $('workDirInput').value.trim();
+          if (wd) connectTerminalWS(wd, []);
+        }, delay);
+      }).catch(function() {
+        // Can't reach server at all — try reconnecting anyway
+        if (TERMINAL.term) {
+          TERMINAL.term.writeln('\r\n\x1b[33mReconnecting in ' + (delay/1000) + 's... (attempt ' + TERMINAL.reconnectAttempt + ')\x1b[0m');
+        }
+        TERMINAL.reconnectTimer = setTimeout(function() {
+          var wd = $('workDirInput').value.trim();
+          if (wd) connectTerminalWS(wd, []);
+        }, delay);
+      });
     } else {
       if (TERMINAL.term) {
         TERMINAL.term.writeln('\r\n\x1b[31mMax reconnection attempts reached.\x1b[0m');

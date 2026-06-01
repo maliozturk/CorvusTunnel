@@ -7,4 +7,8 @@ services:
       - "8001:8001"
     volumes:
       - ./projects:/workspace
+      - corvus_home:/home/corvus   # persists agent auth tokens across restarts
     restart: unless-stopped
+
+volumes:
+  corvus_home:
