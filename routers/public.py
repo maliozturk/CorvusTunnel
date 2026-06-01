@@ -479,7 +479,7 @@ async def terminal_ws(
         # Parse flags from comma-separated string
         flag_list = [f.strip() for f in flags.split(",") if f.strip()] if flags else None
         # Security: only allow known safe flags
-        ALLOWED_FLAGS = {"--dangerously-skip-permissions", "--sandbox"}
+        ALLOWED_FLAGS = {"--dangerously-skip-permissions"}
         if flag_list:
             flag_list = [f for f in flag_list if f in ALLOWED_FLAGS]
         session.start(work_dir, flags=flag_list if flag_list else None)

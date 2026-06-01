@@ -864,6 +864,28 @@ body {
   margin: 0 2px;
 }
 
+.vk-btn.enter {
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  color: white;
+  border-color: var(--purple);
+  min-width: 52px;
+  font-weight: 600;
+}
+.vk-btn.enter:hover {
+  box-shadow: 0 0 10px var(--purple-glow);
+}
+
+.vk-btn.kbd-toggle {
+  background: rgba(6,182,212,0.12);
+  border-color: rgba(6,182,212,0.3);
+  color: var(--cyan);
+}
+.vk-btn.kbd-toggle.active {
+  background: rgba(6,182,212,0.25);
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(6,182,212,0.3);
+}
+
 /* ===== Launcher Screen ===== */
 .launcher {
   flex: 1;
@@ -1233,14 +1255,6 @@ body {
           <div class="option-desc">Skip tool permission prompts</div>
         </div>
       </label>
-      <label class="launcher-option">
-        <input type="checkbox" id="optSandbox">
-        <div class="checkbox-visual">&#x2713;</div>
-        <div class="option-info">
-          <div class="option-label">Sandbox</div>
-          <div class="option-desc">Extra safety with terminal restrictions</div>
-        </div>
-      </label>
     </div>
 
     <!-- Connect Button -->
@@ -1277,6 +1291,8 @@ body {
     <div id="terminalContainer"></div>
     <!-- Virtual Keypad -->
     <div class="virtual-keypad" id="virtualKeypad">
+      <button class="vk-btn enter" onclick="sendVK('\r')" title="Enter">&#x23CE; Enter</button>
+      <div class="vk-separator"></div>
       <button class="vk-btn" onclick="sendVK('\t')" title="Tab">Tab</button>
       <button class="vk-btn" onclick="sendVK('\x1b')" title="Escape">Esc</button>
       <button class="vk-btn" onclick="sendVK('\x03')" title="Ctrl+C">^C</button>
@@ -1288,6 +1304,8 @@ body {
       <button class="vk-btn" onclick="sendVK('\x1b[B')" title="Down">&darr;</button>
       <button class="vk-btn" onclick="sendVK('\x1b[D')" title="Left">&larr;</button>
       <button class="vk-btn" onclick="sendVK('\x1b[C')" title="Right">&rarr;</button>
+      <div class="vk-separator"></div>
+      <button class="vk-btn kbd-toggle" id="vkKbd" onclick="toggleKeyboard()" title="Show/hide keyboard">&#x2328;</button>
     </div>
   </div>
 
@@ -1503,7 +1521,6 @@ function handleConnect() {
   // Build flags
   var flags = [];
   if ($('optAutoApprove').checked) flags.push('--dangerously-skip-permissions');
-  if ($('optSandbox').checked) flags.push('--sandbox');
 
   connectTerminalWS(wd, flags);
 }
@@ -1811,7 +1828,7 @@ function setTermFontSize(size) {
 function sendVK(seq) {
   if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
   TERMINAL.ws.send(JSON.stringify({ type: 'input', data: seq }));
-  if (TERMINAL.term) TERMINAL.term.focus();
+  // Don't focus terminal — prevents mobile keyboard from popping up
 }
 
 function toggleVK(which) {
@@ -1826,7 +1843,21 @@ function toggleVK(which) {
     TERMINAL.ctrlActive = false;
     $('vkCtrl').classList.remove('active');
   }
-  if (TERMINAL.term) TERMINAL.term.focus();
+  // Don't focus terminal — prevents mobile keyboard from popping up
+}
+
+function toggleKeyboard() {
+  if (!TERMINAL.term) return;
+  var textarea = TERMINAL.term.textarea;
+  if (!textarea) return;
+  // Toggle: if textarea is focused, blur it; otherwise focus it
+  if (document.activeElement === textarea) {
+    textarea.blur();
+    $('vkKbd').classList.remove('active');
+  } else {
+    textarea.focus();
+    $('vkKbd').classList.add('active');
+  }
 }
 
 /* ==========================================================================
