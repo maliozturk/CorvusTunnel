@@ -34,3 +34,5 @@ Thumbs.db
 # Licensing keys (NEVER commit)
 licensing/.keys/
 *.key
+
+projects/*
