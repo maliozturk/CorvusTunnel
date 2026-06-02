@@ -105,10 +105,10 @@ async def serve_ui():
 
 # Health check at root level too (for Cloudflare health checks)
 @app.get("/health", include_in_schema=False)
-async def root_health():
+async def root_health(request: Request):
     """Root-level health check (redirects to API health)."""
     from routers.public import health
-    return await health()
+    return await health(request)
 
 
 # ── Mount static assets (vendor JS/CSS) ──────────────────────────────
