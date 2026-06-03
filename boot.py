@@ -9,45 +9,54 @@ import sys
 
 
 def print_qr(data: str, label: str) -> None:
-    """Print a compact ASCII QR code using Unicode half-block characters.
+    """Generate a QR code as PNG image and open it.
 
-    Packs 2 vertical pixels per line using ▀ ▄ █ and space,
-    resulting in QR codes roughly half the height of standard renderers.
+    Saves to ~/.corvustunnel/qr.png and opens with the default image viewer.
+    Also prints the URL as a clickable fallback.
     """
+    import os
+    import webbrowser
+
+    qr_dir = os.path.join(os.path.expanduser("~"), ".corvustunnel")
+    os.makedirs(qr_dir, exist_ok=True)
+    qr_path = os.path.join(qr_dir, "qr.png")
+
     try:
         import qrcode
+        import qrcode.image.pil
+
         qr = qrcode.QRCode(
             version=1,
             error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=1,
-            border=1,
+            box_size=10,
+            border=2,
         )
         qr.add_data(data)
         qr.make(fit=True)
 
-        matrix = qr.get_matrix()
-        rows = len(matrix)
+        img = qr.make_image(fill_color="black", back_color="white")
+        img.save(qr_path)
 
         print(f"  {label}:")
-
-        # Process 2 rows at a time using half-block chars
-        for y in range(0, rows, 2):
-            line = "  "
-            for x in range(len(matrix[0])):
-                top = matrix[y][x]
-                bot = matrix[y + 1][x] if y + 1 < rows else False
-
-                if top and bot:
-                    line += "█"
-                elif top and not bot:
-                    line += "▀"
-                elif not top and bot:
-                    line += "▄"
-                else:
-                    line += " "
-            print(line)
+        print(f"  QR saved to: {qr_path}")
+        print(f"  URL: {data.split('#')[0]}")
         print()
+
+        # Auto-open the QR image
+        try:
+            if sys.platform == "win32":
+                os.startfile(qr_path)
+            elif sys.platform == "darwin":
+                import subprocess
+                subprocess.Popen(["open", qr_path])
+            else:
+                import subprocess
+                subprocess.Popen(["xdg-open", qr_path])
+        except Exception:
+            print(f"  Open the QR image manually: {qr_path}")
+
     except ImportError:
+        # No qrcode library — just print the URL
         print(f"  {label}: {data}")
         print()
 

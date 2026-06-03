@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CorvusTunnel — AI Agent Control with Voice</title>
+    <meta name="description" content="Control Claude, Codex, and Antigravity from your phone. Talk to your AI agents via voice. Free, open source, self-hosted.">
+    <meta name="keywords" content="AI agent, remote control, Claude Code, Codex, Antigravity, voice coding, terminal, mobile, self-hosted">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="CorvusTunnel — Talk to Your Code">
+    <meta property="og:description" content="Control AI coding agents from your phone with voice. Free & open source.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://corvustunnel.com">
+    <meta property="og:image" content="https://corvustunnel.com/og-image.png">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="CorvusTunnel — Talk to Your Code">
+    <meta name="twitter:description" content="Control AI coding agents from your phone with voice.">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪶</text></svg>">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Nav -->
+    <nav id="nav">
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">
+                <span class="nav-logo-icon">🪶</span>
+                <span class="nav-logo-text">CorvusTunnel</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#compare">Compare</a>
+                <a href="#pricing">Pricing</a>
+                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank" rel="noopener" class="nav-github">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                    GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero -->
+    <section id="hero">
+        <div class="hero-bg">
+            <div class="hero-glow hero-glow-1"></div>
+            <div class="hero-glow hero-glow-2"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <span class="badge-dot"></span>
+                Open Source · MIT Licensed
+            </div>
+            <h1 class="hero-title">
+                AI Agent Control<br>
+                <span class="hero-gradient">with Voice</span>
+            </h1>
+            <p class="hero-subtitle">
+                Talk to your AI agents from anywhere. Control Claude, Codex, and Antigravity
+                from your phone — with end-to-end encryption and voice interaction via Telegram.
+            </p>
+            <div class="hero-cta">
+                <div class="hero-install" id="install-box">
+                    <code>pip install corvustunnel</code>
+                    <button class="copy-btn" onclick="copyInstall()" title="Copy">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    </button>
+                </div>
+                <a href="#features" class="hero-btn-secondary">See Features ↓</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat">
+                    <span class="stat-value">3</span>
+                    <span class="stat-label">AI Agents</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <span class="stat-value">E2E</span>
+                    <span class="stat-label">Encrypted</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <span class="stat-value">30s</span>
+                    <span class="stat-label">Setup</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <span class="stat-value">Free</span>
+                    <span class="stat-label">Forever</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works -->
+    <section id="how-it-works" class="section">
+        <div class="container">
+            <h2 class="section-title">Three Steps. Thirty Seconds.</h2>
+            <p class="section-sub">From install to controlling your AI agent remotely.</p>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-icon">⚡</div>
+                    <h3>Install</h3>
+                    <div class="step-code"><code>pip install corvustunnel</code></div>
+                    <p>One command. No Docker needed. Works on Linux, macOS, and WSL.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-icon">📱</div>
+                    <h3>Scan QR</h3>
+                    <div class="step-code"><code>corvustunnel start</code></div>
+                    <p>A QR code appears in your terminal. Scan it with your phone camera.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-icon">🎙️</div>
+                    <h3>Talk</h3>
+                    <div class="step-code"><code>roost.corvustunnel.com/x7Kf9</code></div>
+                    <p>Send prompts, approve changes, and talk to your agent — from anywhere.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section id="features" class="section section-dark">
+        <div class="container">
+            <h2 class="section-title">Everything You Need. Nothing You Don't.</h2>
+            <p class="section-sub">All core features are free and open source.</p>
+            <div class="features-grid">
+                <div class="feature-card feature-highlight">
+                    <div class="feature-icon">🎙️</div>
+                    <h3>Voice Interaction</h3>
+                    <p>Agent sends you voice questions via Telegram. You reply by voice. It just works.</p>
+                    <span class="feature-badge pro">Pro</span>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>E2E Encrypted</h3>
+                    <p>NaCl/libsodium encryption. Your code never leaves your machine unencrypted.</p>
+                    <span class="feature-badge free">Free</span>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>Agent Agnostic</h3>
+                    <p>Claude Code, Codex CLI, and Antigravity. Use any agent — or all three.</p>
+                    <span class="feature-badge free">Free</span>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>QR Connect</h3>
+                    <p>Scan and connect. No URLs to type, no tokens to copy. One-time secure pairing.</p>
+                    <span class="feature-badge free">Free</span>
+                </div>
+                <div class="feature-card feature-highlight">
+                    <div class="feature-icon">🔀</div>
+                    <h3>Multi-Agent Compare</h3>
+                    <p>Run 2 agents on the same prompt. Compare output side by side. Pick the winner.</p>
+                    <span class="feature-badge pro">Pro</span>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📋</div>
+                    <h3>Audit Logging</h3>
+                    <p>Every prompt, every output, every approval — forensically logged in JSONL.</p>
+                    <span class="feature-badge free">Free</span>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h3>Security Hardened</h3>
+                    <p>IP auto-ban, rate limiting, body size limits, CORS, security headers. Defense in depth.</p>
+                    <span class="feature-badge free">Free</span>
+                </div>
+                <div class="feature-card feature-highlight">
+                    <div class="feature-icon">📈</div>
+                    <h3>Agent Dashboard</h3>
+                    <p>Session stats, error rates, usage graphs. Know how your agents perform.</p>
+                    <span class="feature-badge pro">Pro</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Voice Demo Section -->
+    <section id="voice" class="section">
+        <div class="container">
+            <div class="voice-grid">
+                <div class="voice-info">
+                    <h2 class="section-title-left">Talk to Your Code</h2>
+                    <p class="voice-desc">
+                        When your AI agent has a question — like "Should I delete this file?" — it doesn't
+                        just show text on a screen. It <strong>sends you a voice message on Telegram</strong>.
+                    </p>
+                    <p class="voice-desc">
+                        You record a quick reply: <em>"Yes, delete it and also refactor the imports."</em>
+                        Your voice is transcribed locally on your machine. The agent continues working.
+                    </p>
+                    <div class="voice-features">
+                        <div class="voice-feat">
+                            <span>🌍</span> 99 languages (Turkish, English, German, and more)
+                        </div>
+                        <div class="voice-feat">
+                            <span>🔐</span> Voice processed locally — never leaves your machine
+                        </div>
+                        <div class="voice-feat">
+                            <span>⚡</span> Edge TTS + Whisper — fast, free, no API keys
+                        </div>
+                    </div>
+                </div>
+                <div class="voice-demo">
+                    <div class="phone-frame">
+                        <div class="phone-notch"></div>
+                        <div class="phone-screen">
+                            <div class="chat-header">
+                                <span class="chat-avatar">🪶</span>
+                                <span class="chat-name">CorvusTunnel Bot</span>
+                            </div>
+                            <div class="chat-messages">
+                                <div class="chat-msg bot">
+                                    <div class="msg-voice">
+                                        <span class="play-btn">▶</span>
+                                        <div class="waveform">
+                                            <span></span><span></span><span></span><span></span><span></span>
+                                            <span></span><span></span><span></span><span></span><span></span>
+                                            <span></span><span></span><span></span><span></span><span></span>
+                                        </div>
+                                        <span class="msg-duration">0:04</span>
+                                    </div>
+                                    <div class="msg-text-small">Agent wants to modify 3 files. Approve?</div>
+                                </div>
+                                <div class="chat-msg user">
+                                    <div class="msg-voice user-voice">
+                                        <span class="play-btn">▶</span>
+                                        <div class="waveform">
+                                            <span></span><span></span><span></span><span></span><span></span>
+                                            <span></span><span></span><span></span><span></span><span></span>
+                                        </div>
+                                        <span class="msg-duration">0:03</span>
+                                    </div>
+                                    <div class="msg-text-small">Yes, go ahead and approve all.</div>
+                                </div>
+                                <div class="chat-msg bot">
+                                    <div class="msg-bubble">✅ Approved. Agent continuing...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Comparison -->
+    <section id="compare" class="section section-dark">
+        <div class="container">
+            <h2 class="section-title">How We Compare</h2>
+            <p class="section-sub">Feature-for-feature against the alternatives.</p>
+            <div class="table-wrapper">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>SSH</th>
+                            <th>Happy Coder</th>
+                            <th>Claude RC</th>
+                            <th class="highlight-col">CorvusTunnel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Agent-agnostic</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅</td>
+                        </tr>
+                        <tr>
+                            <td>Self-hosted</td>
+                            <td>✅</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅</td>
+                        </tr>
+                        <tr>
+                            <td>QR connect</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                            <td>✅</td>
+                            <td class="highlight-col">✅</td>
+                        </tr>
+                        <tr>
+                            <td>E2E encryption</td>
+                            <td>❌</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅</td>
+                        </tr>
+                        <tr>
+                            <td>Audit logging</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅</td>
+                        </tr>
+                        <tr>
+                            <td>Voice interaction</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅ <small>Pro</small></td>
+                        </tr>
+                        <tr>
+                            <td>Multi-agent compare</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅ <small>Pro</small></td>
+                        </tr>
+                        <tr>
+                            <td>Open source</td>
+                            <td>✅</td>
+                            <td>✅</td>
+                            <td>❌</td>
+                            <td class="highlight-col">✅</td>
+                        </tr>
+                        <tr class="price-row">
+                            <td>Price</td>
+                            <td>Free</td>
+                            <td>Free</td>
+                            <td>$20/mo</td>
+                            <td class="highlight-col"><strong>Free</strong> / $9</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="section">
+        <div class="container">
+            <h2 class="section-title">Simple Pricing</h2>
+            <p class="section-sub">Free forever. Upgrade when you need superpowers.</p>
+            <div class="pricing-grid">
+                <div class="price-card">
+                    <div class="price-name">Free</div>
+                    <div class="price-amount">$0<span>/forever</span></div>
+                    <div class="price-desc">Everything you need to control AI agents remotely.</div>
+                    <ul class="price-features">
+                        <li>✅ Unlimited sessions</li>
+                        <li>✅ Claude + Codex + Antigravity</li>
+                        <li>✅ E2E encryption</li>
+                        <li>✅ QR code connect</li>
+                        <li>✅ Audit logging</li>
+                        <li>✅ Security hardened</li>
+                        <li>✅ Open source (MIT)</li>
+                    </ul>
+                    <a href="#hero" class="price-btn">Get Started</a>
+                </div>
+                <div class="price-card price-card-pro">
+                    <div class="price-popular">Most Popular</div>
+                    <div class="price-name">Pro</div>
+                    <div class="price-amount">$9<span>/month</span></div>
+                    <div class="price-desc">Voice interaction and multi-agent orchestration.</div>
+                    <ul class="price-features">
+                        <li>✅ Everything in Free</li>
+                        <li>🎙️ Telegram voice interaction</li>
+                        <li>🔀 Multi-agent compare</li>
+                        <li>📈 Agent dashboard</li>
+                        <li>🔔 Advanced notifications</li>
+                        <li>⚡ Priority support</li>
+                    </ul>
+                    <a href="https://corvustunnel.lemonsqueezy.com" class="price-btn price-btn-pro">Upgrade to Pro</a>
+                    <div class="price-note">or $89/year (save 18%)</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section id="cta" class="section section-dark">
+        <div class="container cta-container">
+            <h2 class="cta-title">Your roost is waiting.</h2>
+            <p class="cta-sub">Install in 30 seconds. Control your agents from anywhere.</p>
+            <div class="hero-install cta-install" id="install-box-2">
+                <code>pip install corvustunnel</code>
+                <button class="copy-btn" onclick="copyInstall()" title="Copy">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+            </div>
+            <div class="cta-links">
+                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank">GitHub</a>
+                <span>·</span>
+                <a href="https://discord.gg/corvustunnel" target="_blank">Discord</a>
+                <span>·</span>
+                <a href="https://t.me/corvustunnel" target="_blank">Telegram</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <div class="container footer-inner">
+            <div class="footer-left">
+                <span class="nav-logo-icon">🪶</span>
+                <span>CorvusTunnel</span>
+                <span class="footer-copy">© 2026</span>
+            </div>
+            <div class="footer-right">
+                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank">GitHub</a>
+                <a href="/docs">Docs</a>
+                <a href="mailto:hello@corvustunnel.com">Contact</a>
+                <a href="mailto:security@corvustunnel.com">Security</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Copy install command
+        function copyInstall() {
+            navigator.clipboard.writeText('pip install corvustunnel').then(() => {
+                const btns = document.querySelectorAll('.copy-btn');
+                btns.forEach(btn => {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+                    setTimeout(() => {
+                        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+                    }, 2000);
+                });
+            });
+        }
+
+        // Animate waveform bars
+        document.querySelectorAll('.waveform span').forEach((bar, i) => {
+            bar.style.animationDelay = `${i * 0.08}s`;
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Nav background on scroll
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('nav');
+            if (window.scrollY > 50) {
+                nav.classList.add('nav-scrolled');
+            } else {
+                nav.classList.remove('nav-scrolled');
+            }
+        });
+    </script>
+</body>
+</html>

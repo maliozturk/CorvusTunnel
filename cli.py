@@ -67,8 +67,45 @@ def _get_local_ip() -> str:
         return "127.0.0.1"
 
 
+RELAY_API = "https://roost.corvustunnel.com"
+
+
+def _register_relay_session(e2e_key: str = "") -> dict | None:
+    """Register a session with the roost relay server.
+
+    Returns dict with session_id, cli_secret, phone_token, relay_url, ws_url.
+    Returns None on failure.
+    """
+    import urllib.request
+    import json as _json
+
+    logger = logging.getLogger("corvustunnel")
+    logger.info("Registering with relay at %s...", RELAY_API)
+
+    payload = _json.dumps({"server_public_key": e2e_key}).encode("utf-8")
+
+    req = urllib.request.Request(
+        f"{RELAY_API}/api/tunnel/create",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": f"CorvusTunnel/{__version__}",
+        },
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = _json.loads(resp.read().decode("utf-8"))
+            logger.info("Relay session: %s", data.get("relay_url", ""))
+            return data
+    except Exception as e:
+        logger.warning("Relay registration failed: %s", e)
+        return None
+
+
 def _start_cloudflared(public_port: int) -> str | None:
-    """Start cloudflared Quick Tunnel in background.
+    """Start cloudflared Quick Tunnel in background (fallback).
 
     Returns the tunnel URL if successful, None otherwise.
     """
@@ -76,19 +113,18 @@ def _start_cloudflared(public_port: int) -> str | None:
 
     cloudflared_path = shutil.which("cloudflared")
     if not cloudflared_path:
-        logger.info("cloudflared not found — skipping tunnel (using LAN IP)")
+        logger.info("cloudflared not found — skipping tunnel")
         return None
 
-    logger.info("Starting cloudflared tunnel...")
+    logger.info("Starting cloudflared tunnel (fallback)...")
 
-    # Start cloudflared in background
     log_path = os.path.join(
         os.path.expanduser("~"), ".corvustunnel", "cloudflared.log"
     )
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     with open(log_path, "w") as log_file:
-        proc = subprocess.Popen(
+        subprocess.Popen(
             [
                 cloudflared_path, "tunnel",
                 "--url", f"http://localhost:{public_port}",
@@ -98,7 +134,6 @@ def _start_cloudflared(public_port: int) -> str | None:
             stderr=log_file,
         )
 
-    # Wait for tunnel URL (up to 30s)
     tunnel_url = None
     for _ in range(30):
         time.sleep(1)
@@ -125,19 +160,24 @@ def _start_cloudflared(public_port: int) -> str | None:
 def _print_startup_info(
     token: str,
     public_port: int,
+    relay_data: dict | None = None,
     host_url: str | None = None,
 ) -> None:
     """Print startup info with QR code."""
     from boot import print_qr
 
     # Determine the URL for the QR code
-    if host_url:
-        # Use provided host (tunnel or manual --host)
+    if relay_data:
+        # Relay mode: QR points to roost.corvustunnel.com/<session_id>
+        base_url = relay_data["relay_url"]
+        phone_token = relay_data["phone_token"]
+    elif host_url:
         base_url = host_url.rstrip("/")
+        phone_token = token
     else:
-        # Fallback to local network IP
         local_ip = _get_local_ip()
         base_url = f"http://{local_ip}:{public_port}"
+        phone_token = token
 
     # Build E2E fragment
     e2e_key = ""
@@ -149,38 +189,141 @@ def _print_startup_info(
     except Exception:
         pass
 
-    fragment = f"token={token}"
+    fragment = f"token={phone_token}"
     if e2e_key:
         fragment += f"&e2e={e2e_key}"
     qr_data = f"{base_url}#{fragment}"
 
-    W = 54
+    W = 58
     print()
-    print("╔" + "═" * W + "╗")
-    print("║" + "  🚀 CORVUSTUNNEL v" + __version__.ljust(W - 20) + "║")
-    print("║" + "  AI Agent Control with Voice".ljust(W) + "║")
-    print("╠" + "═" * W + "╣")
-    print("║" + f"  Local:  http://localhost:{public_port}".ljust(W) + "║")
-    print("║" + f"  Remote: {base_url}".ljust(W) + "║")
+    print("+" + "=" * W + "+")
+    print("|" + "  CORVUSTUNNEL v" + __version__.ljust(W - 17) + "|")
+    print("|" + "  AI Agent Control with Voice".ljust(W) + "|")
+    print("+" + "=" * W + "+")
+    print("|" + f"  Local:  http://localhost:{public_port}".ljust(W) + "|")
+    if relay_data:
+        print("|" + f"  Roost:  {base_url}".ljust(W) + "|")
+        print("|" + "  Mode:   Relay (roost.corvustunnel.com)".ljust(W) + "|")
+    elif host_url:
+        print("|" + f"  Remote: {host_url}".ljust(W) + "|")
     if e2e_key:
-        print("║" + "  E2E:    🔒 Enabled".ljust(W) + "║")
-    print("╠" + "═" * W + "╣")
-    print("║" + "  Scan QR to connect from your phone:".ljust(W) + "║")
-    print("╚" + "═" * W + "╝")
+        print("|" + "  E2E:    [LOCKED] Enabled".ljust(W) + "|")
+    print("+" + "=" * W + "+")
+    print("|" + "  Scan QR to connect from your phone:".ljust(W) + "|")
+    print("+" + "=" * W + "+")
     print()
 
     print_qr(qr_data, "Connect")
 
-    print("─" * W)
-    print("  Token is one-time-use (consumed on first login)")
-    print("  Restart corvustunnel for a new token")
-    print("─" * W)
+    print("-" * (W + 2))
+    if relay_data:
+        ttl = relay_data.get("ttl_seconds", 1800)
+        print(f"  Session expires in {int(ttl // 60)} minutes")
+        print("  Restart corvustunnel for a new session")
+    else:
+        print("  Token is one-time-use (consumed on first login)")
+        print("  Restart corvustunnel for a new token")
+    print("-" * (W + 2))
     print()
     sys.stdout.flush()
 
 
-async def _run_server(public_port: int, internal_port: int) -> None:
-    """Run both public and internal servers concurrently."""
+async def _relay_bridge(relay_data: dict, public_port: int) -> None:
+    """Maintain WebSocket bridge between relay and local server.
+
+    Connects to the relay's WS endpoint, authenticates with cli_secret,
+    then pipes messages between the relay and the local FastAPI server.
+    """
+    import json as _json
+
+    logger = logging.getLogger("corvustunnel")
+
+    try:
+        import websockets
+    except ImportError:
+        logger.error(
+            "websockets package required for relay mode. "
+            "Install with: pip install websockets"
+        )
+        return
+
+    ws_url = relay_data["ws_url"]
+    cli_secret = relay_data["cli_secret"]
+
+    async def bridge():
+        async with websockets.connect(ws_url) as ws:
+            # Authenticate with relay
+            await ws.send(_json.dumps({
+                "type": "auth",
+                "token": cli_secret,
+            }))
+
+            auth_response = await ws.recv()
+            auth_msg = _json.loads(auth_response)
+
+            if auth_msg.get("type") != "auth_ok":
+                logger.error("Relay auth failed: %s", auth_msg)
+                return
+
+            logger.info("Relay bridge connected and authenticated")
+
+            # Listen for messages from relay (phone → CLI)
+            async for message in ws:
+                try:
+                    msg = _json.loads(message)
+                except Exception:
+                    continue
+
+                msg_type = msg.get("type", "")
+
+                if msg_type == "phone_connected":
+                    logger.info("📱 Phone connected via relay")
+                elif msg_type == "phone_disconnected":
+                    logger.info("📱 Phone disconnected")
+                elif msg_type == "input":
+                    # Forward phone input to local server
+                    prompt = msg.get("data", "")
+                    if prompt:
+                        logger.info("📱 Phone prompt: %s", prompt[:80])
+                        # Forward to local terminal via internal API
+                        try:
+                            import httpx
+                            async with httpx.AsyncClient() as client:
+                                await client.post(
+                                    f"http://localhost:{public_port}/api/prompt",
+                                    json={"prompt": prompt},
+                                    headers={"Authorization": f"Bearer {os.environ.get('AGENT_TOKEN', '')}"},
+                                    timeout=5,
+                                )
+                        except Exception as e:
+                            logger.warning("Failed to forward prompt: %s", e)
+                            await ws.send(_json.dumps({
+                                "type": "output",
+                                "data": f"\n[Error forwarding prompt: {e}]\n",
+                            }))
+                elif msg_type == "session_end":
+                    logger.info("Relay session ended: %s", msg.get("reason", ""))
+                    break
+
+    # Retry loop
+    for attempt in range(3):
+        try:
+            await bridge()
+            break
+        except Exception as e:
+            logger.warning("Relay bridge error (attempt %d): %s", attempt + 1, e)
+            if attempt < 2:
+                await asyncio.sleep(2 ** attempt)
+            else:
+                logger.error("Relay bridge failed after 3 attempts")
+
+
+async def _run_server(
+    public_port: int,
+    internal_port: int,
+    relay_data: dict | None = None,
+) -> None:
+    """Run both public and internal servers concurrently, plus relay bridge."""
     import uvicorn
 
     logger = logging.getLogger("corvustunnel")
@@ -205,11 +348,17 @@ async def _run_server(public_port: int, internal_port: int) -> None:
 
     logger.info("Starting dual servers...")
 
+    tasks = [
+        public_server.serve(),
+        internal_server.serve(),
+    ]
+
+    # Add relay bridge if in relay mode
+    if relay_data:
+        tasks.append(_relay_bridge(relay_data, public_port))
+
     try:
-        await asyncio.gather(
-            public_server.serve(),
-            internal_server.serve(),
-        )
+        await asyncio.gather(*tasks)
     except (KeyboardInterrupt, SystemExit):
         logger.info("Shutdown signal received")
     finally:
@@ -230,7 +379,6 @@ def cmd_start(args: argparse.Namespace) -> None:
     if args.workspace:
         os.environ.setdefault("ALLOWED_DIRS", args.workspace)
     else:
-        # Default to current directory
         os.environ.setdefault("ALLOWED_DIRS", os.getcwd())
 
     # Ensure token exists
@@ -240,23 +388,45 @@ def cmd_start(args: argparse.Namespace) -> None:
     public_port = int(os.environ.get("PUBLIC_PORT", "8000"))
     internal_port = int(os.environ.get("INTERNAL_PORT", "8001"))
 
-    # Determine host URL
+    # Get E2E key for relay registration
+    e2e_key = ""
+    try:
+        from crypto.e2e import get_e2e_crypto
+        crypto = get_e2e_crypto()
+        if crypto.available:
+            e2e_key = crypto.server_public_key_b64
+    except Exception:
+        pass
+
+    # Determine connection mode
+    relay_data = None
     host_url = None
+
     if args.host:
-        # Manual host override
+        # Manual host override (skips relay)
         host_url = args.host
         if not host_url.startswith("http"):
             host_url = f"https://{host_url}"
+    elif not args.no_relay:
+        # Default: register with roost relay
+        relay_data = _register_relay_session(e2e_key)
+        if not relay_data:
+            # Relay failed — fallback to cloudflared
+            logging.getLogger("corvustunnel").info(
+                "Relay unavailable, trying cloudflared..."
+            )
+            if not args.no_tunnel:
+                host_url = _start_cloudflared(public_port)
     elif not args.no_tunnel:
-        # Try to start cloudflared
+        # --no-relay but not --no-tunnel → try cloudflared
         host_url = _start_cloudflared(public_port)
 
     # Print startup info
-    _print_startup_info(token, public_port, host_url)
+    _print_startup_info(token, public_port, relay_data, host_url)
 
     # Run the server
     try:
-        asyncio.run(_run_server(public_port, internal_port))
+        asyncio.run(_run_server(public_port, internal_port, relay_data))
     except KeyboardInterrupt:
         print("\nCorvusTunnel stopped.")
 
@@ -304,8 +474,12 @@ def main() -> None:
     start_parser.add_argument(
         "--host",
         type=str, default=None,
-        help="Host URL for QR code (e.g., corvustunnel.com). "
-             "Overrides cloudflared tunnel.",
+        help="Host URL for QR code. Overrides relay and tunnel.",
+    )
+    start_parser.add_argument(
+        "--no-relay",
+        action="store_true",
+        help="Don't use roost.corvustunnel.com relay (try cloudflared instead)",
     )
     start_parser.add_argument(
         "--no-tunnel",
@@ -332,6 +506,7 @@ def main() -> None:
         args.internal_port = None
         args.workspace = None
         args.host = None
+        args.no_relay = False
         args.no_tunnel = False
         args.verbose = False
         cmd_start(args)

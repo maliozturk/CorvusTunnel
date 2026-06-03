@@ -1,0 +1,17 @@
+name = "corvustunnel-relay"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# Durable Objects for session management
+[durable_objects]
+bindings = [
+  { name = "TUNNEL_SESSION", class_name = "TunnelSession" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TunnelSession"]
+
+# Custom domain
+# After deploying, add roost.corvustunnel.com as a Custom Domain
+# in the Cloudflare Dashboard under Workers & Pages > corvustunnel-relay > Settings > Domains & Routes
