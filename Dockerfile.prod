@@ -1,25 +1,5 @@
-# ── Stage 1: Obfuscate Python source ─────────────────────────────────
-FROM python:3.11-slim AS builder
-
-RUN pip install --no-cache-dir pyarmor
-
-WORKDIR /build
-COPY . .
-
-# Obfuscate all Python source files into /obfuscated
-RUN pyarmor gen \
-    --output /obfuscated \
-    --recursive \
-    auth/ audit/ config/ executor/ middleware/ routers/ licensing/ \
-    public_app.py main.py boot.py
-
-# Copy non-Python assets (static files, configs, scripts)
-RUN cp -r static/ /obfuscated/static/ && \
-    cp requirements.txt /obfuscated/ && \
-    cp entrypoint.sh /obfuscated/
-
-
-# ── Stage 2: Clean runtime image (no source code) ────────────────────
+# ── CorvusTunnel Production Image ─────────────────────────────────────
+# Open-core: No obfuscation. Source shipped as-is (MIT licensed).
 FROM python:3.11-slim
 
 # System dependencies
@@ -34,21 +14,13 @@ RUN curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/downloa
 # Create non-root user
 RUN groupadd -r corvus && useradd -r -g corvus -m -d /home/corvus -s /bin/bash corvus
 
-# Install AI agents as corvus user
-USER corvus
-RUN curl -fsSL https://antigravity.google/cli/install.sh | bash
-RUN curl -fsSL https://chatgpt.com/codex/install.sh | CODEX_NON_INTERACTIVE=1 sh
-RUN curl -fsSL https://claude.ai/install.sh | bash
-ENV PATH="/home/corvus/.local/bin:/home/corvus/.codex/bin:${PATH}"
-USER root
-
 # Python dependencies
 WORKDIR /app
-COPY --from=builder /obfuscated/requirements.txt .
+COPY pyproject.toml requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy ONLY obfuscated output — no .py source exists in this layer
-COPY --from=builder /obfuscated/ .
+# Copy application source (open-core, MIT licensed)
+COPY . .
 RUN chown -R corvus:corvus /app
 
 # Workspace
@@ -56,6 +28,10 @@ RUN mkdir -p /workspace && chown corvus:corvus /workspace
 RUN chmod +x /app/entrypoint.sh
 
 USER corvus
+
+# Pre-create keys directory
+RUN mkdir -p /home/corvus/.corvustunnel/keys
+
 EXPOSE 8000 8001
 VOLUME /workspace
 

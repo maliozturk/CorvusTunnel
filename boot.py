@@ -53,17 +53,39 @@ def print_qr(data: str, label: str) -> None:
 
 
 def print_banner(tunnel_url: str, token: str) -> None:
-    """Print the startup banner with a single QR code."""
-    W = 50
+    """Print the startup banner with a single QR code.
+
+    QR code contains: URL#token=<token>&e2e=<server_public_key_b64>
+    The fragment is never sent to proxy/server by the browser.
+    """
+    # Try to get E2E public key
+    e2e_key = ""
+    try:
+        from crypto.e2e import get_e2e_crypto
+        crypto = get_e2e_crypto()
+        if crypto.available:
+            e2e_key = crypto.server_public_key_b64
+    except Exception:
+        pass
+
+    W = 54
     print()
     print("╔" + "═" * W + "╗")
-    print("║" + "  🐳 CORVUSTUNNEL v0.2.0".ljust(W) + "║")
-    print("║" + "  Secure Remote AI Terminal".ljust(W) + "║")
+    print("║" + "  🚀 CORVUSTUNNEL v0.4.0".ljust(W) + "║")
+    print("║" + "  AI Agent Control with Voice".ljust(W) + "║")
     print("╠" + "═" * W + "╣")
 
     if tunnel_url:
-        # Single QR: URL with token in fragment (fragment never sent to server/proxy)
-        combined = f"{tunnel_url}#token={token}"
+        # Single QR: URL with token + E2E key in fragment
+        fragment = f"token={token}"
+        if e2e_key:
+            fragment += f"&e2e={e2e_key}"
+        combined = f"{tunnel_url}#{fragment}"
+        print("║" + f"  Tunnel: {tunnel_url}".ljust(W) + "║")
+        if e2e_key:
+            print("║" + "  E2E:    🔒 Enabled (PyNaCl)".ljust(W) + "║")
+        else:
+            print("║" + "  E2E:    ⚠ Disabled (install PyNaCl)".ljust(W) + "║")
         print("║" + "  Scan QR to connect:".ljust(W) + "║")
         print("╚" + "═" * W + "╝")
         print()
@@ -71,12 +93,14 @@ def print_banner(tunnel_url: str, token: str) -> None:
     else:
         print("║" + "  ⚠ Tunnel not detected".ljust(W) + "║")
         print("║" + "  Local: http://localhost:8000".ljust(W) + "║")
+        if e2e_key:
+            print("║" + "  E2E:   🔒 Enabled".ljust(W) + "║")
         print("╚" + "═" * W + "╝")
         print()
 
     print("─" * W)
     print("  Token is one-time-use (consumed on first login)")
-    print("  Restart container for a new token")
+    print("  Restart corvustunnel for a new token")
     print("─" * W)
     print()
     sys.stdout.flush()

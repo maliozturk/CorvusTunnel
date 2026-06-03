@@ -31,8 +31,8 @@ def _print_banner(public_port: int, internal_port: int) -> None:
     banner = f"""
 +==============================================================+
 |                                                              |
-|   CORVUS TUNNEL                                              |
-|   Secure Remote AI Terminal v0.2.0                           |
+|   CORVUSTUNNEL                                           |
+|   AI Agent Control with Voice v0.4.0                     |
 |                                                              |
 +==============================================================+
 |                                                              |

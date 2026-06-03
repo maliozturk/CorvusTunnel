@@ -53,11 +53,66 @@ class HealthResponse(BaseModel):
 @limiter.limit("30/minute")
 async def health(request: Request):
     """Health check endpoint (no authentication required)."""
+    # Check E2E status
+    e2e_enabled = False
+    try:
+        from crypto.e2e import get_e2e_crypto
+        e2e_enabled = get_e2e_crypto().available
+    except Exception:
+        pass
+
     return HealthResponse(
         status="ok",
-        version="0.3.0",
+        version="0.4.0",
         uptime_seconds=round(time.time() - _start_time, 1),
     )
+
+
+# ── E2E Key Exchange (no auth — must happen before session) ──────────
+@router.post("/e2e/exchange")
+@limiter.limit("10/minute")
+async def e2e_key_exchange(request: Request):
+    """Exchange public keys for E2E encryption.
+
+    Client sends its ephemeral public key (base64url),
+    server returns its long-lived public key.
+    The shared secret is derived via X25519 DH on both sides.
+    """
+    from crypto.e2e import get_e2e_crypto
+
+    crypto = get_e2e_crypto()
+    if not crypto.available:
+        raise HTTPException(
+            501,
+            "E2E encryption not available — install PyNaCl: pip install PyNaCl"
+        )
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid request body")
+
+    client_key = body.get("client_public_key", "")
+    session_id = body.get("session_id", "")
+
+    if not client_key or not session_id:
+        raise HTTPException(400, "client_public_key and session_id are required")
+
+    try:
+        server_key = crypto.exchange(session_id, client_key)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    get_audit_logger().log(
+        "e2e_key_exchange",
+        client_ip=_get_client_ip(request),
+        session_id=session_id,
+    )
+
+    return {
+        "server_public_key": server_key,
+        "e2e_enabled": True,
+    }
 
 
 # ── Claim boot token (no auth — boot token IS the auth) ─────────────

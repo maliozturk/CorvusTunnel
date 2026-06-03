@@ -1,11 +1,12 @@
 """
 CorvusTunnel License Validator.
 
-Validates license keys at container startup and periodically (24h heartbeat).
+Validates Pro license keys at startup and periodically (24h heartbeat).
 Uses HMAC-SHA256 signed JWTs — no network required.
 
-The signing key is embedded in this file and protected by PyArmor obfuscation
-in production builds.
+Open-core model:
+  - No license key = Free tier (all core features, unlimited)
+  - Valid license  = Pro tier (multi-agent, Telegram voice, dashboard)
 """
 
 from __future__ import annotations
@@ -22,13 +23,9 @@ import time
 
 logger = logging.getLogger("corvustunnel.licensing")
 
-# ── Embedded signing key ─────────────────────────────────────────────
-# This is loaded from the .keys/public.key file during development.
-# In production (PyArmor-obfuscated), this module is encrypted,
-# so the key is not trivially extractable.
-#
-# Set CORVUS_SIGNING_KEY env var to override (for development only).
-# In production, call embed_key() during build to hardcode it.
+# ── Signing key ──────────────────────────────────────────────────────
+# Loaded from .keys/public.key file or CORVUS_SIGNING_KEY env var.
+# Used to verify Pro license JWT signatures.
 
 _EMBEDDED_KEY: str = ""  # Will be set by _load_key()
 
@@ -226,13 +223,12 @@ _SHUTDOWN_BANNER = """
 _STARTUP_FAIL_BANNER = """
 ╔══════════════════════════════════════════════════════════╗
 ║                                                          ║
-║   ❌  CorvusTunnel License Invalid                       ║
+║   ⚠  CorvusTunnel Pro License Invalid                    ║
 ║                                                          ║
 ║   {reason:<52s}║
 ║                                                          ║
-║   Get a license at: https://corvustunnel.com             ║
-║                                                          ║
-║   Set CORVUS_LICENSE_KEY in your docker-compose.yml      ║
+║   Pro features disabled. Free tier still works.          ║
+║   Get a Pro license: https://corvustunnel.com/pro        ║
 ║                                                          ║
 ╚══════════════════════════════════════════════════════════╝
 """
@@ -248,29 +244,39 @@ def _shutdown_gracefully(reason: str) -> None:
 # ── Entrypoint Functions ─────────────────────────────────────────────
 
 def validate_or_exit() -> None:
-    """Validate license at startup. Exit if invalid.
+    """Validate license at startup.
+
+    Open-core model:
+      - No license key = Free tier (continue normally)
+      - Invalid license = Warning (continue as free tier)
+      - Valid license = Pro tier (unlock extra features)
 
     Called from entrypoint.sh:
         python -c "from licensing.validator import validate_or_exit; validate_or_exit()"
     """
     license_key = os.environ.get("CORVUS_LICENSE_KEY", "")
 
-    # No license key = free/dev mode (skip validation)
+    # No license key = free tier (unlimited, all core features)
     if not license_key:
-        logger.info("No license key set — running in development mode")
+        logger.info("No license key — running in Free tier (all core features, unlimited)")
         return
 
     result = validate_license(license_key)
 
     if not result.valid:
+        # Don't exit! Just warn and run as free tier.
         banner = _STARTUP_FAIL_BANNER.format(reason=result.reason)
         print(banner, file=sys.stderr, flush=True)
-        sys.exit(1)
+        logger.warning(
+            "Pro license invalid: %s — continuing as Free tier",
+            result.reason,
+        )
+        return
 
     import datetime
     exp_date = datetime.datetime.fromtimestamp(result.expires_at).strftime("%Y-%m-%d")
     logger.info(
-        "License valid — customer: %s, plan: %s, expires: %s",
+        "Pro license valid — customer: %s, plan: %s, expires: %s",
         result.customer,
         result.plan,
         exp_date,
