@@ -46,15 +46,46 @@ class _WindowsProcess:
 
     Provides a real pseudo-terminal so interactive CLI tools
     (agy, claude, etc.) detect isatty()=True and run normally.
+
+    Uses a persistent reader thread + queue to avoid data loss
+    from thread-per-read timeout patterns.
     """
 
     def __init__(self, cmd: str, args: list[str], cwd: str,
                  rows: int = 30, cols: int = 120):
+        import queue as _queue
         from winpty import PtyProcess
+
         self._pty = PtyProcess.spawn(
             [cmd] + args, cwd=cwd, dimensions=(rows, cols),
         )
         self.exitstatus: int | None = None
+        self._output_q: _queue.Queue = _queue.Queue()
+
+        # Single persistent reader thread — no leaks, no data loss
+        self._reader = threading.Thread(
+            target=self._reader_loop, daemon=True, name="winpty-reader",
+        )
+        self._reader.start()
+
+    def _reader_loop(self) -> None:
+        """Continuously read from PTY and push to queue."""
+        while True:
+            try:
+                data = self._pty.read(4096)
+                if data:
+                    self._output_q.put(data)
+                else:
+                    # Empty read usually means process died
+                    if not self._pty.isalive():
+                        self._output_q.put(None)  # EOF sentinel
+                        break
+            except EOFError:
+                self._output_q.put(None)
+                break
+            except Exception:
+                self._output_q.put(None)
+                break
 
     def send(self, data: str) -> None:
         try:
@@ -66,46 +97,26 @@ class _WindowsProcess:
         self.send(line + "\r\n")
 
     def read_nonblocking(self, size: int = 4096, timeout: float = 0.05) -> bytes:
-        """Read from PTY with timeout, raising _TimeoutError or _EOFError."""
-        if not self._pty.isalive():
-            self.exitstatus = self._pty.exitstatus
-            raise _EOFError("Process exited")
+        """Read from the output queue with timeout."""
+        import queue as _queue
 
-        # Thread-based read with timeout (pywinpty read() blocks)
-        result = [None]
-        error = [None]
-
-        def _read():
-            try:
-                result[0] = self._pty.read(size)
-            except EOFError:
-                error[0] = "eof"
-            except Exception as e:
-                error[0] = e
-
-        t = threading.Thread(target=_read, daemon=True)
-        t.start()
-        t.join(timeout=timeout)
-
-        if t.is_alive():
+        try:
+            data = self._output_q.get(timeout=timeout)
+        except _queue.Empty:
             raise _TimeoutError("Read timeout")
 
-        if error[0] == "eof":
-            self.exitstatus = self._pty.exitstatus
-            raise _EOFError("Process exited")
-        if error[0]:
-            raise _EOFError(str(error[0]))
-
-        if result[0] is None or len(result[0]) == 0:
-            if not self._pty.isalive():
+        if data is None:
+            # EOF sentinel
+            try:
                 self.exitstatus = self._pty.exitstatus
-                raise _EOFError("Process exited")
-            raise _TimeoutError("No data")
+            except Exception:
+                pass
+            raise _EOFError("Process exited")
 
         # pywinpty returns str, convert to bytes for consistency
-        if isinstance(result[0], str):
-            return result[0].encode("utf-8", errors="replace")
-        return result[0]
+        if isinstance(data, str):
+            return data.encode("utf-8", errors="replace")
+        return data
 
     def isalive(self) -> bool:
         return self._pty.isalive()
