@@ -1,12 +1,16 @@
 """
 CorvusTunnel Terminal Session — WebSocket-backed interactive PTY.
 
-Manages a single persistent pexpect PTY process (agy) with:
+Manages a single persistent terminal process with:
 - Pub/Sub output broadcasting to multiple WebSocket subscribers
 - 64KB replay buffer for reconnection catch-up
 - 5-minute grace period after last subscriber disconnects
 - Deep forensic logging of all input and output
 - Dynamic terminal resizing via process.setwinsize()
+
+Cross-platform:
+- Linux/macOS: pexpect.spawn (native PTY)
+- Windows:     pywinpty PtyProcess (ConPTY)
 """
 
 from __future__ import annotations
@@ -14,11 +18,11 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+
+import sys
 import threading
 import time
 from typing import Any
-
-import pexpect
 
 logger = logging.getLogger(__name__)
 
@@ -26,23 +30,119 @@ REPLAY_BUFFER_MAX = 65536  # 64KB
 GRACE_PERIOD_S = 300  # 5 minutes
 LOG_FLUSH_INTERVAL_S = 2.0  # Batch deep-log output every 2s
 
+IS_WINDOWS = sys.platform == "win32"
+
+
+class _TimeoutError(Exception):
+    """Raised by read_nonblocking on timeout."""
+
+
+class _EOFError(Exception):
+    """Raised by read_nonblocking on EOF."""
+
+
+class _WindowsProcess:
+    """Windows PTY process using pywinpty (ConPTY).
+
+    Provides a real pseudo-terminal so interactive CLI tools
+    (agy, claude, etc.) detect isatty()=True and run normally.
+    """
+
+    def __init__(self, cmd: str, args: list[str], cwd: str,
+                 rows: int = 30, cols: int = 120):
+        from winpty import PtyProcess
+        self._pty = PtyProcess.spawn(
+            [cmd] + args, cwd=cwd, dimensions=(rows, cols),
+        )
+        self.exitstatus: int | None = None
+
+    def send(self, data: str) -> None:
+        try:
+            self._pty.write(data)
+        except (OSError, EOFError):
+            pass
+
+    def sendline(self, line: str) -> None:
+        self.send(line + "\r\n")
+
+    def read_nonblocking(self, size: int = 4096, timeout: float = 0.05) -> bytes:
+        """Read from PTY with timeout, raising _TimeoutError or _EOFError."""
+        if not self._pty.isalive():
+            self.exitstatus = self._pty.exitstatus
+            raise _EOFError("Process exited")
+
+        # Thread-based read with timeout (pywinpty read() blocks)
+        result = [None]
+        error = [None]
+
+        def _read():
+            try:
+                result[0] = self._pty.read(size)
+            except EOFError:
+                error[0] = "eof"
+            except Exception as e:
+                error[0] = e
+
+        t = threading.Thread(target=_read, daemon=True)
+        t.start()
+        t.join(timeout=timeout)
+
+        if t.is_alive():
+            raise _TimeoutError("Read timeout")
+
+        if error[0] == "eof":
+            self.exitstatus = self._pty.exitstatus
+            raise _EOFError("Process exited")
+        if error[0]:
+            raise _EOFError(str(error[0]))
+
+        if result[0] is None or len(result[0]) == 0:
+            if not self._pty.isalive():
+                self.exitstatus = self._pty.exitstatus
+                raise _EOFError("Process exited")
+            raise _TimeoutError("No data")
+
+        # pywinpty returns str, convert to bytes for consistency
+        if isinstance(result[0], str):
+            return result[0].encode("utf-8", errors="replace")
+        return result[0]
+
+    def isalive(self) -> bool:
+        return self._pty.isalive()
+
+    def terminate(self, force: bool = False) -> None:
+        try:
+            self._pty.close(force=force)
+        except Exception:
+            pass
+        try:
+            self.exitstatus = self._pty.exitstatus
+        except Exception:
+            pass
+
+    def setwinsize(self, rows: int, cols: int) -> None:
+        try:
+            self._pty.setwinsize(rows, cols)
+        except Exception:
+            pass
+
 
 class TerminalSession:
-    """Persistent interactive terminal session backed by pexpect.
+    """Persistent interactive terminal session.
 
     Lifecycle:
-        start(work_dir, cols, rows)  → spawn PTY, start reader thread
-        send_input(data)             → process.send(data), deep-log
-        resize(cols, rows)           → process.setwinsize(rows, cols)
-        stop()                       → graceful shutdown
+        start(work_dir, cols, rows)  -> spawn process, start reader thread
+        send_input(data)             -> process.send(data), deep-log
+        resize(cols, rows)           -> process.setwinsize(rows, cols)
+        stop()                       -> graceful shutdown
 
     Pub/Sub:
-        subscribe()   → asyncio.Queue (+ replay buffer text)
-        unsubscribe() → remove queue, schedule grace-period cleanup
+        subscribe()   -> asyncio.Queue (+ replay buffer text)
+        unsubscribe() -> remove queue, schedule grace-period cleanup
     """
 
     def __init__(self) -> None:
-        self._process: pexpect.spawn | None = None
+        self._process = None
         self._alive: bool = False
         self._work_dir: str | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -107,14 +207,20 @@ class TerminalSession:
             work_dir, cols, rows, cmd, args,
         )
 
-        self._process = pexpect.spawn(
-            cmd,
-            args=args,
-            cwd=work_dir,
-            dimensions=(rows, cols),
-            encoding=None,  # raw bytes mode
-            codec_errors="replace",
-        )
+        if IS_WINDOWS:
+            self._process = _WindowsProcess(
+                cmd, args, cwd=work_dir, rows=rows, cols=cols,
+            )
+        else:
+            import pexpect
+            self._process = pexpect.spawn(
+                cmd,
+                args=args,
+                cwd=work_dir,
+                dimensions=(rows, cols),
+                encoding=None,  # raw bytes mode
+                codec_errors="replace",
+            )
 
         self._reader_thread = threading.Thread(
             target=self._read_loop, daemon=True, name="term-reader",
@@ -269,13 +375,21 @@ class TerminalSession:
     # ── Internal: PTY read loop ───────────────────────────────────────
 
     def _read_loop(self) -> None:
-        """Background thread: read PTY output continuously.
+        """Background thread: read process output continuously.
 
         - Pushes data to all subscriber queues (pub/sub)
         - Appends to replay buffer (front-trimmed at 64KB)
         - Batches output for deep logging (flush every 2s or on input)
         - Detects process death and broadcasts 'exited' event
         """
+        # Build exception tuples for this platform
+        timeout_excs = (_TimeoutError,)
+        eof_excs = (_EOFError,)
+        if not IS_WINDOWS:
+            import pexpect as _pexpect
+            timeout_excs = (_TimeoutError, _pexpect.TIMEOUT)
+            eof_excs = (_EOFError, _pexpect.EOF)
+
         while self._alive:
             try:
                 raw = self._process.read_nonblocking(4096, timeout=0.05)
@@ -283,12 +397,12 @@ class TerminalSession:
                     data = raw.decode("utf-8", errors="replace")
                 else:
                     data = raw
-            except pexpect.TIMEOUT:
+            except timeout_excs:
                 self._flush_log_buffer(force=False)
                 continue
-            except pexpect.EOF:
+            except eof_excs:
                 exit_code = self._get_exit_status()
-                logger.info("PTY process exited (code=%s)", exit_code)
+                logger.info("Process exited (code=%s)", exit_code)
                 self._broadcast({"type": "exited", "code": exit_code})
 
                 from audit.deep_logger import get_deep_logger
