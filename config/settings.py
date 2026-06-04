@@ -70,6 +70,15 @@ class Settings(BaseSettings):
             return []
         return [d.strip() for d in self.allowed_dirs.split(',') if d.strip()]
 
+    # ── Chat History ─────────────────────────────────────────────────
+    chat_history_dirs: str = Field(
+        default="",
+        description="Override paths to agent data dirs. Format: "
+                    "'antigravity=/path,claude=/path,codex=/path'. "
+                    "If empty, auto-discovers from home directory "
+                    "(~/.gemini, ~/.claude, ~/.codex).",
+    )
+
     # ── Validators ────────────────────────────────────────────────────
 
     @field_validator("audit_log_dir")

@@ -77,6 +77,7 @@ packages = [
     "audit",
     "config",
     "executor",
+    "history",
     "licensing",
     "middleware",
     "routers",

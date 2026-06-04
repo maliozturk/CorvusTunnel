@@ -215,9 +215,8 @@ def _print_startup_info(
 
     print("-" * (W + 2))
     if relay_data:
-        ttl = relay_data.get("ttl_seconds", 1800)
-        print(f"  Session expires in {int(ttl // 60)} minutes")
-        print("  Restart corvustunnel for a new session")
+        print("  Session auto-renews — stays open until you stop")
+        print("  Press Ctrl+C to stop the server")
     else:
         print("  Token is one-time-use (consumed on first login)")
         print("  Restart corvustunnel for a new token")
@@ -232,6 +231,11 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
     Receives HTTP requests from the relay (sent by the phone), proxies them
     to localhost:public_port, and sends the response back. Also bridges
     WebSocket connections for the terminal.
+
+    The bridge is persistent:
+      - Sends heartbeat pings every 30s to keep the session alive.
+      - Auto-re-registers a new relay session if the old one expires.
+      - Retries indefinitely with exponential backoff.
     """
     import json as _json
     import base64 as _b64
@@ -256,13 +260,16 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
         )
         return
 
-    ws_url = relay_data["ws_url"]
-    cli_secret = relay_data["cli_secret"]
-    session_id = relay_data["session_id"]
+    # Mutable state — updated on re-registration
+    current = {
+        "ws_url": relay_data["ws_url"],
+        "cli_secret": relay_data["cli_secret"],
+        "session_id": relay_data["session_id"],
+    }
 
     def _rewrite_html(html: str) -> str:
         """Rewrite HTML so browser loads assets through /<session_id>/ prefix."""
-        prefix = f"/{session_id}"
+        prefix = f"/{current['session_id']}"
 
         # Rewrite static resource paths in HTML attributes
         html = html.replace('href="/static/', f'href="{prefix}/static/')
@@ -318,10 +325,29 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
 
         return html
 
+    async def _heartbeat(ws):
+        """Send periodic heartbeat pings to keep the relay session alive."""
+        try:
+            while True:
+                await asyncio.sleep(30)
+                try:
+                    await ws.send(_json.dumps({"type": "heartbeat"}))
+                except Exception:
+                    break
+        except asyncio.CancelledError:
+            pass
+
     async def bridge():
-        async with websockets.connect(ws_url, max_size=2**20) as ws:
+        async with websockets.connect(
+            current["ws_url"],
+            max_size=2**20,
+            ping_interval=20,
+            ping_timeout=20,
+        ) as ws:
             # Authenticate with relay
-            await ws.send(_json.dumps({"type": "auth", "token": cli_secret}))
+            await ws.send(_json.dumps({
+                "type": "auth", "token": current["cli_secret"],
+            }))
             auth_msg = _json.loads(await ws.recv())
             if auth_msg.get("type") != "auth_ok":
                 logger.error("Relay auth failed: %s", auth_msg)
@@ -329,144 +355,190 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
 
             logger.info("Relay bridge connected and authenticated")
 
+            # Start heartbeat task
+            hb_task = asyncio.create_task(_heartbeat(ws))
+
             local_ws = None
             local_ws_task = None
 
-            async def _fwd_local_to_relay(lws, rws):
-                """Forward local terminal WS messages to relay."""
-                try:
-                    async for msg in lws:
-                        await rws.send(_json.dumps({"type": "ws_fwd", "data": msg}))
-                except websockets.exceptions.ConnectionClosed:
-                    pass
-                except Exception as e:
-                    logger.debug("Local→relay WS error: %s", e)
-
-            async for message in ws:
-                try:
-                    msg = _json.loads(message)
-                except Exception:
-                    continue
-
-                msg_type = msg.get("type", "")
-
-                # ── HTTP proxy request ──
-                if msg_type == "http_req":
-                    req_id = msg.get("id")
-                    method = msg.get("method", "GET")
-                    path = msg.get("path", "/")
-                    headers = msg.get("headers", {})
-                    body = msg.get("body")
-
+            try:
+                async def _fwd_local_to_relay(lws, rws):
+                    """Forward local terminal WS messages to relay."""
                     try:
-                        async with httpx.AsyncClient() as client:
-                            url = f"http://localhost:{public_port}{path}"
-                            resp = await client.request(
-                                method, url,
-                                headers=headers,
-                                content=body.encode("utf-8") if body else None,
-                                timeout=25,
-                                follow_redirects=True,
-                            )
+                        async for msg in lws:
+                            await rws.send(_json.dumps({"type": "ws_fwd", "data": msg}))
+                    except websockets.exceptions.ConnectionClosed:
+                        pass
+                    except Exception as e:
+                        logger.debug("Local→relay WS error: %s", e)
 
-                            ct = resp.headers.get("content-type", "")
-                            is_text = ct.startswith(("text/", "application/json",
-                                                     "application/javascript",
-                                                     "application/xml"))
+                async for message in ws:
+                    try:
+                        msg = _json.loads(message)
+                    except Exception:
+                        continue
 
-                            if is_text:
-                                resp_body = resp.text
-                                encoding = None
-                                # Rewrite HTML responses
-                                if "text/html" in ct:
-                                    resp_body = _rewrite_html(resp_body)
-                            else:
-                                resp_body = _b64.b64encode(resp.content).decode("ascii")
-                                encoding = "base64"
+                    msg_type = msg.get("type", "")
 
-                            resp_headers = dict(resp.headers)
-                            for h in ("transfer-encoding", "connection", "keep-alive"):
-                                resp_headers.pop(h, None)
+                    # ── HTTP proxy request ──
+                    if msg_type == "http_req":
+                        req_id = msg.get("id")
+                        method = msg.get("method", "GET")
+                        path = msg.get("path", "/")
+                        headers = msg.get("headers", {})
+                        body = msg.get("body")
 
+                        try:
+                            async with httpx.AsyncClient() as client:
+                                url = f"http://localhost:{public_port}{path}"
+                                resp = await client.request(
+                                    method, url,
+                                    headers=headers,
+                                    content=body.encode("utf-8") if body else None,
+                                    timeout=25,
+                                    follow_redirects=True,
+                                )
+
+                                ct = resp.headers.get("content-type", "")
+                                is_text = ct.startswith(("text/", "application/json",
+                                                         "application/javascript",
+                                                         "application/xml"))
+
+                                if is_text:
+                                    resp_body = resp.text
+                                    encoding = None
+                                    # Rewrite HTML responses
+                                    if "text/html" in ct:
+                                        resp_body = _rewrite_html(resp_body)
+                                else:
+                                    resp_body = _b64.b64encode(resp.content).decode("ascii")
+                                    encoding = "base64"
+
+                                resp_headers = dict(resp.headers)
+                                for h in ("transfer-encoding", "connection", "keep-alive"):
+                                    resp_headers.pop(h, None)
+
+                                await ws.send(_json.dumps({
+                                    "type": "http_res",
+                                    "id": req_id,
+                                    "status": resp.status_code,
+                                    "headers": resp_headers,
+                                    "body": resp_body,
+                                    "encoding": encoding,
+                                }))
+                        except Exception as e:
+                            logger.warning("Proxy error for %s %s: %s", method, path, e)
                             await ws.send(_json.dumps({
                                 "type": "http_res",
                                 "id": req_id,
-                                "status": resp.status_code,
-                                "headers": resp_headers,
-                                "body": resp_body,
-                                "encoding": encoding,
+                                "status": 502,
+                                "headers": {"content-type": "application/json"},
+                                "body": _json.dumps({"error": str(e)}),
                             }))
-                    except Exception as e:
-                        logger.warning("Proxy error for %s %s: %s", method, path, e)
-                        await ws.send(_json.dumps({
-                            "type": "http_res",
-                            "id": req_id,
-                            "status": 502,
-                            "headers": {"content-type": "application/json"},
-                            "body": _json.dumps({"error": str(e)}),
-                        }))
 
-                # ── Open local WebSocket for terminal ──
-                elif msg_type == "ws_open":
-                    ws_path = msg.get("path", "/api/terminal/ws")
-                    local_url = f"ws://localhost:{public_port}{ws_path}"
-                    try:
-                        local_ws = await websockets.connect(local_url, max_size=2**20)
-                        local_ws_task = asyncio.create_task(
-                            _fwd_local_to_relay(local_ws, ws)
-                        )
-                        logger.info("Local terminal WebSocket bridged: %s", ws_path)
-                    except Exception as e:
-                        logger.warning("Local WS connect failed: %s", e)
-                        await ws.send(_json.dumps({
-                            "type": "ws_fwd",
-                            "data": _json.dumps({
-                                "type": "error",
-                                "message": f"Terminal connection failed: {e}",
-                            }),
-                        }))
-
-                # ── Forward phone WS message to local WS ──
-                elif msg_type == "ws_fwd":
-                    if local_ws:
+                    # ── Open local WebSocket for terminal ──
+                    elif msg_type == "ws_open":
+                        ws_path = msg.get("path", "/api/terminal/ws")
+                        local_url = f"ws://localhost:{public_port}{ws_path}"
                         try:
-                            data = msg.get("data", "")
-                            await local_ws.send(data)
+                            local_ws = await websockets.connect(local_url, max_size=2**20)
+                            local_ws_task = asyncio.create_task(
+                                _fwd_local_to_relay(local_ws, ws)
+                            )
+                            logger.info("Local terminal WebSocket bridged: %s", ws_path)
                         except Exception as e:
-                            logger.debug("WS forward error: %s", e)
+                            logger.warning("Local WS connect failed: %s", e)
+                            await ws.send(_json.dumps({
+                                "type": "ws_fwd",
+                                "data": _json.dumps({
+                                    "type": "error",
+                                    "message": f"Terminal connection failed: {e}",
+                                }),
+                            }))
 
-                # ── Close local WS (phone disconnected) ──
-                elif msg_type == "ws_close":
-                    if local_ws:
-                        try:
-                            await local_ws.close()
-                        except Exception:
-                            pass
-                        local_ws = None
-                    if local_ws_task:
-                        local_ws_task.cancel()
-                        local_ws_task = None
+                    # ── Forward phone WS message to local WS ──
+                    elif msg_type == "ws_fwd":
+                        if local_ws:
+                            try:
+                                data = msg.get("data", "")
+                                await local_ws.send(data)
+                            except Exception as e:
+                                logger.debug("WS forward error: %s", e)
 
-            # Cleanup on bridge disconnect
-            if local_ws:
-                try:
-                    await local_ws.close()
-                except Exception:
-                    pass
-            if local_ws_task:
-                local_ws_task.cancel()
+                    # ── Close local WS (phone disconnected) ──
+                    elif msg_type == "ws_close":
+                        if local_ws:
+                            try:
+                                await local_ws.close()
+                            except Exception:
+                                pass
+                            local_ws = None
+                        if local_ws_task:
+                            local_ws_task.cancel()
+                            local_ws_task = None
 
-    # Retry loop with exponential backoff
-    for attempt in range(3):
+            finally:
+                # Cleanup
+                hb_task.cancel()
+                if local_ws:
+                    try:
+                        await local_ws.close()
+                    except Exception:
+                        pass
+                if local_ws_task:
+                    local_ws_task.cancel()
+
+    def _re_register() -> bool:
+        """Re-register with the relay for a new session."""
+        e2e_key = ""
+        try:
+            from crypto.e2e import get_e2e_crypto
+            crypto = get_e2e_crypto()
+            if crypto.available:
+                e2e_key = crypto.server_public_key_b64
+        except Exception:
+            pass
+
+        new_data = _register_relay_session(e2e_key)
+        if new_data:
+            current["ws_url"] = new_data["ws_url"]
+            current["cli_secret"] = new_data["cli_secret"]
+            current["session_id"] = new_data["session_id"]
+            logger.info(
+                "Re-registered relay session: %s",
+                new_data.get("relay_url", ""),
+            )
+            return True
+        return False
+
+    # Persistent retry loop — keeps tunnel alive until the server is stopped
+    attempt = 0
+    max_backoff = 30  # cap backoff at 30 seconds
+    while True:
         try:
             await bridge()
+            # Bridge exited cleanly (relay closed the connection)
+            logger.info("Relay bridge disconnected, re-registering...")
+            attempt = 0  # reset backoff on clean disconnect
+            if not _re_register():
+                logger.warning("Re-registration failed, retrying in 5s...")
+                await asyncio.sleep(5)
+                continue
+        except asyncio.CancelledError:
+            logger.info("Relay bridge task cancelled")
             break
         except Exception as e:
-            logger.warning("Relay bridge error (attempt %d): %s", attempt + 1, e)
-            if attempt < 2:
-                await asyncio.sleep(2 ** attempt)
-            else:
-                logger.error("Relay bridge failed after 3 attempts")
+            attempt += 1
+            wait = min(2 ** min(attempt, 5), max_backoff)
+            logger.warning(
+                "Relay bridge error (attempt %d), reconnecting in %ds: %s",
+                attempt, wait, e,
+            )
+            await asyncio.sleep(wait)
+            # After several failures, try re-registering for a fresh session
+            if attempt % 3 == 0:
+                logger.info("Attempting relay re-registration...")
+                _re_register()
 
 
 

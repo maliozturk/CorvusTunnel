@@ -314,6 +314,57 @@ async def create_directory(request: Request):
 
 
 # ══════════════════════════════════════════════════════════════════════
+#  Chat History API
+# ══════════════════════════════════════════════════════════════════════
+
+@router.get("/history/sessions", dependencies=[Depends(require_public_auth)])
+@limiter.limit("30/minute")
+async def list_history_sessions(
+    request: Request,
+    agent: str | None = Query(default=None, description="Filter by agent: antigravity, claude, codex"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+):
+    """List all chat sessions from Antigravity, Claude Code, and Codex.
+
+    Returns a paginated list of sessions sorted by date (newest first).
+    Optionally filter by agent name.
+    """
+    from history.service import get_history_service
+    service = get_history_service()
+    return service.list_sessions(agent=agent, limit=limit, offset=offset)
+
+
+@router.get("/history/sessions/{session_id:path}", dependencies=[Depends(require_public_auth)])
+@limiter.limit("30/minute")
+async def get_history_session(
+    request: Request,
+    session_id: str,
+    limit: int = Query(default=200, ge=1, le=1000),
+    offset: int = Query(default=0, ge=0),
+):
+    """Get full conversation messages for a specific session.
+
+    Session IDs are in the format 'agent:id' (e.g. 'claude:a71c6bda-...')
+    """
+    from history.service import get_history_service
+    service = get_history_service()
+    result = service.get_session_messages(session_id, limit=limit, offset=offset)
+    if "error" in result:
+        raise HTTPException(404, result["error"])
+    return result
+
+
+@router.get("/history/stats", dependencies=[Depends(require_public_auth)])
+@limiter.limit("30/minute")
+async def history_stats(request: Request):
+    """Quick stats about available chat sessions across all agents."""
+    from history.service import get_history_service
+    service = get_history_service()
+    return service.get_stats()
+
+
+# ══════════════════════════════════════════════════════════════════════
 #  WebSocket Ticket System
 # ══════════════════════════════════════════════════════════════════════
 

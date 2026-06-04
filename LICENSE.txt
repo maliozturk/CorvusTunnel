@@ -1,1 +1,0 @@
-Copyright (c) 2026 Muhammet Ali Öztürk. All rights reserved. This software, 'CorvusTunnel', and associated documentation files are proprietary and confidential. No part of this repository may be copied, distributed, or modified without express written permission from the author.
