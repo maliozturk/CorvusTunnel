@@ -601,9 +601,13 @@ def cmd_start(args: argparse.Namespace) -> None:
 
     # Set allowed dirs if provided
     if args.workspace:
-        os.environ.setdefault("ALLOWED_DIRS", args.workspace)
+        os.environ.setdefault("ALLOWED_DIRS", ",".join(args.workspace))
     else:
-        os.environ.setdefault("ALLOWED_DIRS", os.getcwd())
+        # Default: home dir + current working directory
+        home = os.path.expanduser("~")
+        cwd = os.getcwd()
+        dirs = [home] if home == cwd else [home, cwd]
+        os.environ.setdefault("ALLOWED_DIRS", ",".join(dirs))
 
     # Ensure token exists
     token = _ensure_token()
@@ -692,8 +696,9 @@ def main() -> None:
     )
     start_parser.add_argument(
         "--workspace", "-w",
-        type=str, default=None,
-        help="Workspace directory (default: current directory)",
+        type=str, action="append", default=None,
+        help="Workspace directory (repeatable, e.g. -w /dir1 -w /dir2). "
+             "Default: home dir + current directory.",
     )
     start_parser.add_argument(
         "--host",
@@ -728,7 +733,7 @@ def main() -> None:
         # Default: start
         args.port = None
         args.internal_port = None
-        args.workspace = None
+        args.workspace = None  # will use home + cwd default
         args.host = None
         args.no_relay = False
         args.no_tunnel = False
