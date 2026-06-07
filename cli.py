@@ -13,7 +13,6 @@ Environment Variables:
     AGENT_TOKEN       Bearer token for API auth (auto-generated if not set)
     ALLOWED_DIRS      Comma-separated directories visible in folder browser
     AUDIT_LOG_DIR     Directory for audit logs (default: ./logs)
-    CORVUS_LICENSE_KEY  License key for Pro features (optional)
 """
 
 from __future__ import annotations
@@ -30,7 +29,7 @@ import subprocess
 import sys
 import time
 
-__version__ = "0.4.0"
+__version__ = "1.0.0"
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -196,7 +195,7 @@ def _print_startup_info(
     print()
     print("+" + "=" * W + "+")
     print("|" + "  CORVUSTUNNEL v" + __version__.ljust(W - 17) + "|")
-    print("|" + "  AI Agent Control with Voice".ljust(W) + "|")
+    print("|" + "  AI Agent Control from Your Phone".ljust(W) + "|")
     print("+" + "=" * W + "+")
     print("|" + f"  Local:  http://localhost:{public_port}".ljust(W) + "|")
     if relay_data:
@@ -668,7 +667,7 @@ def main() -> None:
     """CLI entry point."""
     parser = argparse.ArgumentParser(
         prog="corvustunnel",
-        description="AI Agent Control with Voice — Talk to Your Code",
+        description="Control AI coding agents from your phone",
         epilog="Docs: https://corvustunnel.com/docs",
     )
     parser.add_argument(

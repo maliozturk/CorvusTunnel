@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — CorvusTunnel</title>
+    <meta name="description" content="Privacy Policy for CorvusTunnel. We don't collect personal data. Zero-knowledge relay, E2E encrypted, GDPR/KVKK compliant.">
+
+    <!-- Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪶</text></svg>">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0a0a0f;
+            --bg-card: #111118;
+            --bg-elevated: #16161f;
+            --surface: #1a1a25;
+            --border: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --text: #e8e8ef;
+            --text-muted: #8888a0;
+            --text-dim: #55556a;
+            --accent: #ef4444;
+            --accent-hover: #f87171;
+            --accent-glow: rgba(239, 68, 68, 0.25);
+            --radius: 12px;
+            --radius-lg: 20px;
+            --radius-sm: 8px;
+            --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover { color: var(--accent-hover); }
+
+        /* Nav */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 24px;
+        }
+
+        .nav-inner {
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text);
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .nav-logo-icon { font-size: 24px; }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .nav-links a:hover { color: var(--text); }
+
+        /* Content */
+        .legal-container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 64px 24px 80px;
+        }
+
+        .legal-header {
+            margin-bottom: 48px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .legal-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            border-radius: 100px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--accent-hover);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .legal-header h1 {
+            font-size: clamp(32px, 5vw, 48px);
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+        }
+
+        .legal-meta {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .legal-meta span {
+            margin: 0 8px;
+            color: var(--text-dim);
+        }
+
+        /* Sections */
+        .legal-section {
+            margin-bottom: 40px;
+        }
+
+        .legal-section h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .legal-section h3 {
+            font-size: 17px;
+            font-weight: 600;
+            margin: 20px 0 10px;
+            color: var(--text);
+        }
+
+        .legal-section p {
+            color: var(--text-muted);
+            font-size: 15px;
+            margin-bottom: 12px;
+            line-height: 1.8;
+        }
+
+        .legal-section ul, .legal-section ol {
+            color: var(--text-muted);
+            font-size: 15px;
+            margin: 12px 0 12px 24px;
+            line-height: 1.8;
+        }
+
+        .legal-section li {
+            margin-bottom: 6px;
+        }
+
+        .legal-section code {
+            background: var(--surface);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: var(--accent-hover);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .highlight-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--accent);
+            border-radius: var(--radius-sm);
+            padding: 20px 24px;
+            margin: 16px 0;
+        }
+
+        .highlight-box p {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+
+        .highlight-box strong {
+            color: var(--text);
+        }
+
+        .no-data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .no-data-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            text-align: center;
+        }
+
+        .no-data-card .icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .no-data-card .label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 4px;
+        }
+
+        .no-data-card .desc {
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            background: var(--surface);
+            font-weight: 600;
+            color: var(--text);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table td {
+            color: var(--text-muted);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table-wrapper {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            padding: 32px 24px;
+        }
+
+        .footer-inner {
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .footer-right {
+            display: flex;
+            gap: 24px;
+        }
+
+        .footer-right a {
+            color: var(--text-dim);
+            font-size: 13px;
+        }
+        .footer-right a:hover { color: var(--text-muted); }
+
+        .footer-copy { color: var(--text-dim); }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .nav-links { gap: 16px; }
+            .legal-container { padding: 40px 20px 60px; }
+            .legal-header h1 { font-size: 28px; }
+            .footer-inner { flex-direction: column; text-align: center; }
+            .footer-right { flex-wrap: wrap; justify-content: center; }
+            .no-data-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="nav-inner">
+            <a href="/" class="nav-logo">
+                <span class="nav-logo-icon">🪶</span>
+                <span>CorvusTunnel</span>
+            </a>
+            <div class="nav-links">
+                <a href="/landing/">Home</a>
+                <a href="/landing/terms.html">Terms</a>
+                <a href="/landing/cla.html">CLA</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="legal-container">
+        <header class="legal-header">
+            <div class="legal-badge">🔒 Privacy</div>
+            <h1>Privacy Policy</h1>
+            <p class="legal-meta">
+                Effective: June 1, 2026
+                <span>·</span>
+                Entity: KALAI (<a href="https://kalai-tech.com" target="_blank" rel="noopener">kalai-tech.com</a>)
+            </p>
+        </header>
+
+        <section class="legal-section" id="tldr">
+            <h2>TL;DR</h2>
+            <div class="no-data-grid">
+                <div class="no-data-card">
+                    <div class="icon">🚫</div>
+                    <div class="label">No Personal Data</div>
+                    <div class="desc">We don't collect it</div>
+                </div>
+                <div class="no-data-card">
+                    <div class="icon">🔐</div>
+                    <div class="label">E2E Encrypted</div>
+                    <div class="desc">We can't read your data</div>
+                </div>
+                <div class="no-data-card">
+                    <div class="icon">🗑️</div>
+                    <div class="label">Ephemeral Sessions</div>
+                    <div class="desc">Auto-deleted in 2 hours</div>
+                </div>
+                <div class="no-data-card">
+                    <div class="icon">📊</div>
+                    <div class="label">No Analytics</div>
+                    <div class="desc">Zero tracking on website</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="legal-section" id="overview">
+            <h2>1. Overview</h2>
+            <p>This Privacy Policy explains how <strong>KALAI</strong> ("we", "us", "our") handles information in connection with <strong>CorvusTunnel</strong>, a self-hosted AI agent control tool and relay service.</p>
+            <p>The short version: <strong>we don't collect personal data through the software or the relay service.</strong> CorvusTunnel is designed with privacy as a core principle.</p>
+        </section>
+
+        <section class="legal-section" id="software">
+            <h2>2. The Software (Self-Hosted)</h2>
+            <p>CorvusTunnel runs entirely on <strong>your own machine</strong>. We have no access to:</p>
+            <ul>
+                <li>Your prompts, agent responses, or file contents</li>
+                <li>Your terminal I/O or code</li>
+                <li>Your configuration, tokens, or keys</li>
+                <li>Any data processed by AI agents under your control</li>
+            </ul>
+            <p>The software does not "phone home" or transmit telemetry, analytics, or usage data to KALAI or any third party.</p>
+        </section>
+
+        <section class="legal-section" id="relay">
+            <h2>3. The Relay Service (roost.corvustunnel.com)</h2>
+            <p>The relay service at <code>roost.corvustunnel.com</code> facilitates real-time communication between your local CorvusTunnel server and your mobile client. Here's what the relay processes:</p>
+
+            <div class="data-table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Stored?</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Session IDs</td>
+                            <td>Ephemeral</td>
+                            <td>Random identifiers, auto-deleted after 2-hour TTL</td>
+                        </tr>
+                        <tr>
+                            <td>Message content</td>
+                            <td>Never</td>
+                            <td>All content is E2E encrypted — relay cannot read it</td>
+                        </tr>
+                        <tr>
+                            <td>IP addresses</td>
+                            <td>Never</td>
+                            <td>Not logged or stored</td>
+                        </tr>
+                        <tr>
+                            <td>User accounts</td>
+                            <td>N/A</td>
+                            <td>No accounts exist — the relay is anonymous</td>
+                        </tr>
+                        <tr>
+                            <td>Encryption keys</td>
+                            <td>Never</td>
+                            <td>Keys are exchanged directly via QR code, never through relay</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="highlight-box">
+                <p><strong>Zero-Knowledge Architecture:</strong> All message content passing through the relay is encrypted with NaCl SecretBox (XSalsa20-Poly1305). The relay never possesses the encryption keys and therefore cannot read, analyze, or store any user content. It is cryptographically impossible for the relay to access your data.</p>
+            </div>
+        </section>
+
+        <section class="legal-section" id="encryption">
+            <h2>4. End-to-End Encryption</h2>
+            <p>CorvusTunnel uses strong, modern encryption:</p>
+            <ul>
+                <li><strong>Key exchange:</strong> X25519 Diffie-Hellman, delivered via QR code (never through the relay)</li>
+                <li><strong>Message encryption:</strong> NaCl SecretBox (XSalsa20-Poly1305)</li>
+                <li><strong>What's encrypted:</strong> All user prompts, agent responses, file contents, terminal I/O</li>
+            </ul>
+            <p>The relay sees only opaque, encrypted blobs. It cannot distinguish a code review from a file upload.</p>
+        </section>
+
+        <section class="legal-section" id="audit-logs">
+            <h2>5. Audit Logs</h2>
+            <p>CorvusTunnel generates audit logs of all operations (prompts sent, outputs received, approvals given). These logs:</p>
+            <ul>
+                <li>Exist <strong>only on your own machine</strong>, in the <code>./logs/</code> directory</li>
+                <li>Are stored in JSONL format for easy parsing</li>
+                <li>Are <strong>never</strong> transmitted to KALAI or any third party</li>
+                <li>Are entirely under your control — you can delete them at any time</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="website">
+            <h2>6. Website Analytics</h2>
+            <p>The CorvusTunnel website (<a href="https://corvustunnel.com">corvustunnel.com</a>) does <strong>not</strong> use any analytics, tracking pixels, cookies, or third-party scripts. We do not track visitors in any way.</p>
+        </section>
+
+        <section class="legal-section" id="third-party">
+            <h2>7. Third-Party Services</h2>
+            <p>CorvusTunnel does not share data with any third-party services. The only external service connections are:</p>
+            <ul>
+                <li><strong>Google Fonts:</strong> Loaded on the website for typography (subject to <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google's Privacy Policy</a>)</li>
+                <li><strong>Cloudflare:</strong> Optional tunnel service for self-hosted deployments (subject to <a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener">Cloudflare's Privacy Policy</a>)</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="gdpr-kvkk">
+            <h2>8. GDPR &amp; KVKK Compliance</h2>
+
+            <h3>General Data Protection Regulation (GDPR)</h3>
+            <p>Since CorvusTunnel does not collect, process, or store personal data, the GDPR obligations typically associated with data controllers or processors do not apply in practice. We hold no personal data to protect, restrict, or delete.</p>
+
+            <h3>KVKK (Kişisel Verilerin Korunması Kanunu)</h3>
+            <p>Under the Turkish Personal Data Protection Law (Law No. 6698, "KVKK"), KALAI confirms:</p>
+            <ul>
+                <li>We do not collect or process personal data through CorvusTunnel</li>
+                <li>The relay service processes only anonymous, ephemeral session identifiers</li>
+                <li>No personal data is transferred domestically or internationally</li>
+                <li>No personal data is stored on any KALAI systems</li>
+            </ul>
+        </section>
+
+        <section class="legal-section" id="kvkk-rights">
+            <h2>9. Your Rights Under KVKK</h2>
+            <p>Under Article 11 of the KVKK, you have the right to:</p>
+            <ol>
+                <li>Learn whether your personal data is processed</li>
+                <li>Request information about processing if your data has been processed</li>
+                <li>Learn the purpose of processing and whether data is used in accordance with its purpose</li>
+                <li>Know the third parties to whom your personal data has been transferred</li>
+                <li>Request rectification if personal data is incomplete or inaccurate</li>
+                <li>Request deletion or destruction of personal data</li>
+                <li>Request notification of the above to third parties</li>
+                <li>Object to results that arise exclusively from automated processing</li>
+                <li>Claim compensation for damages arising from unlawful processing</li>
+            </ol>
+            <p>Since we do not hold any personal data, any request under these rights will be answered with confirmation that no personal data exists in our systems.</p>
+            <p>To exercise your rights, contact: <a href="mailto:privacy@kalai-tech.com">privacy@kalai-tech.com</a></p>
+        </section>
+
+        <section class="legal-section" id="children">
+            <h2>10. Children's Privacy</h2>
+            <p>CorvusTunnel is a developer tool and is not directed at children under 16. We do not knowingly collect any information from children.</p>
+        </section>
+
+        <section class="legal-section" id="changes">
+            <h2>11. Changes to This Policy</h2>
+            <p>We may update this Privacy Policy from time to time. Changes will be posted on this page with an updated effective date. Since we don't collect personal data, we have no way to notify you directly — please check this page periodically.</p>
+        </section>
+
+        <section class="legal-section" id="contact">
+            <h2>12. Contact</h2>
+            <p>For privacy-related inquiries:</p>
+            <p>
+                <strong>KALAI — Data Protection</strong><br>
+                Email: <a href="mailto:privacy@kalai-tech.com">privacy@kalai-tech.com</a><br>
+                Web: <a href="https://kalai-tech.com" target="_blank" rel="noopener">kalai-tech.com</a>
+            </p>
+            <p>For general legal inquiries: <a href="mailto:legal@kalai-tech.com">legal@kalai-tech.com</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-left">
+                <span class="nav-logo-icon">🪶</span>
+                <span>CorvusTunnel</span>
+                <span class="footer-copy">© 2026 KALAI</span>
+            </div>
+            <div class="footer-right">
+                <a href="/landing/">Home</a>
+                <a href="/landing/terms.html">Terms</a>
+                <a href="/landing/cla.html">CLA</a>
+                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank">GitHub</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

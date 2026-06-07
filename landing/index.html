@@ -3,21 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CorvusTunnel — AI Agent Control with Voice</title>
-    <meta name="description" content="Control Claude, Codex, and Antigravity from your phone. Talk to your AI agents via voice. Free, open source, self-hosted.">
-    <meta name="keywords" content="AI agent, remote control, Claude Code, Codex, Antigravity, voice coding, terminal, mobile, self-hosted">
+    <title>CorvusTunnel — Control AI Agents from Your Phone</title>
+    <meta name="description" content="Control Claude by Anthropic, Antigravity by Google, and more from your phone. Self-hosted, E2E encrypted, open source. Install in 30 seconds.">
+    <meta name="keywords" content="AI agent, remote control, Claude, Anthropic, Antigravity, Google, terminal, mobile, self-hosted, E2E encryption">
+    <meta name="author" content="KALAI">
 
     <!-- Open Graph -->
-    <meta property="og:title" content="CorvusTunnel — Talk to Your Code">
-    <meta property="og:description" content="Control AI coding agents from your phone with voice. Free & open source.">
+    <meta property="og:title" content="CorvusTunnel — Control AI Agents from Your Phone">
+    <meta property="og:description" content="Self-hosted, E2E encrypted remote control for AI coding agents. Free & open source.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://corvustunnel.com">
     <meta property="og:image" content="https://corvustunnel.com/og-image.png">
+    <meta property="og:site_name" content="CorvusTunnel">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="CorvusTunnel — Talk to Your Code">
-    <meta name="twitter:description" content="Control AI coding agents from your phone with voice.">
+    <meta name="twitter:title" content="CorvusTunnel — Control AI Agents from Your Phone">
+    <meta name="twitter:description" content="Self-hosted, E2E encrypted remote control for AI coding agents.">
+    <meta name="twitter:image" content="https://corvustunnel.com/og-image.png">
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://corvustunnel.com">
 
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪶</text></svg>">
@@ -30,57 +36,80 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- Nav -->
-    <nav id="nav">
+
+
+    <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
+    <nav id="nav" role="navigation" aria-label="Main navigation">
         <div class="nav-inner">
-            <a href="/" class="nav-logo">
-                <span class="nav-logo-icon">🪶</span>
+            <a href="/" class="nav-logo" aria-label="CorvusTunnel Home">
+                <svg class="nav-crow-icon" viewBox="0 0 32 32" width="28" height="28" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 6 L4 14 Q8 10 12 11 L14 14 Q15 16 16 17 Q17 16 18 14 L20 11 Q24 10 28 14 L16 6Z" fill="#ef4444"/>
+                    <circle cx="14" cy="12" r="1" fill="#c084fc"/>
+                    <ellipse cx="16" cy="18" rx="4" ry="3" fill="#1a1a2e" stroke="#ef4444" stroke-width="0.5"/>
+                    <path d="M13 20 L11 26 Q14 24 16 26 Q18 24 21 26 L19 20" fill="#1a1a2e" stroke="#ef4444" stroke-width="0.3"/>
+                </svg>
                 <span class="nav-logo-text">CorvusTunnel</span>
             </a>
-            <div class="nav-links">
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu" aria-expanded="false">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="nav-links" id="navLinks">
+                <a href="#getting-started">Getting Started</a>
                 <a href="#features">Features</a>
-                <a href="#compare">Compare</a>
-                <a href="#pricing">Pricing</a>
-                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank" rel="noopener" class="nav-github">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                <a href="#api">API</a>
+                <a href="#security">Security</a>
+                <a href="https://github.com/maliozturk/CorvusTunnel" target="_blank" rel="noopener" class="nav-github">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
                     GitHub
                 </a>
             </div>
         </div>
     </nav>
 
-    <!-- Hero -->
-    <section id="hero">
+    <!-- ═══════════════════ HERO ═══════════════════ -->
+    <section id="hero" aria-labelledby="hero-heading">
+        <!-- Crow Hero Image -->
+        <div class="crow-container" id="crowContainer">
+            <img src="crow-hero.png" alt="CorvusTunnel Crow" class="crow-hero-img">
+        </div>
         <div class="hero-bg">
             <div class="hero-glow hero-glow-1"></div>
             <div class="hero-glow hero-glow-2"></div>
+            <div class="hero-glow hero-glow-3"></div>
+            <!-- Grid pattern -->
+            <div class="hero-grid"></div>
         </div>
         <div class="hero-content">
-            <div class="hero-badge">
+            <div class="hero-badge fade-in">
                 <span class="badge-dot"></span>
                 Open Source · MIT Licensed
             </div>
-            <h1 class="hero-title">
-                AI Agent Control<br>
-                <span class="hero-gradient">with Voice</span>
+            <h1 id="hero-heading" class="hero-title fade-in">
+                Control AI Agents<br>
+                <span class="hero-gradient">from Your Phone</span>
             </h1>
-            <p class="hero-subtitle">
-                Talk to your AI agents from anywhere. Control Claude, Codex, and Antigravity
-                from your phone — with end-to-end encryption and voice interaction via Telegram.
+            <p class="hero-subtitle fade-in">
+                Self-hosted. E2E encrypted. Open source.<br>
+                Send prompts, approve changes, and monitor your AI agents from anywhere.
             </p>
-            <div class="hero-cta">
+            <div class="hero-cta fade-in">
                 <div class="hero-install" id="install-box">
+                    <span class="install-prompt">$</span>
                     <code>pip install corvustunnel</code>
-                    <button class="copy-btn" onclick="copyInstall()" title="Copy">
+                    <button class="copy-btn" onclick="copyInstall()" title="Copy to clipboard" aria-label="Copy install command">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     </button>
                 </div>
-                <a href="#features" class="hero-btn-secondary">See Features ↓</a>
             </div>
-            <div class="hero-stats">
+            <div class="hero-stats fade-in">
                 <div class="stat">
-                    <span class="stat-value">3</span>
-                    <span class="stat-label">AI Agents</span>
+                    <span class="stat-value">Claude</span>
+                    <span class="stat-label">by Anthropic</span>
+                </div>
+                <div class="stat-divider"></div>
+                <div class="stat">
+                    <span class="stat-value">Antigravity</span>
+                    <span class="stat-label">by Google</span>
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat">
@@ -94,185 +123,342 @@
                 </div>
                 <div class="stat-divider"></div>
                 <div class="stat">
-                    <span class="stat-value">Free</span>
-                    <span class="stat-label">Forever</span>
+                    <span class="stat-value">Open</span>
+                    <span class="stat-label">Core</span>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- How It Works -->
-    <section id="how-it-works" class="section">
+    <!-- ═══════════════════ GETTING STARTED ═══════════════════ -->
+    <section id="getting-started" class="section" aria-labelledby="gs-heading">
         <div class="container">
-            <h2 class="section-title">Three Steps. Thirty Seconds.</h2>
-            <p class="section-sub">From install to controlling your AI agent remotely.</p>
-            <div class="steps-grid">
-                <div class="step-card">
-                    <div class="step-number">1</div>
-                    <div class="step-icon">⚡</div>
-                    <h3>Install</h3>
-                    <div class="step-code"><code>pip install corvustunnel</code></div>
-                    <p>One command. No Docker needed. Works on Linux, macOS, and WSL.</p>
+            <h2 id="gs-heading" class="section-title reveal">Getting Started</h2>
+            <p class="section-sub reveal">From install to controlling your AI agents — in four steps.</p>
+            <div class="steps-timeline">
+                <div class="step-card reveal" data-delay="0">
+                    <div class="step-marker">
+                        <span class="step-number">1</span>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h3>Install</h3>
+                        <p>One command. No Docker. Works on Linux, macOS, and WSL.</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">terminal</span>
+                                <button class="code-copy" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                            </div>
+                            <pre><code><span class="code-prompt">$</span> pip install corvustunnel</code></pre>
+                        </div>
+                    </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">2</div>
-                    <div class="step-icon">📱</div>
-                    <h3>Scan QR</h3>
-                    <div class="step-code"><code>corvustunnel start</code></div>
-                    <p>A QR code appears in your terminal. Scan it with your phone camera.</p>
+                <div class="step-card reveal" data-delay="1">
+                    <div class="step-marker">
+                        <span class="step-number">2</span>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h3>Start the Tunnel</h3>
+                        <p>Launch CorvusTunnel — it generates a secure session and displays a QR code.</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">terminal</span>
+                                <button class="code-copy" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                            </div>
+                            <pre><code><span class="code-prompt">$</span> corvustunnel start
+<span class="code-comment"># ┌─────────────────────────────────────┐</span>
+<span class="code-comment"># │  CorvusTunnel v1.0                  │</span>
+<span class="code-comment"># │  Scan QR code with your phone...    │</span>
+<span class="code-comment"># │  ██████████████████████████████████  │</span>
+<span class="code-comment"># │  ██████████████████████████████████  │</span>
+<span class="code-comment"># └─────────────────────────────────────┘</span></code></pre>
+                        </div>
+                    </div>
                 </div>
-                <div class="step-card">
-                    <div class="step-number">3</div>
-                    <div class="step-icon">🎙️</div>
-                    <h3>Talk</h3>
-                    <div class="step-code"><code>roost.corvustunnel.com/x7Kf9</code></div>
-                    <p>Send prompts, approve changes, and talk to your agent — from anywhere.</p>
+                <div class="step-card reveal" data-delay="2">
+                    <div class="step-marker">
+                        <span class="step-number">3</span>
+                        <div class="step-line"></div>
+                    </div>
+                    <div class="step-content">
+                        <h3>Scan QR Code</h3>
+                        <p>Open your phone camera and scan. E2E encryption keys are exchanged automatically — no tokens to copy.</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">output</span>
+                            </div>
+                            <pre><code><span class="code-success">✓</span> E2E key exchange complete
+<span class="code-success">✓</span> Session authenticated
+<span class="code-success">✓</span> Connected to relay: roost.corvustunnel.com</code></pre>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-card reveal" data-delay="3">
+                    <div class="step-marker">
+                        <span class="step-number">4</span>
+                    </div>
+                    <div class="step-content">
+                        <h3>Connected</h3>
+                        <p>Send prompts to your AI agents, approve file changes, browse your project, and monitor terminal output — all from your phone.</p>
+                        <div class="code-block">
+                            <div class="code-header">
+                                <span class="code-lang">your phone</span>
+                            </div>
+                            <pre><code><span class="code-accent">You:</span>  Refactor the auth module to use JWT
+<span class="code-dim">Claude Code:</span> Working on it...
+<span class="code-dim">Claude Code:</span> Modified 3 files. <span class="code-success">[Approve]</span> <span class="code-error">[Reject]</span>
+<span class="code-accent">You:</span>  <span class="code-success">✓ Approved</span></code></pre>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Features -->
-    <section id="features" class="section section-dark">
+    <!-- ═══════════════════ FEATURES ═══════════════════ -->
+    <section id="features" class="section section-dark" aria-labelledby="feat-heading">
         <div class="container">
-            <h2 class="section-title">Everything You Need. Nothing You Don't.</h2>
-            <p class="section-sub">All core features are free and open source.</p>
+            <h2 id="feat-heading" class="section-title reveal">Everything You Need</h2>
+            <p class="section-sub reveal">All features are free and open source. No tiers, no limits.</p>
             <div class="features-grid">
-                <div class="feature-card feature-highlight">
-                    <div class="feature-icon">🎙️</div>
-                    <h3>Voice Interaction</h3>
-                    <p>Agent sends you voice questions via Telegram. You reply by voice. It just works.</p>
-                    <span class="feature-badge pro">Pro</span>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/><circle cx="8" cy="10" r="2"/><circle cx="16" cy="10" r="2"/></svg>
+                    </div>
+                    <h3>Multi-Agent Support</h3>
+                    <p>Control Claude by Anthropic, Antigravity by Google, and more — all from a single interface.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3>E2E Encrypted</h3>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg>
+                    </div>
+                    <h3>E2E Encryption</h3>
                     <p>NaCl/libsodium encryption. Your code never leaves your machine unencrypted.</p>
-                    <span class="feature-badge free">Free</span>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>Agent Agnostic</h3>
-                    <p>Claude Code, Codex CLI, and Antigravity. Use any agent — or all three.</p>
-                    <span class="feature-badge free">Free</span>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>QR Connect</h3>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 7h2v2H7zM11 7h2v2h-2zM15 7h2v2h-2zM7 11h2v2H7zM15 11h2v2h-2zM7 15h2v2H7zM11 15h2v2h-2zM15 15h2v2h-2z"/></svg>
+                    </div>
+                    <h3>QR Code Connect</h3>
                     <p>Scan and connect. No URLs to type, no tokens to copy. One-time secure pairing.</p>
-                    <span class="feature-badge free">Free</span>
                 </div>
-                <div class="feature-card feature-highlight">
-                    <div class="feature-icon">🔀</div>
-                    <h3>Multi-Agent Compare</h3>
-                    <p>Run 2 agents on the same prompt. Compare output side by side. Pick the winner.</p>
-                    <span class="feature-badge pro">Pro</span>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                    </div>
+                    <h3>Real-time Terminal</h3>
+                    <p>Full interactive terminal via WebSocket + xterm.js. It's like SSH, but from a browser.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📋</div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
                     <h3>Audit Logging</h3>
-                    <p>Every prompt, every output, every approval — forensically logged in JSONL.</p>
-                    <span class="feature-badge free">Free</span>
+                    <p>Every prompt, every output, every approval — forensically logged in JSONL format.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🛡️</div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                    </div>
                     <h3>Security Hardened</h3>
                     <p>IP auto-ban, rate limiting, body size limits, CORS, security headers. Defense in depth.</p>
-                    <span class="feature-badge free">Free</span>
                 </div>
-                <div class="feature-card feature-highlight">
-                    <div class="feature-icon">📈</div>
-                    <h3>Agent Dashboard</h3>
-                    <p>Session stats, error rates, usage graphs. Know how your agents perform.</p>
-                    <span class="feature-badge pro">Pro</span>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    </div>
+                    <h3>Push Notifications</h3>
+                    <p>Web Push API notifications. Get alerted when your agent needs attention.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                    </div>
+                    <h3>PWA Support</h3>
+                    <p>Installable on your phone as a native-like app. Works offline-first.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    </div>
+                    <h3>Smart Suggestions</h3>
+                    <p>Context-aware action chips that adapt to your project and agent state.</p>
+                </div>
+                <div class="feature-card reveal">
+                    <div class="feature-icon-wrap">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                    </div>
+                    <h3>Command Favorites</h3>
+                    <p>Pin your most-used prompts and commands for instant one-tap access.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Voice Demo Section -->
-    <section id="voice" class="section">
+    <!-- ═══════════════════ ARCHITECTURE ═══════════════════ -->
+    <section id="architecture" class="section" aria-labelledby="arch-heading">
         <div class="container">
-            <div class="voice-grid">
-                <div class="voice-info">
-                    <h2 class="section-title-left">Talk to Your Code</h2>
-                    <p class="voice-desc">
-                        When your AI agent has a question — like "Should I delete this file?" — it doesn't
-                        just show text on a screen. It <strong>sends you a voice message on Telegram</strong>.
-                    </p>
-                    <p class="voice-desc">
-                        You record a quick reply: <em>"Yes, delete it and also refactor the imports."</em>
-                        Your voice is transcribed locally on your machine. The agent continues working.
-                    </p>
-                    <div class="voice-features">
-                        <div class="voice-feat">
-                            <span>🌍</span> 99 languages (Turkish, English, German, and more)
+            <h2 id="arch-heading" class="section-title reveal">How It Works</h2>
+            <p class="section-sub reveal">Your data is E2E encrypted. The relay sees only ciphertext.</p>
+            <div class="arch-diagram reveal">
+                <div class="arch-node arch-phone">
+                    <div class="arch-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                    </div>
+                    <div class="arch-label">Your Phone</div>
+                    <div class="arch-detail">PWA / Browser</div>
+                </div>
+                <div class="arch-connector">
+                    <div class="arch-arrow">
+                        <div class="arch-arrow-line"></div>
+                        <div class="arch-arrow-particles">
+                            <span></span><span></span><span></span>
                         </div>
-                        <div class="voice-feat">
-                            <span>🔐</span> Voice processed locally — never leaves your machine
-                        </div>
-                        <div class="voice-feat">
-                            <span>⚡</span> Edge TTS + Whisper — fast, free, no API keys
-                        </div>
+                    </div>
+                    <div class="arch-encrypt-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                        E2E Encrypted
                     </div>
                 </div>
-                <div class="voice-demo">
-                    <div class="phone-frame">
-                        <div class="phone-notch"></div>
-                        <div class="phone-screen">
-                            <div class="chat-header">
-                                <span class="chat-avatar">🪶</span>
-                                <span class="chat-name">CorvusTunnel Bot</span>
-                            </div>
-                            <div class="chat-messages">
-                                <div class="chat-msg bot">
-                                    <div class="msg-voice">
-                                        <span class="play-btn">▶</span>
-                                        <div class="waveform">
-                                            <span></span><span></span><span></span><span></span><span></span>
-                                            <span></span><span></span><span></span><span></span><span></span>
-                                            <span></span><span></span><span></span><span></span><span></span>
-                                        </div>
-                                        <span class="msg-duration">0:04</span>
-                                    </div>
-                                    <div class="msg-text-small">Agent wants to modify 3 files. Approve?</div>
-                                </div>
-                                <div class="chat-msg user">
-                                    <div class="msg-voice user-voice">
-                                        <span class="play-btn">▶</span>
-                                        <div class="waveform">
-                                            <span></span><span></span><span></span><span></span><span></span>
-                                            <span></span><span></span><span></span><span></span><span></span>
-                                        </div>
-                                        <span class="msg-duration">0:03</span>
-                                    </div>
-                                    <div class="msg-text-small">Yes, go ahead and approve all.</div>
-                                </div>
-                                <div class="chat-msg bot">
-                                    <div class="msg-bubble">✅ Approved. Agent continuing...</div>
-                                </div>
-                            </div>
+                <div class="arch-node arch-relay">
+                    <div class="arch-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c0c0c0" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    </div>
+                    <div class="arch-label">Cloudflare Relay</div>
+                    <div class="arch-detail">Sees only ciphertext</div>
+                </div>
+                <div class="arch-connector">
+                    <div class="arch-arrow">
+                        <div class="arch-arrow-line"></div>
+                        <div class="arch-arrow-particles">
+                            <span></span><span></span><span></span>
                         </div>
                     </div>
+                    <div class="arch-encrypt-badge">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                        E2E Encrypted
+                    </div>
+                </div>
+                <div class="arch-node arch-machine">
+                    <div class="arch-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    </div>
+                    <div class="arch-label">Your Machine</div>
+                    <div class="arch-detail">Claude Code / Codex / Antigravity</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Comparison -->
-    <section id="compare" class="section section-dark">
+    <!-- ═══════════════════ API REFERENCE ═══════════════════ -->
+    <section id="api" class="section section-dark" aria-labelledby="api-heading">
         <div class="container">
-            <h2 class="section-title">How We Compare</h2>
-            <p class="section-sub">Feature-for-feature against the alternatives.</p>
-            <div class="table-wrapper">
-                <table class="compare-table">
+            <h2 id="api-heading" class="section-title reveal">API Reference</h2>
+            <p class="section-sub reveal">RESTful API with WebSocket support for real-time terminal access.</p>
+            <div class="table-wrapper reveal">
+                <table class="api-table" role="table">
                     <thead>
                         <tr>
-                            <th>Feature</th>
-                            <th>SSH</th>
-                            <th>Happy Coder</th>
-                            <th>Claude RC</th>
-                            <th class="highlight-col">CorvusTunnel</th>
+                            <th scope="col">Endpoint</th>
+                            <th scope="col">Auth</th>
+                            <th scope="col">Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code class="api-method get">GET</code> <code>/api/health</code></td>
+                            <td><span class="auth-none">None</span></td>
+                            <td>Health check endpoint</td>
+                        </tr>
+                        <tr>
+                            <td><code class="api-method post">POST</code> <code>/api/e2e/exchange</code></td>
+                            <td><span class="auth-none">None</span></td>
+                            <td>E2E key exchange (X25519)</td>
+                        </tr>
+                        <tr>
+                            <td><code class="api-method post">POST</code> <code>/api/claim</code></td>
+                            <td><span class="auth-token">Boot Token</span></td>
+                            <td>Exchange boot token for session</td>
+                        </tr>
+                        <tr>
+                            <td><code class="api-method get">GET</code> <code>/api/browse</code></td>
+                            <td><span class="auth-session">Session</span></td>
+                            <td>Directory browser</td>
+                        </tr>
+                        <tr>
+                            <td><code class="api-method get">GET</code> <code>/api/check-agents</code></td>
+                            <td><span class="auth-session">Session</span></td>
+                            <td>List running AI agents</td>
+                        </tr>
+                        <tr>
+                            <td><code class="api-method post">POST</code> <code>/api/ws-ticket</code></td>
+                            <td><span class="auth-session">Session</span></td>
+                            <td>Obtain WebSocket ticket</td>
+                        </tr>
+                        <tr>
+                            <td><code class="api-method ws">WS</code> <code>/api/terminal/ws</code></td>
+                            <td><span class="auth-ticket">Ticket</span></td>
+                            <td>Interactive terminal (xterm.js)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ SECURITY ═══════════════════ -->
+    <section id="security" class="section" aria-labelledby="sec-heading">
+        <div class="container">
+            <h2 id="sec-heading" class="section-title reveal">Security First</h2>
+            <p class="section-sub reveal">Built for paranoid developers. Every layer is hardened.</p>
+            <div class="security-grid">
+                <div class="security-card reveal">
+                    <div class="security-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                    </div>
+                    <h3>End-to-End Encryption</h3>
+                    <p>X25519 key exchange + XSalsa20-Poly1305 authenticated encryption via NaCl/libsodium. The relay server is zero-knowledge — it never sees your plaintext data.</p>
+                </div>
+                <div class="security-card reveal">
+                    <div class="security-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                    </div>
+                    <h3>Auth Flow</h3>
+                    <p>One-time boot tokens via QR code → session token exchange → per-request session validation. No long-lived credentials stored on disk.</p>
+                </div>
+                <div class="security-card reveal">
+                    <div class="security-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </div>
+                    <h3>Audit Logging</h3>
+                    <p>Append-only JSONL logs with timestamps, IP addresses, and request fingerprints. Full forensic trail for compliance and debugging.</p>
+                </div>
+                <div class="security-card reveal">
+                    <div class="security-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    </div>
+                    <h3>Rate Limiting & IP Ban</h3>
+                    <p>Automatic IP banning after repeated failures. Configurable rate limits, body size caps, CORS policies, and strict security headers.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ COMPARISON ═══════════════════ -->
+    <section id="compare" class="section section-dark" aria-labelledby="compare-heading">
+        <div class="container">
+            <h2 id="compare-heading" class="section-title reveal">How We Compare</h2>
+            <p class="section-sub reveal">Feature-for-feature against the alternatives.</p>
+            <div class="table-wrapper reveal">
+                <table class="compare-table" role="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Feature</th>
+                            <th scope="col">SSH</th>
+                            <th scope="col">Happy Coder</th>
+                            <th scope="col">Claude RC</th>
+                            <th scope="col" class="highlight-col">CorvusTunnel</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -312,18 +498,18 @@
                             <td class="highlight-col">✅</td>
                         </tr>
                         <tr>
-                            <td>Voice interaction</td>
+                            <td>Push notifications</td>
                             <td>❌</td>
-                            <td>❌</td>
-                            <td>❌</td>
-                            <td class="highlight-col">✅ <small>Pro</small></td>
+                            <td>✅</td>
+                            <td>✅</td>
+                            <td class="highlight-col">✅</td>
                         </tr>
                         <tr>
-                            <td>Multi-agent compare</td>
+                            <td>PWA installable</td>
                             <td>❌</td>
                             <td>❌</td>
                             <td>❌</td>
-                            <td class="highlight-col">✅ <small>Pro</small></td>
+                            <td class="highlight-col">✅</td>
                         </tr>
                         <tr>
                             <td>Open source</td>
@@ -332,105 +518,71 @@
                             <td>❌</td>
                             <td class="highlight-col">✅</td>
                         </tr>
-                        <tr class="price-row">
-                            <td>Price</td>
-                            <td>Free</td>
-                            <td>Free</td>
-                            <td>$20/mo</td>
-                            <td class="highlight-col"><strong>Free</strong> / $9</td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </section>
 
-    <!-- Pricing -->
-    <section id="pricing" class="section">
-        <div class="container">
-            <h2 class="section-title">Simple Pricing</h2>
-            <p class="section-sub">Free forever. Upgrade when you need superpowers.</p>
-            <div class="pricing-grid">
-                <div class="price-card">
-                    <div class="price-name">Free</div>
-                    <div class="price-amount">$0<span>/forever</span></div>
-                    <div class="price-desc">Everything you need to control AI agents remotely.</div>
-                    <ul class="price-features">
-                        <li>✅ Unlimited sessions</li>
-                        <li>✅ Claude + Codex + Antigravity</li>
-                        <li>✅ E2E encryption</li>
-                        <li>✅ QR code connect</li>
-                        <li>✅ Audit logging</li>
-                        <li>✅ Security hardened</li>
-                        <li>✅ Open source (MIT)</li>
-                    </ul>
-                    <a href="#hero" class="price-btn">Get Started</a>
-                </div>
-                <div class="price-card price-card-pro">
-                    <div class="price-popular">Most Popular</div>
-                    <div class="price-name">Pro</div>
-                    <div class="price-amount">$9<span>/month</span></div>
-                    <div class="price-desc">Voice interaction and multi-agent orchestration.</div>
-                    <ul class="price-features">
-                        <li>✅ Everything in Free</li>
-                        <li>🎙️ Telegram voice interaction</li>
-                        <li>🔀 Multi-agent compare</li>
-                        <li>📈 Agent dashboard</li>
-                        <li>🔔 Advanced notifications</li>
-                        <li>⚡ Priority support</li>
-                    </ul>
-                    <a href="https://corvustunnel.lemonsqueezy.com" class="price-btn price-btn-pro">Upgrade to Pro</a>
-                    <div class="price-note">or $89/year (save 18%)</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- CTA -->
-    <section id="cta" class="section section-dark">
+    <!-- ═══════════════════ CTA ═══════════════════ -->
+    <section id="cta" class="section" aria-labelledby="cta-heading">
         <div class="container cta-container">
-            <h2 class="cta-title">Your roost is waiting.</h2>
-            <p class="cta-sub">Install in 30 seconds. Control your agents from anywhere.</p>
-            <div class="hero-install cta-install" id="install-box-2">
+            <div class="cta-glow"></div>
+            <h2 id="cta-heading" class="cta-title reveal">Ready to take flight?</h2>
+            <p class="cta-sub reveal">Install in 30 seconds. Control your agents from anywhere.</p>
+            <div class="hero-install cta-install reveal" id="install-box-2">
+                <span class="install-prompt">$</span>
                 <code>pip install corvustunnel</code>
-                <button class="copy-btn" onclick="copyInstall()" title="Copy">
+                <button class="copy-btn" onclick="copyInstall()" title="Copy to clipboard" aria-label="Copy install command">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 </button>
             </div>
-            <div class="cta-links">
-                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank">GitHub</a>
-                <span>·</span>
-                <a href="https://discord.gg/corvustunnel" target="_blank">Discord</a>
-                <span>·</span>
-                <a href="https://t.me/corvustunnel" target="_blank">Telegram</a>
+        </div>
+    </section>
+
+    <!-- ═══════════════════ LEGAL LINKS ═══════════════════ -->
+    <section class="legal-section">
+        <div class="container">
+            <div class="legal-links">
+                <a href="/terms">Terms of Service</a>
+                <span class="legal-sep">·</span>
+                <a href="/privacy">Privacy Policy</a>
+                <span class="legal-sep">·</span>
+                <a href="/cla">CLA</a>
+                <span class="legal-sep">·</span>
+                <a href="/security-policy">Security Policy</a>
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer id="footer">
+    <!-- ═══════════════════ FOOTER ═══════════════════ -->
+    <footer id="footer" role="contentinfo">
         <div class="container footer-inner">
             <div class="footer-left">
-                <span class="nav-logo-icon">🪶</span>
-                <span>CorvusTunnel</span>
-                <span class="footer-copy">© 2026</span>
+                <svg class="footer-crow" viewBox="0 0 32 32" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M16 6 L4 14 Q8 10 12 11 L14 14 Q15 16 16 17 Q17 16 18 14 L20 11 Q24 10 28 14 L16 6Z" fill="#ef4444"/>
+                    <ellipse cx="16" cy="18" rx="4" ry="3" fill="#1a1a2e" stroke="#ef4444" stroke-width="0.5"/>
+                </svg>
+                <span class="footer-brand">CorvusTunnel</span>
+                <span class="footer-sep">·</span>
+                <span class="footer-copy">© 2026 <a href="https://kalai-tech.com" target="_blank" rel="noopener">KALAI</a></span>
+                <span class="footer-sep">·</span>
+                <span class="footer-license">MIT License</span>
             </div>
             <div class="footer-right">
-                <a href="https://github.com/corvustunnel/corvustunnel" target="_blank">GitHub</a>
-                <a href="/docs">Docs</a>
-                <a href="mailto:hello@corvustunnel.com">Contact</a>
-                <a href="mailto:security@corvustunnel.com">Security</a>
+                <a href="mailto:hello@kalai-tech.com">Contact</a>
+                <a href="https://github.com/maliozturk/CorvusTunnel" target="_blank" rel="noopener">GitHub</a>
             </div>
         </div>
     </footer>
 
+    <!-- ═══════════════════ SCRIPTS ═══════════════════ -->
     <script>
-        // Copy install command
+        // ── Copy commands ──
         function copyInstall() {
             navigator.clipboard.writeText('pip install corvustunnel').then(() => {
-                const btns = document.querySelectorAll('.copy-btn');
-                btns.forEach(btn => {
-                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
+                document.querySelectorAll('.copy-btn').forEach(btn => {
+                    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>';
                     setTimeout(() => {
                         btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
                     }, 2000);
@@ -438,31 +590,88 @@
             });
         }
 
-        // Animate waveform bars
-        document.querySelectorAll('.waveform span').forEach((bar, i) => {
-            bar.style.animationDelay = `${i * 0.08}s`;
-        });
+        function copyCode(btn) {
+            const code = btn.closest('.code-block').querySelector('pre').textContent;
+            navigator.clipboard.writeText(code.replace(/^\$ /gm, '').trim()).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            });
+        }
 
-        // Smooth scroll
+        // ── Smooth scroll ──
         document.querySelectorAll('a[href^="#"]').forEach(anchor => {
             anchor.addEventListener('click', function(e) {
                 e.preventDefault();
                 const target = document.querySelector(this.getAttribute('href'));
                 if (target) {
                     target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    // Close mobile nav
+                    document.getElementById('navLinks').classList.remove('nav-open');
+                    document.getElementById('navToggle').setAttribute('aria-expanded', 'false');
                 }
             });
         });
 
-        // Nav background on scroll
+        // ── Mobile nav toggle ──
+        document.getElementById('navToggle').addEventListener('click', function() {
+            const links = document.getElementById('navLinks');
+            const isOpen = links.classList.toggle('nav-open');
+            this.setAttribute('aria-expanded', isOpen);
+            this.classList.toggle('active');
+        });
+
+        // ── Nav background on scroll ──
+        const nav = document.getElementById('nav');
         window.addEventListener('scroll', () => {
-            const nav = document.getElementById('nav');
             if (window.scrollY > 50) {
                 nav.classList.add('nav-scrolled');
             } else {
                 nav.classList.remove('nav-scrolled');
             }
+        }, { passive: true });
+
+        // ── Intersection Observer for reveal animations ──
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const delay = entry.target.dataset.delay || 0;
+                    setTimeout(() => {
+                        entry.target.classList.add('revealed');
+                    }, delay * 100);
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -40px 0px'
         });
+
+        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+        document.querySelectorAll('.fade-in').forEach(el => revealObserver.observe(el));
+
+        // ── Flying Crow scroll-reactive behavior ──
+        const crowContainer = document.getElementById('crowContainer');
+        const crowSvg = document.getElementById('crowSvg');
+        let scrollY = 0;
+        let ticking = false;
+
+        window.addEventListener('scroll', () => {
+            scrollY = window.scrollY;
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    // Fade crow image as user scrolls past hero
+                    const heroHeight = document.getElementById('hero').offsetHeight;
+                    if (scrollY > heroHeight * 0.5) {
+                        crowContainer.style.opacity = Math.max(0, 1 - (scrollY - heroHeight * 0.5) / 400);
+                    } else {
+                        crowContainer.style.opacity = 1;
+                    }
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        }, { passive: true });
     </script>
+
 </body>
 </html>

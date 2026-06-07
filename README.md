@@ -1,8 +1,8 @@
 # CorvusTunnel
 
-**AI Agent Control with Voice — Talk to Your Code**
+**Control AI Agents from Your Phone**
 
-Control Claude, Codex, and Antigravity from your phone. Free and open source.
+Self-hosted remote control for Claude Code, Codex, and Antigravity. Free, open source, E2E encrypted.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -13,7 +13,7 @@ Control Claude, Codex, and Antigravity from your phone. Free and open source.
 ## Quick Start
 
 ```bash
-# Install (30 seconds)
+# Install
 pip install corvustunnel
 
 # Start
@@ -27,23 +27,18 @@ Scan the QR code with your phone → you're connected.
 
 ## Features
 
-### 🆓 Free (MIT, Open Source)
-
-- **Unlimited sessions** — no time limits, no cooldowns
 - **Multi-agent support** — Claude Code, Codex CLI, Antigravity
-- **End-to-end encryption** — PyNaCl/libsodium, key exchange via QR code
+- **End-to-end encryption** — NaCl/libsodium, key exchange via QR code
 - **QR code connect** — scan to connect, no manual URL typing
-- **Real-time streaming** — WebSocket-based terminal I/O
+- **Real-time streaming** — WebSocket-based terminal I/O via xterm.js
+- **Push notifications** — Web Push API alerts for agent events
+- **PWA support** — install on your phone like a native app
+- **Smart suggestions** — context-aware action chips (approve, reject, continue)
+- **Command favorites** — pin frequently used prompts for one-tap access
 - **Audit logging** — JSONL forensic logs of all sessions
 - **Security hardened** — IP ban, rate limiting, body size limits, CORS, security headers
 - **Self-hosted** — runs on your machine, your data stays with you
-
-### 💎 Pro ($9/mo)
-
-- **Telegram Voice Interaction** — agent sends voice questions, you reply via voice notes
-- **Multi-Agent Orchestration** — run 2+ agents on the same prompt, compare results
-- **Agent Performance Dashboard** — session stats, error rates, usage graphs
-- **Priority Support** — email support with response SLA
+- **Unlimited** — no session limits, no cooldowns, no restrictions
 
 ## How It Works
 
@@ -59,49 +54,16 @@ Your Phone                    Your Computer
 │  prompts│                  │       agy)       │
 └─────────┘                  └──────────────────┘
      ▲                              ▲
-     │    Cloudflare Tunnel         │
+     │    Cloudflare Relay          │
      └──────────────────────────────┘
          (TLS + E2E encryption)
 ```
 
-## Installation Options
-
-### pip (recommended)
+## Installation
 
 ```bash
 pip install corvustunnel
 corvustunnel start
-```
-
-### pip + voice features
-
-```bash
-pip install corvustunnel[voice]
-```
-
-### Docker
-
-```bash
-docker pull corvustunnel/corvustunnel:latest
-docker run -v $(pwd):/workspace corvustunnel/corvustunnel:latest
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  corvustunnel:
-    image: corvustunnel/corvustunnel:latest
-    volumes:
-      - ./workspace:/workspace
-    ports:
-      - "8000:8000"
-      - "8001:8001"
-    environment:
-      - ALLOWED_DIRS=/workspace
-      # Optional: Pro license key
-      # - CORVUS_LICENSE_KEY=your-jwt-license-key
 ```
 
 ## Security
@@ -140,20 +102,23 @@ Internal API (localhost:8001):
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AGENT_TOKEN` | Auto-generated | Bearer token for API auth |
-| `ALLOWED_DIRS` | `/workspace` | Comma-separated allowed directories |
+| `ALLOWED_DIRS` | Home + CWD | Comma-separated allowed directories |
 | `AUDIT_LOG_DIR` | `./logs` | Audit log directory |
 | `PUBLIC_PORT` | `8000` | Public API port |
 | `INTERNAL_PORT` | `8001` | Internal admin port |
-| `CORVUS_LICENSE_KEY` | (empty) | Pro license key (JWT) |
 
 ## Development
 
 ```bash
-git clone https://github.com/corvustunnel/corvustunnel.git
-cd corvustunnel
+git clone https://github.com/maliozturk/CorvusTunnel.git
+cd CorvusTunnel
 pip install -e ".[dev]"
 AGENT_TOKEN=dev-token corvustunnel start --verbose
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## License
 
@@ -162,6 +127,4 @@ MIT — see [LICENSE](LICENSE)
 ## Links
 
 - **Website**: [corvustunnel.com](https://corvustunnel.com)
-- **Docs**: [corvustunnel.com/docs](https://corvustunnel.com/docs)
-- **GitHub**: [github.com/corvustunnel/corvustunnel](https://github.com/corvustunnel/corvustunnel)
-- **Discord**: [discord.gg/corvustunnel](https://discord.gg/corvustunnel)
+- **GitHub**: [github.com/maliozturk/CorvusTunnel](https://github.com/maliozturk/CorvusTunnel)

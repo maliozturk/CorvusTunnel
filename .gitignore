@@ -11,6 +11,7 @@ dist/
 build/
 .venv/
 venv/
+.eggs/
 
 # Logs & Audit
 logs/
@@ -28,11 +29,13 @@ Thumbs.db
 .DS_Store
 
 # Cloudflare
-*.json
-!package.json
+.wrangler/
 
-# Licensing keys (NEVER commit)
-licensing/.keys/
+# Keys (NEVER commit)
 *.key
 
+# Projects data
 projects/*
+
+# Antigravity
+.antigravitycli/

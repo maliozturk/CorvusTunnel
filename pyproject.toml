@@ -4,20 +4,20 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corvustunnel"
-version = "0.4.0"
-description = "AI Agent Control with Voice — Talk to Your Code. Control Claude, Codex, and Antigravity from anywhere."
+version = "1.0.0"
+description = "Control AI coding agents from your phone — Claude Code, Codex, and Antigravity. Self-hosted, E2E encrypted, open source."
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
 authors = [
-    {name = "CorvusTunnel", email = "hello@corvustunnel.com"},
+    {name = "KALAI", email = "hello@kalai-tech.com"},
 ]
 keywords = [
     "ai", "agent", "terminal", "remote", "claude", "codex", "antigravity",
-    "voice", "telegram", "coding", "mobile", "self-hosted",
+    "coding", "mobile", "self-hosted", "pwa",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Environment :: Web Environment",
     "Framework :: FastAPI",
@@ -25,6 +25,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -49,24 +50,20 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-voice = [
-    "edge-tts>=6.1.0",
-    "openai-whisper>=20231117",
-    "python-telegram-bot>=21.0",
-]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
     "httpx",
     "ruff>=0.4.0",
 ]
 
 [project.urls]
 Homepage = "https://corvustunnel.com"
-Documentation = "https://corvustunnel.com/docs"
-Repository = "https://github.com/corvustunnel/corvustunnel"
-Issues = "https://github.com/corvustunnel/corvustunnel/issues"
-Changelog = "https://github.com/corvustunnel/corvustunnel/blob/main/CHANGELOG.md"
+Documentation = "https://corvustunnel.com"
+Repository = "https://github.com/maliozturk/CorvusTunnel"
+Issues = "https://github.com/maliozturk/CorvusTunnel/issues"
+Changelog = "https://github.com/maliozturk/CorvusTunnel/blob/main/CHANGELOG.md"
 
 [project.scripts]
 corvustunnel = "cli:main"
@@ -78,11 +75,9 @@ packages = [
     "config",
     "executor",
     "history",
-    "licensing",
     "middleware",
     "routers",
     "crypto",
-    "integrations",
 ]
 py-modules = [
     "cli",
@@ -94,6 +89,10 @@ py-modules = [
 
 [tool.setuptools.package-data]
 "*" = ["*.key", "*.html", "*.css", "*.js", "*.svg", "*.png", "*.ico"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py310"

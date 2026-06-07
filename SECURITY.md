@@ -40,7 +40,9 @@ CorvusTunnel implements defense-in-depth with the following layers:
 
 **Please do NOT create public GitHub issues for security vulnerabilities.**
 
-Email: **security@corvustunnel.com**
+Email: **security@kalai-tech.com**
+
+For more information, visit: [Security at KALAI](https://kalai-tech.com/security)
 
 We will:
 1. Acknowledge your report within 48 hours

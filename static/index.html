@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0a0a0f">
+<meta name="description" content="Control AI coding agents from your phone — Claude Code, Codex, and Antigravity. Self-hosted, E2E encrypted.">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
 <title>CorvusTunnel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1717,6 +1720,275 @@ body {
 
 /* ===== Utility ===== */
 .hidden { display: none !important; }
+
+/* ===== Smart Suggestion Chips ===== */
+.suggestion-chips {
+  display: none;
+  gap: 6px;
+  padding: 6px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: rgba(10,10,15,0.8);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.suggestion-chips::-webkit-scrollbar { display: none; }
+.suggestion-chips.visible { display: flex; }
+.chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border-light);
+  background: rgba(139,92,246,0.08);
+  color: var(--purple);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.chip:hover { background: rgba(139,92,246,0.2); border-color: var(--purple); }
+.chip:active { transform: scale(0.92); background: rgba(139,92,246,0.3); }
+.chip.approve { background: rgba(34,197,94,0.1); color: var(--green); border-color: rgba(34,197,94,0.3); }
+.chip.approve:hover { background: rgba(34,197,94,0.2); }
+.chip.reject { background: rgba(239,68,68,0.1); color: var(--red); border-color: rgba(239,68,68,0.3); }
+.chip.reject:hover { background: rgba(239,68,68,0.2); }
+
+/* ===== Command Favorites Drawer ===== */
+.favorites-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.favorites-bar .fav-toggle {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  color: var(--yellow);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+.favorites-bar .fav-toggle:hover { background: rgba(234,179,8,0.12); }
+.favorites-bar .fav-toggle.active { background: rgba(234,179,8,0.2); border-color: var(--yellow); }
+.fav-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.fav-scroll::-webkit-scrollbar { display: none; }
+.fav-chip {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(234,179,8,0.08);
+  border: 1px solid rgba(234,179,8,0.2);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+.fav-chip:hover { background: rgba(234,179,8,0.15); }
+.fav-chip:active { transform: scale(0.92); }
+.fav-chip .fav-remove {
+  display: none;
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 16px; height: 16px;
+  background: var(--red);
+  color: white;
+  font-size: 10px;
+  border-radius: 50%;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.fav-chip:hover .fav-remove { display: flex; }
+
+/* Favorites manager modal */
+.fav-modal { display: none; }
+.fav-modal.active {
+  display: flex;
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  align-items: flex-end; justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+@media (min-width: 768px) { .fav-modal.active { align-items: center; } }
+.fav-panel {
+  width: 100%; max-width: 400px; max-height: 60dvh;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border-light);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  display: flex; flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+  overflow: hidden;
+}
+@media (min-width: 768px) { .fav-panel { border-radius: var(--radius-xl); } }
+.fav-panel-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.fav-panel-title { font-size: 15px; font-weight: 700; }
+.fav-panel-list {
+  flex: 1; overflow-y: auto; padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+.fav-panel-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px;
+  font-family: var(--font-mono); font-size: 13px;
+  color: var(--text-secondary);
+  border: none; background: none; width: 100%; text-align: left;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.fav-panel-item:hover { background: rgba(139,92,246,0.08); color: var(--text-primary); }
+.fav-panel-item .fav-del {
+  margin-left: auto; color: var(--text-dim); font-size: 14px;
+  padding: 4px 8px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.fav-panel-item .fav-del:hover { color: var(--red); background: rgba(239,68,68,0.1); }
+.fav-empty {
+  padding: 32px 20px; text-align: center;
+  color: var(--text-dim); font-size: 13px;
+}
+.fav-add-row {
+  padding: 12px 20px;
+  border-top: 1px solid var(--glass-border);
+  display: flex; gap: 8px; flex-shrink: 0;
+}
+.fav-add-input {
+  flex: 1; padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 13px;
+  outline: none;
+}
+.fav-add-input:focus { border-color: var(--purple); }
+.fav-add-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.fav-add-btn:hover { box-shadow: var(--shadow-glow-purple); }
+
+/* ===== Recent Commands ===== */
+.recent-drawer { display: none; }
+.recent-drawer.visible {
+  display: flex; flex-direction: column;
+  max-height: 180px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--glass-border);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp 0.2s ease;
+}
+.recent-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer; border: none; background: none;
+  width: 100%; text-align: left;
+  transition: all var(--transition-fast);
+}
+.recent-item:hover { background: rgba(139,92,246,0.08); color: var(--text-primary); }
+.recent-item .recent-icon { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.recent-item .recent-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px 4px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-dim); font-weight: 600; flex-shrink: 0;
+}
+.recent-clear {
+  font-size: 10px; color: var(--text-dim); cursor: pointer;
+  padding: 2px 6px; border: none; background: none;
+  transition: color var(--transition-fast);
+}
+.recent-clear:hover { color: var(--red); }
+
+/* ===== Collapsible Terminal ===== */
+.collapse-toggle {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.collapse-toggle:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.collapse-toggle:active { transform: scale(0.9); }
+.terminal-collapsed #terminalContainer { max-height: 100px; overflow: hidden; }
+.terminal-collapsed .collapse-toggle { transform: rotate(180deg); }
+
+/* ===== Notification Banner ===== */
+.notif-banner {
+  display: none;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1));
+  border-bottom: 1px solid rgba(139,92,246,0.2);
+  font-size: 12px;
+  color: var(--text-secondary);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.notif-banner.visible { display: flex; }
+.notif-banner-text { flex: 1; }
+.notif-banner-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--purple);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.notif-banner-btn:hover { box-shadow: var(--shadow-glow-purple); }
+.notif-banner-dismiss {
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+  border: none; background: none;
+}
 </style>
 </head>
 <body>
@@ -1840,6 +2112,16 @@ body {
     </a>
     <!-- Terminal -->
     <div id="terminalContainer"></div>
+    <!-- Suggestion Chips -->
+    <div class="suggestion-chips" id="suggestionChips"></div>
+    <!-- Recent Commands Drawer -->
+    <div class="recent-drawer" id="recentDrawer"></div>
+    <!-- Favorites Bar -->
+    <div class="favorites-bar" id="favoritesBar">
+      <button class="fav-toggle" onclick="toggleFavManager()" title="Manage favorites">&#x2B50;</button>
+      <div class="fav-scroll" id="favScroll"><!-- populated by JS --></div>
+      <button class="collapse-toggle" id="collapseToggle" onclick="toggleTerminalCollapse()" title="Collapse/expand terminal">&#x25B2;</button>
+    </div>
     <!-- Virtual Keypad -->
     <div class="virtual-keypad" id="virtualKeypad">
       <button class="vk-btn enter" onclick="sendVK('\r')" title="Enter">&#x23CE; Enter</button>
@@ -1876,6 +2158,29 @@ body {
     <div class="folder-actions">
       <button class="folder-cancel-btn" onclick="closeFolderBrowser()">Cancel</button>
       <button class="folder-select-btn" id="folderSelectBtn" onclick="selectFolder()">Select This Folder</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Notification Banner ===== -->
+<div class="notif-banner" id="notifBanner">
+  <span>&#x1F514;</span>
+  <span class="notif-banner-text">Enable push notifications to get alerts when your agent needs attention.</span>
+  <button class="notif-banner-btn" onclick="enableNotifications()">Enable</button>
+  <button class="notif-banner-dismiss" onclick="dismissNotifBanner()">&times;</button>
+</div>
+
+<!-- ===== Favorites Manager Modal ===== -->
+<div class="fav-modal" id="favModal">
+  <div class="fav-panel">
+    <div class="fav-panel-header">
+      <span class="fav-panel-title">&#x2B50; Command Favorites</span>
+      <button class="folder-close" onclick="closeFavManager()">&times;</button>
+    </div>
+    <div class="fav-panel-list" id="favPanelList"></div>
+    <div class="fav-add-row">
+      <input type="text" class="fav-add-input" id="favAddInput" placeholder="Type a command to save..." spellcheck="false">
+      <button class="fav-add-btn" onclick="addFavorite()">Add</button>
     </div>
   </div>
 </div>
@@ -2374,6 +2679,7 @@ function connectTerminalWS(workDir, flags) {
         if (TERMINAL.term && msg.data) {
           TERMINAL.term.write(msg.data);
           detectUrl(msg.data);
+          onTerminalOutput(msg.data);
         }
       } else if (msg.type === 'exited') {
         TERMINAL.processExited = true; // prevent reconnect loop
@@ -2382,6 +2688,7 @@ function connectTerminalWS(workDir, flags) {
           TERMINAL.term.writeln('\r\n\x1b[31m[' + STATE.selectedAgent + ' exited with code ' + (msg.code ?? '?') + ']\x1b[0m');
         }
         // Auto-return to launcher after exit
+        sendNotification('Agent Exited', STATE.selectedAgent + ' exited with code ' + (msg.code ?? '?'));
         setTimeout(function() { backToLauncher(); }, 2000);
       }
     } catch (e) {
@@ -3070,6 +3377,278 @@ function formatMsgContent(text) {
 }
 
 /* ==========================================================================
+   Mobile UX — Smart Suggestions, Favorites, Recents, Collapse, Notifications
+   ========================================================================== */
+
+/* ---------- Terminal Output Buffer (for context detection) ---------- */
+var _outputBuffer = '';
+var _chipTimer = null;
+
+function onTerminalOutput(data) {
+  _outputBuffer += data;
+  // Keep only last 2000 chars for pattern matching
+  if (_outputBuffer.length > 2000) _outputBuffer = _outputBuffer.slice(-2000);
+  // Debounce chip updates
+  if (_chipTimer) clearTimeout(_chipTimer);
+  _chipTimer = setTimeout(updateSuggestionChips, 300);
+}
+
+/* ---------- Smart Suggestion Chips ---------- */
+var _chipPatterns = [
+  { regex: /\b(approve|permission|allow|accept)\b.*\?/i, chips: [
+    { text: '✅ Yes, approve', cmd: 'y\r\n', cls: 'approve' },
+    { text: '❌ No, reject', cmd: 'n\r\n', cls: 'reject' },
+    { text: 'Show diff first', cmd: 'diff\r\n', cls: '' },
+  ]},
+  { regex: /\b(yes|no)\b.*\?/i, chips: [
+    { text: 'Yes', cmd: 'yes\r\n', cls: 'approve' },
+    { text: 'No', cmd: 'no\r\n', cls: 'reject' },
+  ]},
+  { regex: /\b(continue|proceed)\b.*\?/i, chips: [
+    { text: '▶ Continue', cmd: '\r\n', cls: 'approve' },
+    { text: '⏹ Stop', cmd: '\x03', cls: 'reject' },
+  ]},
+  { regex: /\berror\b|\bfailed\b|\btraceback\b/i, chips: [
+    { text: '🔄 Retry', cmd: '!!\r\n', cls: '' },
+    { text: '📖 Explain', cmd: 'explain the error\r\n', cls: '' },
+    { text: '🛑 Cancel', cmd: '\x03', cls: 'reject' },
+  ]},
+  { regex: /\b(waiting|press enter|hit enter)\b/i, chips: [
+    { text: '⏎ Enter', cmd: '\r\n', cls: 'approve' },
+  ]},
+];
+
+function updateSuggestionChips() {
+  var container = $('suggestionChips');
+  if (!container) return;
+  // Check last 500 chars for patterns
+  var tail = _outputBuffer.slice(-500);
+  var matched = null;
+  for (var i = 0; i < _chipPatterns.length; i++) {
+    if (_chipPatterns[i].regex.test(tail)) {
+      matched = _chipPatterns[i];
+      break;
+    }
+  }
+  if (matched) {
+    container.innerHTML = matched.chips.map(function(c) {
+      return '<button class="chip ' + c.cls + '" onclick="sendChipCmd(\'' +
+        c.cmd.replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\x03/g, '\\x03') +
+        '\')">' + c.text + '</button>';
+    }).join('');
+    container.classList.add('visible');
+  } else {
+    container.classList.remove('visible');
+  }
+}
+
+function sendChipCmd(cmd) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd }));
+  $('suggestionChips').classList.remove('visible');
+  _outputBuffer = '';
+  addToRecent(cmd.replace(/[\r\n\x03]/g, '').trim());
+}
+
+/* ---------- Command Favorites ---------- */
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('corvus_favorites') || '[]'); }
+  catch(e) { return []; }
+}
+function saveFavorites(favs) {
+  localStorage.setItem('corvus_favorites', JSON.stringify(favs));
+}
+
+function renderFavBar() {
+  var favs = getFavorites();
+  var scroll = $('favScroll');
+  if (!scroll) return;
+  if (favs.length === 0) {
+    scroll.innerHTML = '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">No favorites yet — tap ⭐ to add</span>';
+    return;
+  }
+  scroll.innerHTML = favs.map(function(f, i) {
+    return '<button class="fav-chip" onclick="sendFavCmd(' + i + ')" title="' +
+      f.replace(/"/g, '&quot;') + '">' + escapeHtml(f) + '</button>';
+  }).join('');
+}
+
+function sendFavCmd(index) {
+  var favs = getFavorites();
+  if (index >= favs.length) return;
+  var cmd = favs[index];
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
+  addToRecent(cmd);
+}
+
+function toggleFavManager() {
+  $('favModal').classList.toggle('active');
+  if ($('favModal').classList.contains('active')) renderFavPanel();
+}
+function closeFavManager() {
+  $('favModal').classList.remove('active');
+}
+
+function renderFavPanel() {
+  var favs = getFavorites();
+  var list = $('favPanelList');
+  if (favs.length === 0) {
+    list.innerHTML = '<div class="fav-empty">No favorites yet. Add one below!</div>';
+    return;
+  }
+  list.innerHTML = favs.map(function(f, i) {
+    return '<div class="fav-panel-item">' +
+      '<span>⭐</span>' +
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(f) + '</span>' +
+      '<span class="fav-del" onclick="event.stopPropagation();removeFavorite(' + i + ')">✕</span>' +
+      '</div>';
+  }).join('');
+}
+
+function addFavorite() {
+  var input = $('favAddInput');
+  var cmd = input.value.trim();
+  if (!cmd) return;
+  var favs = getFavorites();
+  if (favs.indexOf(cmd) !== -1) { input.value = ''; return; } // no dupes
+  favs.push(cmd);
+  saveFavorites(favs);
+  input.value = '';
+  renderFavPanel();
+  renderFavBar();
+}
+
+function removeFavorite(index) {
+  var favs = getFavorites();
+  favs.splice(index, 1);
+  saveFavorites(favs);
+  renderFavPanel();
+  renderFavBar();
+}
+
+/* ---------- Recent Commands ---------- */
+var _recentCmds = [];
+var MAX_RECENT = 20;
+
+function addToRecent(cmd) {
+  if (!cmd || cmd.length < 2) return;
+  // Remove if already exists
+  var idx = _recentCmds.indexOf(cmd);
+  if (idx !== -1) _recentCmds.splice(idx, 1);
+  _recentCmds.unshift(cmd);
+  if (_recentCmds.length > MAX_RECENT) _recentCmds.pop();
+  try { sessionStorage.setItem('corvus_recent', JSON.stringify(_recentCmds)); } catch(e) {}
+}
+
+function loadRecent() {
+  try {
+    var saved = sessionStorage.getItem('corvus_recent');
+    if (saved) _recentCmds = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function toggleRecentDrawer() {
+  var drawer = $('recentDrawer');
+  if (drawer.classList.contains('visible')) {
+    drawer.classList.remove('visible');
+    return;
+  }
+  renderRecentDrawer();
+  drawer.classList.add('visible');
+}
+
+function renderRecentDrawer() {
+  var drawer = $('recentDrawer');
+  if (_recentCmds.length === 0) {
+    drawer.innerHTML = '<div class="fav-empty">No recent commands</div>';
+    return;
+  }
+  var html = '<div class="recent-header"><span>Recent Commands</span><button class="recent-clear" onclick="clearRecent()">Clear</button></div>';
+  html += _recentCmds.map(function(cmd) {
+    return '<button class="recent-item" onclick="sendRecentCmd(\'' + cmd.replace(/'/g, "\\'") + '\')">' +
+      '<span class="recent-icon">▸</span>' +
+      '<span class="recent-text">' + escapeHtml(cmd) + '</span></button>';
+  }).join('');
+  drawer.innerHTML = html;
+}
+
+function sendRecentCmd(cmd) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
+  $('recentDrawer').classList.remove('visible');
+  addToRecent(cmd);
+}
+
+function clearRecent() {
+  _recentCmds = [];
+  try { sessionStorage.removeItem('corvus_recent'); } catch(e) {}
+  $('recentDrawer').classList.remove('visible');
+}
+
+/* ---------- Collapsible Terminal ---------- */
+function toggleTerminalCollapse() {
+  var screen = $('terminalScreen');
+  if (!screen) return;
+  screen.classList.toggle('terminal-collapsed');
+  // Refit terminal after animation
+  setTimeout(function() {
+    if (TERMINAL.fitAddon) TERMINAL.fitAddon.fit();
+    sendResize();
+  }, 300);
+}
+
+/* ---------- Push Notifications ---------- */
+function checkNotificationSupport() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default' && !localStorage.getItem('corvus_notif_dismissed')) {
+    setTimeout(function() {
+      var banner = $('notifBanner');
+      if (banner) banner.classList.add('visible');
+    }, 3000);
+  }
+}
+
+function enableNotifications() {
+  Notification.requestPermission().then(function(perm) {
+    $('notifBanner').classList.remove('visible');
+    if (perm === 'granted') {
+      localStorage.setItem('corvus_notif_enabled', 'true');
+      new Notification('CorvusTunnel', {
+        body: 'Notifications enabled! You\'ll be notified when your agent needs attention.',
+        icon: '/static/icons/icon-192.png',
+      });
+    }
+  });
+}
+
+function dismissNotifBanner() {
+  $('notifBanner').classList.remove('visible');
+  localStorage.setItem('corvus_notif_dismissed', 'true');
+}
+
+function sendNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (document.visibilityState === 'visible') return; // Don't notify if tab is active
+  try {
+    new Notification(title || 'CorvusTunnel', {
+      body: body,
+      icon: '/static/icons/icon-192.png',
+      badge: '/static/icons/icon-192.png',
+      tag: 'corvus-agent',
+      renotify: true,
+    });
+  } catch(e) {}
+}
+
+/* ---------- PWA Service Worker ---------- */
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(function() {});
+  }
+}
+
+/* ==========================================================================
    Boot
    ========================================================================== */
 document.addEventListener('DOMContentLoaded', async function() {
@@ -3106,6 +3685,12 @@ document.addEventListener('DOMContentLoaded', async function() {
       }
     } catch (e) { /* show auth screen */ }
   }
+
+  // Mobile UX initialization
+  loadRecent();
+  renderFavBar();
+  checkNotificationSupport();
+  registerServiceWorker();
 
   $('tokenInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleAuth(); });
 
