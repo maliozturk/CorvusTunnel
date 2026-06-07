@@ -1,0 +1,37 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17171b"></stop>
+      <stop offset="1" stop-color="#08080a"></stop>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="46%" r="55%">
+      <stop offset="0" stop-color="#b81f1f" stop-opacity="0.55"></stop>
+      <stop offset="55%" stop-color="#7a1414" stop-opacity="0.18"></stop>
+      <stop offset="100%" stop-color="#7a1414" stop-opacity="0"></stop>
+    </radialGradient>
+    <linearGradient id="crow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff5a4d"></stop>
+      <stop offset="1" stop-color="#e02a2a"></stop>
+    </linearGradient>
+  </defs>
+
+  
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"></rect>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#glow)"></rect>
+
+  
+  <g fill="none" stroke="#f23a3a" stroke-linecap="round">
+    <circle cx="256" cy="248" r="186" stroke-opacity="0.10" stroke-width="2"></circle>
+    <circle cx="256" cy="250" r="138" stroke-opacity="0.16" stroke-width="2.5"></circle>
+    <circle cx="256" cy="252" r="92" stroke-opacity="0.24" stroke-width="3"></circle>
+    <circle cx="256" cy="254" r="50" stroke-opacity="0.34" stroke-width="3.5"></circle>
+  </g>
+
+  
+  <g transform="translate(256,250) rotate(-90) scale(2.62)">
+    <path fill="url(#crow)" d="M38 0&#xA;      Q26 -2 16 -2.8&#xA;      Q4 -29.1 -15 -56&#xA;      Q-4 -22.4 -6 -3.4&#xA;      Q-10 -3 -15 -2.6&#xA;      L-30 -5 Q-42 -1.6 -47 0&#xA;      Q-42 1.6 -30 5 L-15 2.6&#xA;      Q-10 3 -6 3.4&#xA;      Q-4 22.4 -15 56&#xA;      Q4 29.1 16 2.8&#xA;      Q26 2 38 0 Z"></path>
+  </g>
+
+  
+  <rect x="16.5" y="16.5" width="479" height="479" rx="111.5" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="1.5"></rect>
+</svg>

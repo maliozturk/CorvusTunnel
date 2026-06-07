@@ -52,15 +52,20 @@ class Settings(BaseSettings):
 
     # ── Workspace ─────────────────────────────────────────────────────
     allowed_dirs: str = Field(
-        default="/workspace",
-        description="Comma-separated directories visible in folder browser",
+        default="",
+        description="Comma-separated directories visible in folder browser. "
+                    "Defaults to current working directory if not set.",
     )
 
     @property
     def allowed_dir_list(self) -> list[str]:
-        """Parse comma-separated allowed directories."""
+        """Parse comma-separated allowed directories.
+
+        Falls back to the current working directory if not set.
+        """
         if not self.allowed_dirs:
-            return []
+            import os
+            return [os.getcwd()]
         return [d.strip() for d in self.allowed_dirs.split(',') if d.strip()]
 
     # ── Chat History ─────────────────────────────────────────────────

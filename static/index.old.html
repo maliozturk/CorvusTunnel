@@ -1,0 +1,3739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="description" content="Control AI coding agents from your phone — Claude Code, Codex, and Antigravity. Self-hosted, E2E encrypted.">
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<title>CorvusTunnel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- Vendor: local copies -->
+<link rel="stylesheet" href="/static/vendor/xterm.css">
+<script src="/static/vendor/xterm.js"></script>
+<script src="/static/vendor/xterm-addon-fit.js"></script>
+<script src="/static/vendor/xterm-addon-web-links.js"></script>
+<style>
+/* ===== CSS Custom Properties ===== */
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-tertiary: #1a1a2e;
+  --bg-card: rgba(255, 255, 255, 0.03);
+  --bg-card-hover: rgba(255, 255, 255, 0.06);
+  --glass-bg: rgba(18, 18, 26, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-light: rgba(255, 255, 255, 0.12);
+
+  --purple: #8b5cf6;
+  --purple-dim: #7c3aed;
+  --purple-glow: rgba(139, 92, 246, 0.3);
+  --purple-soft: rgba(139, 92, 246, 0.12);
+
+  --blue-dark: #1e293b;
+  --blue-deep: #0f172a;
+
+  --cyan: #06b6d4;
+  --cyan-glow: rgba(6, 182, 212, 0.25);
+  --cyan-soft: rgba(6, 182, 212, 0.1);
+
+  --green: #22c55e;
+  --green-glow: rgba(34, 197, 94, 0.3);
+  --red: #ef4444;
+  --red-glow: rgba(239, 68, 68, 0.3);
+  --yellow: #eab308;
+  --yellow-glow: rgba(234, 179, 8, 0.3);
+  --orange: #f97316;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --text-dim: #475569;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
+  --shadow-glow-purple: 0 0 20px var(--purple-glow);
+  --shadow-glow-cyan: 0 0 20px var(--cyan-glow);
+
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  position: fixed;
+  width: 100%;
+  top: 0;
+  left: 0;
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-dim); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ===== Animations ===== */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 5px var(--purple-glow), 0 0 10px rgba(139,92,246,0.1); }
+  50% { box-shadow: 0 0 15px var(--purple-glow), 0 0 30px rgba(139,92,246,0.15); }
+}
+
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes textReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Auth Screen ===== */
+.auth-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  z-index: 1000;
+  animation: fadeIn 0.6s ease;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.auth-screen::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--purple-glow) 0%, transparent 70%);
+  top: -150px;
+  right: -100px;
+  pointer-events: none;
+  animation: breathe 6s ease-in-out infinite;
+}
+
+.auth-screen::after {
+  content: '';
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--cyan-glow) 0%, transparent 70%);
+  bottom: -100px;
+  left: -80px;
+  pointer-events: none;
+  animation: breathe 8s ease-in-out infinite 2s;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 40px 28px;
+  position: relative;
+  z-index: 1;
+  animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.auth-logo {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-logo-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: var(--shadow-glow-purple);
+  animation: float 4s ease-in-out infinite;
+  position: relative;
+}
+
+.auth-logo-icon::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: calc(var(--radius-lg) + 2px);
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  z-index: -1;
+  opacity: 0.4;
+  filter: blur(8px);
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.auth-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.auth-field {
+  margin-bottom: 20px;
+}
+
+.auth-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  outline: none;
+  transition: all var(--transition-normal);
+}
+
+.auth-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 3px var(--purple-soft), var(--shadow-glow-purple);
+  background: rgba(255,255,255,0.06);
+}
+
+.auth-input::placeholder {
+  color: var(--text-dim);
+}
+
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-glow-purple), var(--shadow-md);
+}
+
+.auth-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.auth-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+.auth-error {
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.2);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  font-size: 13px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+  display: none;
+}
+
+.auth-error.visible { display: block; }
+
+/* ===== App Layout ===== */
+.app {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  position: relative;
+  overflow: hidden;
+}
+
+.app.active {
+  display: flex;
+  animation: fadeIn 0.4s ease;
+}
+
+/* ===== Header ===== */
+.header {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-top: calc(12px + var(--safe-top));
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 10;
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--purple-glow), var(--cyan-glow), transparent);
+  opacity: 0.5;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  box-shadow: 0 0 12px var(--purple-glow);
+}
+
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.header-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: all var(--transition-normal);
+  position: relative;
+}
+
+.status-dot.connected {
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-glow);
+}
+
+.status-dot.connected::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--green);
+  opacity: 0.3;
+  animation: pulse 2s infinite;
+}
+
+.status-dot.disconnected {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red-glow);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.header-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+.header-btn:active {
+  transform: scale(0.92);
+}
+
+
+
+/* ===== Browse Button ===== */
+.browse-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 15px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.browse-btn:hover {
+  background: rgba(6,182,212,0.12);
+  color: var(--cyan);
+  border-color: rgba(6,182,212,0.4);
+}
+.browse-btn:active { transform: scale(0.9); }
+
+/* ===== Folder Browser Modal ===== */
+.folder-modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.folder-modal.active {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+@media (min-width: 768px) {
+  .folder-modal.active { align-items: center; }
+}
+.folder-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 75dvh;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border-light);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+@media (min-width: 768px) {
+  .folder-panel {
+    border-radius: var(--radius-xl);
+    max-height: 65vh;
+  }
+}
+.folder-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+.folder-header-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.folder-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.folder-close:hover {
+  background: rgba(239,68,68,0.12);
+  color: var(--red);
+  border-color: rgba(239,68,68,0.3);
+}
+.folder-path {
+  padding: 10px 20px;
+  background: rgba(0,0,0,0.25);
+  border-bottom: 1px solid var(--glass-border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  word-break: break-all;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.folder-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  -webkit-overflow-scrolling: touch;
+}
+.folder-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-sans);
+}
+.folder-item:hover {
+  background: rgba(139,92,246,0.08);
+  color: var(--text-primary);
+}
+.folder-item:active { background: rgba(139,92,246,0.14); }
+.folder-item-icon {
+  font-size: 17px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+.folder-item.up-dir { color: var(--text-muted); }
+.folder-item.up-dir:hover { color: var(--cyan); }
+.folder-empty {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+.folder-actions {
+  padding: 12px 20px;
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.folder-select-btn {
+  flex: 1;
+  padding: 12px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none;
+  border-radius: var(--radius-md);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.folder-select-btn:hover {
+  box-shadow: var(--shadow-glow-purple);
+  transform: translateY(-1px);
+}
+.folder-select-btn:active { transform: scale(0.97); }
+.folder-cancel-btn {
+  padding: 12px 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.folder-cancel-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+.folder-loading {
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.folder-loading::after {
+  content: '';
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--glass-border);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+
+
+#terminalPanel {
+  position: relative;
+}
+
+#terminalContainer {
+  flex: 1;
+  overflow: hidden;
+  padding: 4px;
+  background: #0a0a0f;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Override xterm.js background to match our theme */
+#terminalContainer .xterm {
+  padding: 8px;
+}
+
+/* ===== Terminal Status Bar ===== */
+.term-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.term-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.term-status .status-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.term-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.term-ctrl-btn {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.term-ctrl-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+.term-ctrl-btn:active { transform: scale(0.93); }
+
+.term-font-select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.term-font-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* ===== URL Toast (floating link detector) ===== */
+.url-toast {
+  display: none;
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: linear-gradient(135deg, rgba(99,102,241,0.95), rgba(139,92,246,0.95));
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 8px 32px rgba(99,102,241,0.4);
+  backdrop-filter: blur(12px);
+  animation: toastSlide 0.3s ease;
+  max-width: 90vw;
+  text-align: center;
+  text-decoration: none;
+}
+.url-toast:active {
+  transform: translateX(-50%) scale(0.96);
+}
+.url-toast .toast-dismiss {
+  margin-left: 16px;
+  opacity: 0.8;
+  font-size: 20px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  flex-shrink: 0;
+}
+.url-toast .toast-dismiss:active {
+  background: rgba(255,255,255,0.3);
+  transform: scale(0.9);
+}
+@keyframes toastSlide {
+  from { top: -60px; opacity: 0; }
+  to   { top: 60px; opacity: 1; }
+}
+
+/* ===== Virtual Keypad ===== */
+.virtual-keypad {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  padding-bottom: calc(8px + var(--safe-bottom));
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.vk-btn {
+  min-width: 40px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.vk-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: var(--text-primary);
+}
+
+.vk-btn:active {
+  transform: scale(0.9);
+  background: rgba(139,92,246,0.2);
+}
+
+.vk-btn.active {
+  background: rgba(139,92,246,0.25);
+  border-color: var(--purple);
+  color: var(--purple);
+  box-shadow: 0 0 10px var(--purple-glow);
+}
+
+.vk-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--glass-border);
+  margin: 0 2px;
+}
+
+.vk-btn.enter {
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  color: white;
+  border-color: var(--purple);
+  min-width: 52px;
+  font-weight: 600;
+}
+.vk-btn.enter:hover {
+  box-shadow: 0 0 10px var(--purple-glow);
+}
+
+.vk-btn.kbd-toggle {
+  background: rgba(6,182,212,0.12);
+  border-color: rgba(6,182,212,0.3);
+  color: var(--cyan);
+}
+.vk-btn.kbd-toggle.active {
+  background: rgba(6,182,212,0.25);
+  border-color: var(--cyan);
+  box-shadow: 0 0 10px rgba(6,182,212,0.3);
+}
+
+/* ===== Launcher Screen ===== */
+.launcher {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 24px;
+  gap: 24px;
+  animation: fadeIn 0.5s ease;
+}
+
+.launcher-logo {
+  font-size: 48px;
+  filter: drop-shadow(0 0 24px var(--purple-glow));
+  animation: float 5s ease-in-out infinite;
+}
+
+.launcher-title {
+  font-size: 22px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--text-primary), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-align: center;
+}
+
+.launcher-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* Selected folder card */
+.launcher-folder-card {
+  width: 100%;
+  max-width: 380px;
+  padding: 14px 18px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.launcher-folder-card:hover {
+  border-color: var(--glass-border-light);
+  background: var(--bg-card-hover);
+}
+.launcher-folder-icon { font-size: 20px; flex-shrink: 0; }
+.launcher-folder-text { flex: 1; min-width: 0; }
+.launcher-folder-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.launcher-folder-name {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--cyan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+.launcher-folder-name.empty { color: var(--text-dim); font-style: italic; }
+.launcher-folder-arrow { color: var(--text-dim); font-size: 14px; }
+
+/* Agent Selector */
+.agent-selector {
+  display: flex;
+  gap: 8px;
+}
+.agent-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 2px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: capitalize;
+}
+.agent-btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.agent-btn.selected {
+  border-color: var(--primary);
+  background: rgba(99,102,241,0.15);
+  color: var(--text-primary);
+  box-shadow: 0 0 16px rgba(99,102,241,0.2);
+}
+.agent-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Checkboxes */
+.launcher-options {
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.launcher-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+.launcher-option:hover {
+  border-color: var(--glass-border-light);
+  background: var(--bg-card-hover);
+}
+.launcher-option input[type="checkbox"] { display: none; }
+.launcher-option .checkbox-visual {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--glass-border-light);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+  font-size: 11px;
+  color: transparent;
+}
+.launcher-option input:checked + .checkbox-visual {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: white;
+}
+.launcher-option .option-info { flex: 1; }
+.launcher-option .option-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.launcher-option .option-desc {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* Glowing Connect Button */
+.connect-btn {
+  width: 100%;
+  max-width: 380px;
+  padding: 16px 24px;
+  border: none;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all var(--transition-normal);
+  color: white;
+  background: linear-gradient(135deg, var(--purple), var(--cyan));
+  box-shadow: 0 0 30px var(--purple-glow), 0 0 60px rgba(6,182,212,0.15);
+  letter-spacing: 0.3px;
+}
+.connect-btn::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--purple), var(--cyan), var(--purple));
+  background-size: 200% 200%;
+  animation: shimmer 3s ease-in-out infinite;
+  z-index: -1;
+  filter: blur(8px);
+  opacity: 0.6;
+}
+.connect-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 40px var(--purple-glow), 0 0 80px rgba(6,182,212,0.25);
+}
+.connect-btn:active { transform: scale(0.97); }
+.connect-btn:disabled {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-dim);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.connect-btn:disabled::before { display: none; }
+.connect-btn-text { position: relative; z-index: 1; }
+
+.connect-btn-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
+  margin-top: -8px;
+}
+
+@keyframes shimmer {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* ===== Quick Action Bar ===== */
+.quick-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.quick-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.quick-badge .badge-icon { flex-shrink: 0; }
+.quick-badge.folder { color: var(--cyan); border-color: rgba(6,182,212,0.2); }
+.quick-badge.status { color: var(--green); border-color: rgba(34,197,94,0.2); }
+
+.quick-spacer { flex: 1; }
+
+.quick-btn {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.quick-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.quick-btn:active { transform: scale(0.93); }
+.quick-btn.danger:hover { background: rgba(239,68,68,0.12); color: var(--red); border-color: rgba(239,68,68,0.3); }
+
+/* ===== Create Folder in Modal ===== */
+.folder-create-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.folder-create-input {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  transition: all var(--transition-fast);
+}
+.folder-create-input:focus {
+  border-color: var(--purple);
+  box-shadow: 0 0 0 2px var(--purple-soft);
+}
+.folder-create-input::placeholder { color: var(--text-dim); }
+.folder-create-btn {
+  padding: 8px 14px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: white;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.folder-create-btn:hover { box-shadow: var(--shadow-glow-purple); }
+.folder-create-btn:active { transform: scale(0.95); }
+.folder-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.folder-create-error {
+  padding: 0 20px 8px;
+  font-size: 11px;
+  color: var(--red);
+  display: none;
+}
+.folder-create-error.visible { display: block; }
+
+/* ===== History Panel ===== */
+.history-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.history-overlay.active {
+  display: block;
+  animation: fadeIn 0.15s ease;
+}
+
+.history-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 520px;
+  background: var(--bg-primary);
+  z-index: 3001;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--glass-border);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+}
+.history-panel.active {
+  display: flex;
+  animation: historySlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes historySlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* On phones, take full width */
+@media (max-width: 600px) {
+  .history-panel {
+    max-width: 100%;
+    border-left: none;
+  }
+}
+
+/* ── History Header ── */
+.history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  padding-top: calc(14px + var(--safe-top));
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  min-height: 56px;
+}
+.history-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--purple-glow), var(--cyan-glow), transparent);
+  opacity: 0.4;
+}
+
+.history-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.history-back-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.history-back-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.history-back-btn:active { transform: scale(0.9); }
+
+.history-header-title {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+.history-header-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.history-close-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.history-close-btn:hover { background: rgba(239,68,68,0.12); color: var(--red); }
+.history-close-btn:active { transform: scale(0.9); }
+
+/* ── Agent Filter Tabs ── */
+.history-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.history-tabs::-webkit-scrollbar { display: none; }
+
+.history-tab {
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.history-tab:active { transform: scale(0.95); }
+.history-tab.active {
+  background: rgba(139,92,246,0.15);
+  border-color: var(--purple);
+  color: var(--text-primary);
+}
+.history-tab .tab-count {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.08);
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  text-align: center;
+}
+.history-tab.active .tab-count {
+  background: rgba(139,92,246,0.3);
+}
+
+/* ── Session List ── */
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0;
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 24px;
+  gap: 12px;
+  color: var(--text-dim);
+}
+.history-empty-icon { font-size: 40px; opacity: 0.5; }
+.history-empty-text { font-size: 14px; text-align: center; }
+
+.history-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.history-loading::after {
+  content: '';
+  width: 16px; height: 16px;
+  border: 2px solid var(--glass-border);
+  border-top-color: var(--purple);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* ── Session Card ── */
+.history-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  margin: 0 8px 4px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+  position: relative;
+}
+.history-card:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--glass-border);
+}
+.history-card:active {
+  background: rgba(139,92,246,0.08);
+  transform: scale(0.99);
+}
+
+.history-card-agent {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+  position: relative;
+}
+.history-card-agent.ag-antigravity {
+  background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(139,92,246,0.08));
+  border: 1px solid rgba(139,92,246,0.25);
+  color: var(--purple);
+}
+.history-card-agent.ag-claude {
+  background: linear-gradient(135deg, rgba(249,115,22,0.2), rgba(249,115,22,0.08));
+  border: 1px solid rgba(249,115,22,0.25);
+  color: var(--orange);
+}
+.history-card-agent.ag-codex {
+  background: linear-gradient(135deg, rgba(34,197,94,0.2), rgba(34,197,94,0.08));
+  border: 1px solid rgba(34,197,94,0.25);
+  color: var(--green);
+}
+
+.history-card-body {
+  flex: 1;
+  min-width: 0;
+}
+.history-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.history-card-agent-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+.history-card-agent-label.ag-antigravity {
+  color: var(--purple);
+  background: rgba(139,92,246,0.12);
+}
+.history-card-agent-label.ag-claude {
+  color: var(--orange);
+  background: rgba(249,115,22,0.12);
+}
+.history-card-agent-label.ag-codex {
+  color: var(--green);
+  background: rgba(34,197,94,0.12);
+}
+
+.history-card-time {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.history-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.history-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.history-card-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Conversation View ── */
+.history-convo {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  padding-bottom: calc(16px + var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.history-msg {
+  max-width: 92%;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  line-height: 1.6;
+  word-break: break-word;
+  position: relative;
+  animation: msgFadeIn 0.2s ease;
+}
+@keyframes msgFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.history-msg.msg-user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(99,102,241,0.15));
+  border: 1px solid rgba(139,92,246,0.2);
+  border-bottom-right-radius: 4px;
+  color: var(--text-primary);
+}
+.history-msg.msg-assistant {
+  align-self: flex-start;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-bottom-left-radius: 4px;
+  color: var(--text-secondary);
+}
+.history-msg.msg-system {
+  align-self: center;
+  max-width: 85%;
+  background: rgba(234,179,8,0.08);
+  border: 1px solid rgba(234,179,8,0.15);
+  color: var(--text-muted);
+  font-size: 11px;
+  text-align: center;
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+}
+
+.history-msg-role {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  opacity: 0.6;
+}
+
+.history-msg-content {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+.history-msg-content code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(0,0,0,0.3);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.history-msg-content pre {
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: rgba(0,0,0,0.35);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.history-msg-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  text-align: right;
+}
+
+/* Load more button */
+.history-load-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+}
+.history-load-more-btn {
+  padding: 8px 20px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.history-load-more-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.history-load-more-btn:active { transform: scale(0.95); }
+
+/* ── History Header Button (in app header) ── */
+.header-btn.history-btn {
+  position: relative;
+}
+.header-btn.history-btn .notif-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--purple);
+  box-shadow: 0 0 6px var(--purple-glow);
+}
+
+/* ===== Utility ===== */
+.hidden { display: none !important; }
+
+/* ===== Smart Suggestion Chips ===== */
+.suggestion-chips {
+  display: none;
+  gap: 6px;
+  padding: 6px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: rgba(10,10,15,0.8);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+.suggestion-chips::-webkit-scrollbar { display: none; }
+.suggestion-chips.visible { display: flex; }
+.chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--glass-border-light);
+  background: rgba(139,92,246,0.08);
+  color: var(--purple);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.chip:hover { background: rgba(139,92,246,0.2); border-color: var(--purple); }
+.chip:active { transform: scale(0.92); background: rgba(139,92,246,0.3); }
+.chip.approve { background: rgba(34,197,94,0.1); color: var(--green); border-color: rgba(34,197,94,0.3); }
+.chip.approve:hover { background: rgba(34,197,94,0.2); }
+.chip.reject { background: rgba(239,68,68,0.1); color: var(--red); border-color: rgba(239,68,68,0.3); }
+.chip.reject:hover { background: rgba(239,68,68,0.2); }
+
+/* ===== Command Favorites Drawer ===== */
+.favorites-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  border-top: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+.favorites-bar .fav-toggle {
+  width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.05);
+  color: var(--yellow);
+  font-size: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+.favorites-bar .fav-toggle:hover { background: rgba(234,179,8,0.12); }
+.favorites-bar .fav-toggle.active { background: rgba(234,179,8,0.2); border-color: var(--yellow); }
+.fav-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  flex: 1;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.fav-scroll::-webkit-scrollbar { display: none; }
+.fav-chip {
+  flex-shrink: 0;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  background: rgba(234,179,8,0.08);
+  border: 1px solid rgba(234,179,8,0.2);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+.fav-chip:hover { background: rgba(234,179,8,0.15); }
+.fav-chip:active { transform: scale(0.92); }
+.fav-chip .fav-remove {
+  display: none;
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 16px; height: 16px;
+  background: var(--red);
+  color: white;
+  font-size: 10px;
+  border-radius: 50%;
+  align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.fav-chip:hover .fav-remove { display: flex; }
+
+/* Favorites manager modal */
+.fav-modal { display: none; }
+.fav-modal.active {
+  display: flex;
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  align-items: flex-end; justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+@media (min-width: 768px) { .fav-modal.active { align-items: center; } }
+.fav-panel {
+  width: 100%; max-width: 400px; max-height: 60dvh;
+  background: var(--bg-secondary);
+  border: 1px solid var(--glass-border-light);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  display: flex; flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16,1,0.3,1);
+  overflow: hidden;
+}
+@media (min-width: 768px) { .fav-panel { border-radius: var(--radius-xl); } }
+.fav-panel-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--glass-border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.fav-panel-title { font-size: 15px; font-weight: 700; }
+.fav-panel-list {
+  flex: 1; overflow-y: auto; padding: 8px 0;
+  -webkit-overflow-scrolling: touch;
+}
+.fav-panel-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px;
+  font-family: var(--font-mono); font-size: 13px;
+  color: var(--text-secondary);
+  border: none; background: none; width: 100%; text-align: left;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.fav-panel-item:hover { background: rgba(139,92,246,0.08); color: var(--text-primary); }
+.fav-panel-item .fav-del {
+  margin-left: auto; color: var(--text-dim); font-size: 14px;
+  padding: 4px 8px; border-radius: var(--radius-sm); cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.fav-panel-item .fav-del:hover { color: var(--red); background: rgba(239,68,68,0.1); }
+.fav-empty {
+  padding: 32px 20px; text-align: center;
+  color: var(--text-dim); font-size: 13px;
+}
+.fav-add-row {
+  padding: 12px 20px;
+  border-top: 1px solid var(--glass-border);
+  display: flex; gap: 8px; flex-shrink: 0;
+}
+.fav-add-input {
+  flex: 1; padding: 8px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 13px;
+  outline: none;
+}
+.fav-add-input:focus { border-color: var(--purple); }
+.fav-add-btn {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--purple), var(--purple-dim));
+  border: none; border-radius: var(--radius-sm);
+  color: white; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all var(--transition-fast);
+}
+.fav-add-btn:hover { box-shadow: var(--shadow-glow-purple); }
+
+/* ===== Recent Commands ===== */
+.recent-drawer { display: none; }
+.recent-drawer.visible {
+  display: flex; flex-direction: column;
+  max-height: 180px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--glass-border);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  animation: slideUp 0.2s ease;
+}
+.recent-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer; border: none; background: none;
+  width: 100%; text-align: left;
+  transition: all var(--transition-fast);
+}
+.recent-item:hover { background: rgba(139,92,246,0.08); color: var(--text-primary); }
+.recent-item .recent-icon { color: var(--text-dim); font-size: 10px; flex-shrink: 0; }
+.recent-item .recent-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px 4px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--text-dim); font-weight: 600; flex-shrink: 0;
+}
+.recent-clear {
+  font-size: 10px; color: var(--text-dim); cursor: pointer;
+  padding: 2px 6px; border: none; background: none;
+  transition: color var(--transition-fast);
+}
+.recent-clear:hover { color: var(--red); }
+
+/* ===== Collapsible Terminal ===== */
+.collapse-toggle {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.collapse-toggle:hover { background: rgba(255,255,255,0.1); color: var(--text-primary); }
+.collapse-toggle:active { transform: scale(0.9); }
+.terminal-collapsed #terminalContainer { max-height: 100px; overflow: hidden; }
+.terminal-collapsed .collapse-toggle { transform: rotate(180deg); }
+
+/* ===== Notification Banner ===== */
+.notif-banner {
+  display: none;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(6,182,212,0.1));
+  border-bottom: 1px solid rgba(139,92,246,0.2);
+  font-size: 12px;
+  color: var(--text-secondary);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.notif-banner.visible { display: flex; }
+.notif-banner-text { flex: 1; }
+.notif-banner-btn {
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--purple);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.notif-banner-btn:hover { box-shadow: var(--shadow-glow-purple); }
+.notif-banner-dismiss {
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px;
+  border: none; background: none;
+}
+</style>
+</head>
+<body>
+
+<!-- ===== Auth Screen ===== -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">C</div>
+      <div class="auth-title">CorvusTunnel</div>
+      <div class="auth-subtitle">Remote Agent Control</div>
+    </div>
+    <div class="auth-field">
+      <label class="auth-label" for="tokenInput">Bearer Token</label>
+      <input
+        type="password"
+        id="tokenInput"
+        class="auth-input"
+        placeholder="Enter your authentication token"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+    <button class="auth-btn" id="authBtn" onclick="handleAuth()">
+      Connect to Tunnel
+    </button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- ===== Main App ===== -->
+<div class="app" id="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="header-icon">C</div>
+      <div class="header-info">
+        <div class="header-title">CorvusTunnel</div>
+        <div class="header-status">
+          <div class="status-dot" id="connectionDot"></div>
+          <span id="connectionText">Connecting...</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn history-btn" onclick="openHistoryPanel()" title="Chat History" id="historyBtn">&#x1F4DC;</button>
+      <button class="header-btn" onclick="handleLogout()" title="Logout">&#x23FB;</button>
+    </div>
+  </div>
+
+  <!-- ===== Phase 1: Launcher ===== -->
+  <div class="launcher" id="launcherScreen">
+    <div class="launcher-logo">&#x26A1;</div>
+    <div class="launcher-title">CorvusTunnel</div>
+    <div class="launcher-subtitle">Select an agent, pick a folder, and launch your AI coding session.</div>
+
+    <!-- Folder card -->
+    <div class="launcher-folder-card" onclick="openFolderBrowser()" id="folderCard">
+      <div class="launcher-folder-icon">&#x1F4C2;</div>
+      <div class="launcher-folder-text">
+        <div class="launcher-folder-label">Project Folder</div>
+        <div class="launcher-folder-name empty" id="launcherFolderName">No folder selected</div>
+      </div>
+      <div class="launcher-folder-arrow">&#x25B8;</div>
+    </div>
+
+    <!-- Agent Selector -->
+    <div class="launcher-options" style="margin-bottom: 8px;">
+      <div style="font-size:13px; color:var(--text-secondary); margin-bottom:8px; font-weight:600;">Agent</div>
+      <div class="agent-selector" id="agentSelector">
+        <!-- Populated dynamically by checkAgentAvailability() -->
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="launcher-options">
+      <label class="launcher-option">
+        <input type="checkbox" id="optAutoApprove">
+        <div class="checkbox-visual">&#x2713;</div>
+        <div class="option-info">
+          <div class="option-label">Auto-approve</div>
+          <div class="option-desc">Skip tool permission prompts</div>
+        </div>
+      </label>
+    </div>
+
+    <!-- Connect Button -->
+    <button class="connect-btn" id="connectBtn" onclick="handleConnect()" disabled>
+      <span class="connect-btn-text" id="connectBtnText">Checking agy...</span>
+    </button>
+    <div class="connect-btn-hint" id="connectHint"></div>
+  </div>
+
+  <!-- ===== Phase 2: Terminal ===== -->
+  <div id="terminalScreen" class="hidden" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+    <!-- Quick Action Bar -->
+    <div class="quick-bar">
+      <div class="quick-badge folder" id="qbFolder">
+        <span class="badge-icon">&#x1F4C1;</span>
+        <span id="qbFolderName">—</span>
+      </div>
+      <div class="quick-badge status" id="qbStatus">
+        <span class="badge-icon">&#x25CF;</span>
+        <span id="qbStatusText">Connected</span>
+      </div>
+      <div class="quick-spacer"></div>
+      <select class="term-font-select" id="termFontSize" onchange="setTermFontSize(this.value)">
+        <option value="12">12px</option>
+        <option value="14" selected>14px</option>
+        <option value="16">16px</option>
+        <option value="18">18px</option>
+      </select>
+      <button class="quick-btn" onclick="sendAgyCommand('/model')" title="Change model">&#x1F916; Model</button>
+      <button class="quick-btn" onclick="sendAgyCommand('/clear')" title="Clear terminal">&#x1F5D1; Clear</button>
+      <button class="quick-btn danger" onclick="exitSession()" title="Exit agy and return to launcher">&#x23FB; Exit</button>
+    </div>
+    <!-- URL Toast -->
+    <a class="url-toast" id="urlToast" href="#" target="_blank" rel="noopener">
+      <span id="urlToastText">🔗 Open Link</span>
+      <span class="toast-dismiss" onclick="event.preventDefault();event.stopPropagation();hideUrlToast();">✕</span>
+    </a>
+    <!-- Terminal -->
+    <div id="terminalContainer"></div>
+    <!-- Suggestion Chips -->
+    <div class="suggestion-chips" id="suggestionChips"></div>
+    <!-- Recent Commands Drawer -->
+    <div class="recent-drawer" id="recentDrawer"></div>
+    <!-- Favorites Bar -->
+    <div class="favorites-bar" id="favoritesBar">
+      <button class="fav-toggle" onclick="toggleFavManager()" title="Manage favorites">&#x2B50;</button>
+      <div class="fav-scroll" id="favScroll"><!-- populated by JS --></div>
+      <button class="collapse-toggle" id="collapseToggle" onclick="toggleTerminalCollapse()" title="Collapse/expand terminal">&#x25B2;</button>
+    </div>
+    <!-- Virtual Keypad -->
+    <div class="virtual-keypad" id="virtualKeypad">
+      <button class="vk-btn enter" onclick="sendVK('\r')" title="Enter">&#x23CE; Enter</button>
+      <button class="vk-btn" onclick="sendVK('\x1b')" title="Escape">Esc</button>
+      <button class="vk-btn" onclick="sendVK(' ')" title="Space">Space</button>
+      <button class="vk-btn" onclick="sendVK('\t')" title="Tab">Tab</button>
+      <div class="vk-separator"></div>
+      <button class="vk-btn" onclick="sendVK('\x1b[1;2A')" title="Shift+Up">&#x21E7;&uarr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[1;2B')" title="Shift+Down">&#x21E7;&darr;</button>
+      <div class="vk-separator"></div>
+      <button class="vk-btn" onclick="sendVK('\x1b[A')" title="Up">&uarr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[B')" title="Down">&darr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[D')" title="Left">&larr;</button>
+      <button class="vk-btn" onclick="sendVK('\x1b[C')" title="Right">&rarr;</button>
+      <div class="vk-separator"></div>
+      <button class="vk-btn kbd-toggle" id="vkKbd" onclick="toggleKeyboard()" title="Show/hide keyboard">&#x2328;</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ===== Folder Browser Modal ===== -->
+<div class="folder-modal" id="folderModal">
+  <div class="folder-panel">
+    <div class="folder-header">
+      <span class="folder-header-title">&#x1F4C2; Select Folder</span>
+      <button class="folder-close" onclick="closeFolderBrowser()">&times;</button>
+    </div>
+    <div class="folder-path" id="folderPath">Loading...</div>
+    <div class="folder-create-row" id="folderCreateRow">
+      <input type="text" class="folder-create-input" id="newFolderInput" placeholder="New folder name..." spellcheck="false">
+      <button class="folder-create-btn" id="newFolderBtn" onclick="createNewFolder()">Create</button>
+    </div>
+    <div class="folder-create-error" id="folderCreateError"></div>
+    <div class="folder-list" id="folderList"></div>
+    <div class="folder-actions">
+      <button class="folder-cancel-btn" onclick="closeFolderBrowser()">Cancel</button>
+      <button class="folder-select-btn" id="folderSelectBtn" onclick="selectFolder()">Select This Folder</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Notification Banner ===== -->
+<div class="notif-banner" id="notifBanner">
+  <span>&#x1F514;</span>
+  <span class="notif-banner-text">Enable push notifications to get alerts when your agent needs attention.</span>
+  <button class="notif-banner-btn" onclick="enableNotifications()">Enable</button>
+  <button class="notif-banner-dismiss" onclick="dismissNotifBanner()">&times;</button>
+</div>
+
+<!-- ===== Favorites Manager Modal ===== -->
+<div class="fav-modal" id="favModal">
+  <div class="fav-panel">
+    <div class="fav-panel-header">
+      <span class="fav-panel-title">&#x2B50; Command Favorites</span>
+      <button class="folder-close" onclick="closeFavManager()">&times;</button>
+    </div>
+    <div class="fav-panel-list" id="favPanelList"></div>
+    <div class="fav-add-row">
+      <input type="text" class="fav-add-input" id="favAddInput" placeholder="Type a command to save..." spellcheck="false">
+      <button class="fav-add-btn" onclick="addFavorite()">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== History Panel ===== -->
+<div class="history-overlay" id="historyOverlay" onclick="closeHistoryPanel()"></div>
+<div class="history-panel" id="historyPanel">
+  <!-- Session List View -->
+  <div id="historyListView" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+    <div class="history-header">
+      <div class="history-header-left">
+        <div style="display:flex;flex-direction:column;">
+          <div class="history-header-title">&#x1F4DC; Chat History</div>
+          <div class="history-header-subtitle" id="historySubtitle">All agents</div>
+        </div>
+      </div>
+      <button class="history-close-btn" onclick="closeHistoryPanel()">&times;</button>
+    </div>
+    <div class="history-tabs" id="historyTabs">
+      <button class="history-tab active" data-agent="" onclick="filterHistory(null, this)">All <span class="tab-count" id="tabCountAll">0</span></button>
+      <button class="history-tab" data-agent="antigravity" onclick="filterHistory('antigravity', this)">&#x2728; Antigravity <span class="tab-count" id="tabCountAg">0</span></button>
+      <button class="history-tab" data-agent="claude" onclick="filterHistory('claude', this)">&#x1F7E0; Claude <span class="tab-count" id="tabCountCl">0</span></button>
+      <button class="history-tab" data-agent="codex" onclick="filterHistory('codex', this)">&#x1F7E2; Codex <span class="tab-count" id="tabCountCx">0</span></button>
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="history-loading">Loading sessions</div>
+    </div>
+  </div>
+  <!-- Conversation View -->
+  <div id="historyConvoView" style="display:none; flex-direction:column; flex:1; overflow:hidden;">
+    <div class="history-header">
+      <div class="history-header-left">
+        <button class="history-back-btn" onclick="showHistoryList()">&larr;</button>
+        <div style="display:flex;flex-direction:column;min-width:0;">
+          <div class="history-header-title" id="convoTitle" style="font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Conversation</div>
+          <div class="history-header-subtitle" id="convoSubtitle"></div>
+        </div>
+      </div>
+      <button class="history-close-btn" onclick="closeHistoryPanel()">&times;</button>
+    </div>
+    <div class="history-convo" id="historyConvo"></div>
+  </div>
+</div>
+
+<input type="hidden" id="workDirInput" value="">
+
+<script>
+/* ==========================================================================
+   CorvusTunnel — Secure Agy Launcher
+   ========================================================================== */
+
+/* ---------- state ---------- */
+const STATE = {
+  token: localStorage.getItem('corvus_token') || '',
+  connected: false,
+  healthTimer: null,
+  agents: [],       // [{name, available}]
+  selectedAgent: localStorage.getItem('corvus_agent') || 'agy',
+  phase: 'launcher',
+};
+
+/* ---------- DOM refs ---------- */
+const $ = id => document.getElementById(id);
+const connDot  = $('connectionDot');
+const connText = $('connectionText');
+
+/* ==========================================================================
+   Auth
+   ========================================================================== */
+function handleAuth() {
+  var t = $('tokenInput').value.trim();
+  if (!t) { showAuthErr('Please enter a valid token.'); return; }
+  claimAndBoot(t);
+}
+
+async function claimAndBoot(token) {
+  // Try to claim boot token for a session token
+  try {
+    var resp = await fetch('/api/claim', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token }),
+    });
+    if (resp.ok) {
+      var data = await resp.json();
+      STATE.token = data.session_token;
+      localStorage.setItem('corvus_token', data.session_token);
+      bootApp();
+      return;
+    }
+    // If claim fails (already consumed), try token directly as session token
+    STATE.token = token;
+    localStorage.setItem('corvus_token', token);
+    // Verify it works
+    var health = await fetch('/api/health');
+    if (health.ok) {
+      bootApp();
+    } else {
+      showAuthErr('Token rejected — it may have already been used.');
+    }
+  } catch (e) {
+    showAuthErr('Connection error: ' + e.message);
+  }
+}
+
+function handleLogout() {
+  STATE.token = '';
+  localStorage.removeItem('corvus_token');
+  clearInterval(STATE.healthTimer);
+  if (TERMINAL.ws) { TERMINAL.ws.close(); TERMINAL.ws = null; }
+  if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); }
+  clearTimeout(TERMINAL.reconnectTimer);
+  $('app').classList.remove('active');
+  $('authScreen').style.display = 'flex';
+  $('tokenInput').value = '';
+  $('authError').classList.remove('visible');
+  showPhase('launcher');
+}
+
+function showAuthErr(msg) {
+  const e = $('authError');
+  e.textContent = msg;
+  e.classList.add('visible');
+}
+
+function bootApp() {
+  $('authScreen').style.display = 'none';
+  $('app').classList.add('active');
+  startHealth();
+  checkAgentAvailability();
+
+  // Restore saved folder
+  const wd = $('workDirInput').value.trim();
+  updateLauncherFolder(wd);
+
+  showPhase('launcher');
+}
+
+/* ==========================================================================
+   Phase Management
+   ========================================================================== */
+function showPhase(phase) {
+  STATE.phase = phase;
+  if (phase === 'launcher') {
+    $('launcherScreen').classList.remove('hidden');
+    $('launcherScreen').style.display = '';
+    $('terminalScreen').classList.add('hidden');
+    $('terminalScreen').style.display = 'none';
+    updateConnectButton();
+    releaseWakeLock();
+  } else {
+    $('launcherScreen').classList.add('hidden');
+    $('launcherScreen').style.display = 'none';
+    $('terminalScreen').classList.remove('hidden');
+    $('terminalScreen').style.display = 'flex';
+    if (TERMINAL.fitAddon) {
+      setTimeout(function() { TERMINAL.fitAddon.fit(); sendResize(); }, 100);
+    }
+    acquireWakeLock();
+  }
+}
+
+/* ── Screen Wake Lock ─────────────────────────────────────────────── */
+var _wakeLock = null;
+
+async function acquireWakeLock() {
+  if (!('wakeLock' in navigator)) return; // Unsupported browser
+  try {
+    _wakeLock = await navigator.wakeLock.request('screen');
+    _wakeLock.addEventListener('release', function() { _wakeLock = null; });
+    console.log('[wakelock] Screen wake lock acquired');
+  } catch (e) {
+    console.warn('[wakelock] Failed to acquire:', e.message);
+  }
+}
+
+function releaseWakeLock() {
+  if (_wakeLock) {
+    _wakeLock.release();
+    _wakeLock = null;
+    console.log('[wakelock] Screen wake lock released');
+  }
+}
+
+// Re-acquire wake lock when page becomes visible again (e.g. tab switch)
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && STATE.phase === 'terminal') {
+    acquireWakeLock();
+  }
+});
+
+/* ==========================================================================
+   Launcher
+   ========================================================================== */
+function updateLauncherFolder(path) {
+  const nameEl = $('launcherFolderName');
+  if (path) {
+    // Show last segment as name
+    var name = path.split('\\').pop() || path.split('/').pop() || path;
+    nameEl.textContent = name;
+    nameEl.classList.remove('empty');
+    nameEl.title = path;
+  } else {
+    nameEl.textContent = 'No folder selected';
+    nameEl.classList.add('empty');
+    nameEl.title = '';
+  }
+  updateConnectButton();
+}
+
+async function checkAgentAvailability() {
+  try {
+    var r = await api('/api/check-agents');
+    var data = await r.json();
+    STATE.agents = data.agents;
+
+    if (data.default_work_dir) {
+      var currentVal = $('workDirInput').value.trim();
+      var defaultDir = data.default_work_dir;
+
+      // Normalize paths for comparison (forward/backslash and trailing slashes)
+      var normCurrent = currentVal.replace(/\\/g, '/').replace(/\/$/, '');
+      var normDefault = defaultDir.replace(/\\/g, '/').replace(/\/$/, '');
+
+      var isSubdir = normCurrent === normDefault || normCurrent.indexOf(normDefault + '/') === 0;
+
+      if (!currentVal || !isSubdir) {
+        $('workDirInput').value = defaultDir;
+        localStorage.setItem('corvus_workdir', defaultDir);
+        updateLauncherFolder(defaultDir);
+      } else {
+        // Verify if it's still a valid directory on the filesystem
+        try {
+          var checkResp = await api('/api/browse?path=' + encodeURIComponent(currentVal));
+          if (!checkResp.ok) {
+            $('workDirInput').value = defaultDir;
+            localStorage.setItem('corvus_workdir', defaultDir);
+            updateLauncherFolder(defaultDir);
+          }
+        } catch (e) {
+          // If network error, keep currentVal
+        }
+      }
+    }
+
+    // Build agent selector buttons
+    var container = $('agentSelector');
+    container.innerHTML = '';
+    data.agents.forEach(function(agent) {
+      var btn = document.createElement('button');
+      btn.className = 'agent-btn' + (agent.name === STATE.selectedAgent ? ' selected' : '');
+      btn.disabled = !agent.available;
+      btn.textContent = agent.name;
+      btn.title = agent.available ? agent.path : 'Not installed';
+      btn.onclick = function() {
+        if (!agent.available) return;
+        STATE.selectedAgent = agent.name;
+        localStorage.setItem('corvus_agent', agent.name);
+        // Update button styles
+        container.querySelectorAll('.agent-btn').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        updateConnectButton();
+      };
+      container.appendChild(btn);
+    });
+
+    // If selected agent is unavailable, auto-select first available
+    var selectedAvailable = data.agents.some(function(a) { return a.name === STATE.selectedAgent && a.available; });
+    if (!selectedAvailable) {
+      var first = data.agents.find(function(a) { return a.available; });
+      if (first) {
+        STATE.selectedAgent = first.name;
+        localStorage.setItem('corvus_agent', first.name);
+        container.querySelectorAll('.agent-btn').forEach(function(b) {
+          b.classList.toggle('selected', b.textContent === first.name);
+        });
+      }
+    }
+  } catch (e) {
+    STATE.agents = [];
+  }
+  updateConnectButton();
+}
+
+function updateConnectButton() {
+  var btn = $('connectBtn');
+  var text = $('connectBtnText');
+  var hint = $('connectHint');
+  var hasFolder = !!$('workDirInput').value.trim();
+
+  var hasAgent = STATE.agents.some(function(a) { return a.name === STATE.selectedAgent && a.available; });
+
+  if (!hasAgent) {
+    btn.disabled = true;
+    text.textContent = STATE.selectedAgent + ' not available';
+    hint.textContent = 'Selected agent is not installed in the container';
+  } else if (!hasFolder) {
+    btn.disabled = true;
+    text.textContent = 'Select a folder first';
+    hint.textContent = 'Choose a project directory to get started';
+  } else {
+    btn.disabled = false;
+    text.textContent = '\u26A1 Connect ' + STATE.selectedAgent;
+    hint.textContent = '';
+  }
+}
+
+function handleConnect() {
+  var wd = $('workDirInput').value.trim();
+  var hasAgent = STATE.agents.some(function(a) { return a.name === STATE.selectedAgent && a.available; });
+  if (!wd || !hasAgent) return;
+
+  // Init terminal if needed
+  if (!TERMINAL.initialized) {
+    initTerminal();
+    TERMINAL.initialized = true;
+  }
+
+  // Update quick bar
+  var name = wd.split('\\').pop() || wd.split('/').pop() || wd;
+  $('qbFolderName').textContent = name;
+  $('qbFolderName').title = wd;
+
+  showPhase('terminal');
+
+  // Build flags
+  var flags = [];
+  if ($('optAutoApprove').checked) flags.push('--dangerously-skip-permissions');
+
+  connectTerminalWS(wd, flags);
+}
+
+/* ==========================================================================
+   Health
+   ========================================================================== */
+function startHealth() {
+  checkHealth();
+  STATE.healthTimer = setInterval(checkHealth, 15000);
+}
+
+async function checkHealth() {
+  try {
+    const r = await fetch('/health', { signal: AbortSignal.timeout(5000) });
+    setConn(r.ok);
+  } catch { setConn(false); }
+}
+
+function setConn(ok) {
+  STATE.connected = ok;
+  connDot.className = 'status-dot ' + (ok ? 'connected' : 'disconnected');
+  connText.textContent = ok ? 'Connected' : 'Disconnected';
+}
+
+/* ==========================================================================
+   API helper
+   ========================================================================== */
+function authHdr() {
+  return { Authorization: 'Bearer ' + STATE.token, 'Content-Type': 'application/json' };
+}
+
+async function api(url, opts) {
+  opts = opts || {};
+  const r = await fetch(url, {
+    ...opts,
+    headers: { ...authHdr(), ...(opts.headers || {}) },
+    signal: opts.signal || AbortSignal.timeout(30000),
+  });
+  if (r.status === 401 || r.status === 403) {
+    handleLogout();
+    showAuthErr('Session expired. Please re-authenticate.');
+    throw new Error('Unauthorized');
+  }
+  return r;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+/* ==========================================================================
+   WebSocket Terminal Controller
+   ========================================================================== */
+
+const TERMINAL = {
+  ws: null,
+  term: null,
+  fitAddon: null,
+  ctrlActive: false,
+  altActive: false,
+  pingInterval: null,
+  reconnectTimer: null,
+  reconnectAttempt: 0,
+  maxReconnect: 10,
+  initialized: false,
+  userExited: false,
+};
+
+function initTerminal() {
+  const term = new Terminal({
+    cursorBlink: true,
+    cursorStyle: 'bar',
+    fontSize: 14,
+    fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+    theme: {
+      background: '#0a0a0f',
+      foreground: '#f1f5f9',
+      cursor: '#8b5cf6',
+      cursorAccent: '#0a0a0f',
+      selectionBackground: 'rgba(139, 92, 246, 0.35)',
+      black: '#1a1a2e',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#eab308',
+      blue: '#3b82f6',
+      magenta: '#8b5cf6',
+      cyan: '#06b6d4',
+      white: '#f1f5f9',
+      brightBlack: '#64748b',
+      brightRed: '#f87171',
+      brightGreen: '#4ade80',
+      brightYellow: '#fde047',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#a78bfa',
+      brightCyan: '#22d3ee',
+      brightWhite: '#ffffff',
+    },
+    scrollback: 5000,
+    allowProposedApi: true,
+  });
+
+  const fitAddon = new FitAddon.FitAddon();
+  const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+  term.loadAddon(fitAddon);
+  term.loadAddon(webLinksAddon);
+  term.open($('terminalContainer'));
+  fitAddon.fit();
+
+  term.onData(function(data) {
+    if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+
+    if (TERMINAL.ctrlActive && data.length === 1) {
+      const code = data.toUpperCase().charCodeAt(0);
+      if (code >= 64 && code <= 95) {
+        data = String.fromCharCode(code - 64);
+      }
+      TERMINAL.ctrlActive = false;
+      $('vkCtrl').classList.remove('active');
+    }
+    if (TERMINAL.altActive && data.length === 1) {
+      data = '\x1b' + data;
+      TERMINAL.altActive = false;
+      $('vkAlt').classList.remove('active');
+    }
+
+    TERMINAL.ws.send(JSON.stringify({ type: 'input', data: data }));
+  });
+
+  TERMINAL.term = term;
+  TERMINAL.fitAddon = fitAddon;
+
+  function onResize() {
+    if (!TERMINAL.fitAddon || STATE.phase !== 'terminal') return;
+    TERMINAL.fitAddon.fit();
+    sendResize();
+  }
+  window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', function() { setTimeout(onResize, 200); });
+}
+
+function connectTerminalWS(workDir, flags) {
+  if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+    TERMINAL.ws.close();
+  }
+
+  TERMINAL.userExited = false;
+  TERMINAL.processExited = false;
+
+  // Clear URL detection state from previous session
+  _urlBuf = '';
+  _lastShownLen = 0;
+  _autoScrollSent = false;
+  hideUrlToast();
+  clearTimeout(TERMINAL.reconnectTimer);
+  if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
+
+  setQBStatus('connecting');
+  if (TERMINAL.term) {
+    TERMINAL.term.writeln('\r\n\x1b[33mConnecting to ' + workDir + '...\x1b[0m\r\n');
+  }
+
+  // Step 1: Get a one-time WS ticket (replaces token-in-URL)
+  api('/api/ws-ticket', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var ticket = data.ticket;
+      var proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      var url = proto + '://' + location.host + '/api/terminal/ws'
+        + '?ticket=' + encodeURIComponent(ticket)
+        + '&work_dir=' + encodeURIComponent(workDir)
+        + '&agent=' + encodeURIComponent(STATE.selectedAgent);
+      if (flags && flags.length > 0) {
+        url += '&flags=' + encodeURIComponent(flags.join(','));
+      }
+
+      var ws = new WebSocket(url);
+      TERMINAL.ws = ws;
+
+  ws.onopen = function() {
+    TERMINAL.reconnectAttempt = 0;
+    setQBStatus('connected');
+    sendResize();
+    TERMINAL.pingInterval = setInterval(function() {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ping' }));
+      }
+    }, 15000);
+  };
+
+  ws.onmessage = function(ev) {
+    try {
+      const msg = JSON.parse(ev.data);
+      if (msg.type === 'output' || msg.type === 'replay') {
+        if (TERMINAL.term && msg.data) {
+          TERMINAL.term.write(msg.data);
+          detectUrl(msg.data);
+          onTerminalOutput(msg.data);
+        }
+      } else if (msg.type === 'exited') {
+        TERMINAL.processExited = true; // prevent reconnect loop
+        setQBStatus('exited');
+        if (TERMINAL.term) {
+          TERMINAL.term.writeln('\r\n\x1b[31m[' + STATE.selectedAgent + ' exited with code ' + (msg.code ?? '?') + ']\x1b[0m');
+        }
+        // Auto-return to launcher after exit
+        sendNotification('Agent Exited', STATE.selectedAgent + ' exited with code ' + (msg.code ?? '?'));
+        setTimeout(function() { backToLauncher(); }, 2000);
+      }
+    } catch (e) {
+      console.warn('[terminal] parse error', e);
+    }
+  };
+
+  ws.onclose = function(ev) {
+    if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
+    setQBStatus('disconnected');
+
+    // Don't auto-reconnect if user explicitly exited or process exited naturally
+    if (TERMINAL.userExited || TERMINAL.processExited) return;
+
+    // Normal close (1000) or process-exited close (4100) = don't reconnect
+    if (ev.code === 1000 || ev.code === 4100) {
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[31m[Session ended]\x1b[0m');
+      }
+      setTimeout(function() { backToLauncher(); }, 2000);
+      return;
+    }
+
+    if (TERMINAL.reconnectAttempt < TERMINAL.maxReconnect) {
+      var delay = Math.min(2000 * Math.pow(2, TERMINAL.reconnectAttempt), 30000);
+      TERMINAL.reconnectAttempt++;
+
+      // Before reconnecting, check if the process is still alive
+      api('/api/terminal/status').then(function(r) { return r.json(); }).then(function(data) {
+        if (!data.alive) {
+          // Process is dead — no point reconnecting
+          if (TERMINAL.term) {
+            TERMINAL.term.writeln('\r\n\x1b[31m[' + STATE.selectedAgent + ' is no longer running]\x1b[0m');
+          }
+          setTimeout(function() { backToLauncher(); }, 2000);
+          return;
+        }
+        // Process still alive — reconnect (likely a network blip)
+        if (TERMINAL.term) {
+          TERMINAL.term.writeln('\r\n\x1b[33mReconnecting in ' + (delay/1000) + 's... (attempt ' + TERMINAL.reconnectAttempt + ')\x1b[0m');
+        }
+        TERMINAL.reconnectTimer = setTimeout(function() {
+          var wd = $('workDirInput').value.trim();
+          if (wd) connectTerminalWS(wd, []);
+        }, delay);
+      }).catch(function() {
+        // Can't reach server at all — try reconnecting anyway
+        if (TERMINAL.term) {
+          TERMINAL.term.writeln('\r\n\x1b[33mReconnecting in ' + (delay/1000) + 's... (attempt ' + TERMINAL.reconnectAttempt + ')\x1b[0m');
+        }
+        TERMINAL.reconnectTimer = setTimeout(function() {
+          var wd = $('workDirInput').value.trim();
+          if (wd) connectTerminalWS(wd, []);
+        }, delay);
+      });
+    } else {
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[31mMax reconnection attempts reached.\x1b[0m');
+      }
+      setTimeout(function() { backToLauncher(); }, 2000);
+    }
+  };
+
+  ws.onerror = function() {};
+
+    }) // end .then(ticket)
+    .catch(function(err) {
+      console.error('[terminal] Failed to get WS ticket:', err);
+      if (TERMINAL.term) {
+        TERMINAL.term.writeln('\r\n\x1b[31m[Failed to authenticate — try refreshing]\x1b[0m');
+      }
+      setQBStatus('disconnected');
+    });
+}
+
+/* ── Quick Action Bar ───────────────────────────────────────────────── */
+function setQBStatus(state) {
+  var statusEl = $('qbStatus');
+  var textEl = $('qbStatusText');
+  if (state === 'connected') {
+    statusEl.classList.remove('disconnected');
+    statusEl.classList.add('status');
+    statusEl.style.borderColor = 'rgba(34,197,94,0.2)';
+    statusEl.style.color = 'var(--green)';
+    textEl.textContent = 'Connected';
+  } else if (state === 'connecting') {
+    statusEl.style.borderColor = 'rgba(234,179,8,0.2)';
+    statusEl.style.color = 'var(--yellow)';
+    textEl.textContent = 'Connecting...';
+  } else if (state === 'disconnected') {
+    statusEl.style.borderColor = 'rgba(239,68,68,0.2)';
+    statusEl.style.color = 'var(--red)';
+    textEl.textContent = 'Disconnected';
+  } else if (state === 'exited') {
+    statusEl.style.borderColor = 'rgba(239,68,68,0.2)';
+    statusEl.style.color = 'var(--red)';
+    textEl.textContent = 'Exited';
+  }
+}
+
+function clearTerminal() {
+  if (TERMINAL.term) TERMINAL.term.clear();
+}
+
+// ── URL Detection (catches long wrapped URLs in terminal output) ────
+var _urlBuf = '';
+var _urlToastTimer = null;
+var _lastShownLen = 0;
+var _autoScrollSent = false;
+
+function detectUrl(chunk) {
+  // Strip ANSI escape codes and accumulate
+  var clean = chunk.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  _urlBuf += clean;
+  // Keep only last 8KB
+  if (_urlBuf.length > 8192) _urlBuf = _urlBuf.slice(-8192);
+
+  // Strip pager UI artifacts before URL detection
+  var stripped = _urlBuf;
+  stripped = stripped.replace(/\(\d+-\d+\s*of\s*\d+\s*lines?\)/gi, ' ');
+  stripped = stripped.replace(/shift\+up\/down\s*Navigate/gi, ' ');
+  stripped = stripped.replace(/Press\s*q\s*to\s*quit/gi, ' ');
+  stripped = stripped.replace(/\(END\)/g, ' ');
+  stripped = stripped.replace(/Open\s*this\s*link\s*in\s*the\s*browser[^h]*/gi, ' ');
+
+  // Remove all whitespace/newlines to reassemble wrapped URLs
+  var flat = stripped.replace(/[\r\n\s]+/g, '');
+
+  // Match https:// URLs — stop at characters that shouldn't be in URLs
+  var matches = flat.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g);
+  if (!matches) return;
+
+  // Take the longest (most complete) URL found
+  var url = matches.reduce(function(a, b) { return a.length >= b.length ? a : b; });
+
+  // Trim trailing artifacts
+  url = url.replace(/[)}\]]+$/, '');
+
+  // Skip short URLs
+  if (url.length < 40) return;
+
+  // Only track URLs that look like auth URLs (Google OAuth, etc)
+  var isAuthUrl = url.indexOf('accounts.google.com') !== -1 || url.indexOf('oauth') !== -1;
+  if (!isAuthUrl && url.length < 80) return;
+
+  // Check if URL looks complete (has key OAuth params)
+  var looksComplete = !isAuthUrl ||
+    (url.indexOf('response_type') !== -1 && url.indexOf('scope') !== -1);
+
+  // Update toast if URL grew longer
+  if (url.length > _lastShownLen) {
+    _lastShownLen = url.length;
+    showUrlToast(url, looksComplete);
+
+    // If URL is incomplete and we haven't auto-scrolled yet, send Down keys to advance pager
+    if (!looksComplete && !_autoScrollSent && TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+      _autoScrollSent = true;
+      // Send space/down keys with delay to scroll through the pager
+      var scrollCount = 0;
+      var scrollInterval = setInterval(function() {
+        if (scrollCount >= 15 || !TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) {
+          clearInterval(scrollInterval);
+          return;
+        }
+        TERMINAL.ws.send(JSON.stringify({ type: 'input', data: '\x1b[1;2B' })); // shift+down in agy pager
+        scrollCount++;
+      }, 300);
+    }
+  }
+}
+
+function showUrlToast(url, complete) {
+  var toast = $('urlToast');
+  toast.href = url;
+  if (complete) {
+    $('urlToastText').textContent = '\ud83d\udd17 Tap to Open Link';
+  } else {
+    $('urlToastText').textContent = '\u23f3 Loading full URL...';
+  }
+  toast.style.display = 'block';
+
+  // Auto-hide after 60s
+  if (_urlToastTimer) clearTimeout(_urlToastTimer);
+  _urlToastTimer = setTimeout(hideUrlToast, 60000);
+}
+
+function hideUrlToast() {
+  $('urlToast').style.display = 'none';
+  if (_urlToastTimer) { clearTimeout(_urlToastTimer); _urlToastTimer = null; }
+  _lastShownLen = 0;
+  _autoScrollSent = false;
+}
+
+function sendAgyCommand(cmd) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
+  if (TERMINAL.term) TERMINAL.term.focus();
+}
+
+function exitSession() {
+  TERMINAL.userExited = true;
+  clearTimeout(TERMINAL.reconnectTimer);
+  if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+    // Interrupt anything running, then exit agy
+    TERMINAL.ws.send(JSON.stringify({ type: 'input', data: '\x03' }));
+    setTimeout(function() {
+      if (TERMINAL.ws && TERMINAL.ws.readyState === WebSocket.OPEN) {
+        TERMINAL.ws.send(JSON.stringify({ type: 'input', data: '/exit\r\n' }));
+      }
+      setTimeout(function() {
+        if (TERMINAL.ws) { TERMINAL.ws.close(); TERMINAL.ws = null; }
+        backToLauncher();
+      }, 500);
+    }, 200);
+  } else {
+    backToLauncher();
+  }
+}
+
+function backToLauncher() {
+  if (TERMINAL.pingInterval) { clearInterval(TERMINAL.pingInterval); TERMINAL.pingInterval = null; }
+  clearTimeout(TERMINAL.reconnectTimer);
+  // Reset terminal so next connect starts fresh
+  if (TERMINAL.term) TERMINAL.term.clear();
+  TERMINAL.reconnectAttempt = 0;
+  showPhase('launcher');
+}
+
+function sendResize() {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN || !TERMINAL.term) return;
+  TERMINAL.ws.send(JSON.stringify({
+    type: 'resize',
+    cols: TERMINAL.term.cols,
+    rows: TERMINAL.term.rows,
+  }));
+}
+
+function setTermFontSize(size) {
+  if (TERMINAL.term) {
+    TERMINAL.term.options.fontSize = parseInt(size, 10);
+    if (TERMINAL.fitAddon) TERMINAL.fitAddon.fit();
+    sendResize();
+  }
+}
+
+function sendVK(seq) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: seq }));
+  // Don't focus terminal — prevents mobile keyboard from popping up
+}
+
+function toggleVK(which) {
+  if (which === 'ctrl') {
+    TERMINAL.ctrlActive = !TERMINAL.ctrlActive;
+    $('vkCtrl').classList.toggle('active', TERMINAL.ctrlActive);
+    TERMINAL.altActive = false;
+    $('vkAlt').classList.remove('active');
+  } else {
+    TERMINAL.altActive = !TERMINAL.altActive;
+    $('vkAlt').classList.toggle('active', TERMINAL.altActive);
+    TERMINAL.ctrlActive = false;
+    $('vkCtrl').classList.remove('active');
+  }
+  // Don't focus terminal — prevents mobile keyboard from popping up
+}
+
+function toggleKeyboard() {
+  if (!TERMINAL.term) return;
+  var textarea = TERMINAL.term.textarea;
+  if (!textarea) return;
+  // Toggle: if textarea is focused, blur it; otherwise focus it
+  if (document.activeElement === textarea) {
+    textarea.blur();
+    $('vkKbd').classList.remove('active');
+  } else {
+    textarea.focus();
+    $('vkKbd').classList.add('active');
+  }
+}
+
+/* ==========================================================================
+   Folder Browser
+   ========================================================================== */
+var _folderCurrent = '';
+
+function openFolderBrowser() {
+  $('folderModal').classList.add('active');
+  $('newFolderInput').value = '';
+  $('folderCreateError').classList.remove('visible');
+  var current = $('workDirInput').value.trim();
+  loadFolder(current || null);
+}
+
+function closeFolderBrowser() {
+  $('folderModal').classList.remove('active');
+}
+
+async function loadFolder(path) {
+  var list = $('folderList');
+  var pathEl = $('folderPath');
+  var selectBtn = $('folderSelectBtn');
+  var createRow = $('folderCreateRow');
+  list.innerHTML = '<div class="folder-loading">Loading</div>';
+  pathEl.textContent = 'Loading...';
+
+  try {
+    var url = (path !== null && path !== '') ? '/api/browse?path=' + encodeURIComponent(path) : '/api/browse';
+    var r = await api(url);
+    if (!r.ok) {
+      var e = await r.json().catch(function() { return {}; });
+      throw new Error(e.detail || 'Failed to browse');
+    }
+    var data = await r.json();
+    _folderCurrent = data.current;
+    pathEl.textContent = data.current;
+
+    // Show/hide select button and create row based on depth
+    var isRoot = (data.parent === null);
+    selectBtn.style.display = isRoot ? 'none' : '';
+    createRow.style.display = isRoot ? 'none' : '';
+
+    list.innerHTML = '';
+
+    if (data.parent !== null && data.parent !== undefined) {
+      var up = document.createElement('button');
+      up.className = 'folder-item up-dir';
+      up.innerHTML = '<span class="folder-item-icon">\u2B06\uFE0F</span> ..';
+      up.onclick = function() { loadFolder(data.parent || null); };
+      list.appendChild(up);
+    }
+
+    if (data.directories.length === 0) {
+      var empty = document.createElement('div');
+      empty.className = 'folder-empty';
+      empty.textContent = isRoot ? 'No projects configured in ALLOWED_DIRS' : 'Empty folder';
+      list.appendChild(empty);
+      return;
+    }
+
+    data.directories.forEach(function(dir) {
+      var item = document.createElement('button');
+      item.className = 'folder-item';
+      item.innerHTML = '<span class="folder-item-icon">\uD83D\uDCC1</span> ' + escapeHtml(dir.name);
+      item.onclick = function() { loadFolder(dir.path); };
+      list.appendChild(item);
+    });
+  } catch (err) {
+    list.innerHTML = '<div class="folder-empty">\u26A0 ' + escapeHtml(err.message) + '</div>';
+    pathEl.textContent = 'Error';
+  }
+}
+
+function selectFolder() {
+  if (_folderCurrent && _folderCurrent !== 'Projects') {
+    $('workDirInput').value = _folderCurrent;
+    localStorage.setItem('corvus_workdir', _folderCurrent);
+    updateLauncherFolder(_folderCurrent);
+    closeFolderBrowser();
+    return;
+  }
+  closeFolderBrowser();
+}
+
+/* ── Create New Folder ──────────────────────────────────────────────── */
+async function createNewFolder() {
+  var name = $('newFolderInput').value.trim();
+  var errEl = $('folderCreateError');
+  errEl.classList.remove('visible');
+
+  if (!name) {
+    errEl.textContent = 'Please enter a folder name';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  if (!_folderCurrent || _folderCurrent === 'Projects') {
+    errEl.textContent = 'Navigate into a directory first';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  $('newFolderBtn').disabled = true;
+
+  try {
+    var r = await api('/api/browse/mkdir', {
+      method: 'POST',
+      body: JSON.stringify({ parent: _folderCurrent, name: name }),
+    });
+    if (!r.ok) {
+      var e = await r.json().catch(function() { return {}; });
+      throw new Error(e.detail || 'Failed to create folder');
+    }
+    // Success — reload current folder to show new dir
+    $('newFolderInput').value = '';
+    loadFolder(_folderCurrent);
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('visible');
+  } finally {
+    $('newFolderBtn').disabled = false;
+  }
+}
+
+/* ==========================================================================
+   Chat History
+   ========================================================================== */
+
+var HISTORY = {
+  sessions: [],
+  currentAgent: null,
+  stats: null,
+  currentSessionId: null,
+  convoMessages: [],
+  convoTotal: 0,
+  convoOffset: 0,
+  loaded: false,
+};
+
+function openHistoryPanel() {
+  $('historyOverlay').classList.add('active');
+  $('historyPanel').classList.add('active');
+  showHistoryList();
+  if (!HISTORY.loaded) {
+    loadHistorySessions();
+  }
+}
+
+function closeHistoryPanel() {
+  $('historyOverlay').classList.remove('active');
+  $('historyPanel').classList.remove('active');
+}
+
+function showHistoryList() {
+  $('historyListView').style.display = '';
+  $('historyConvoView').style.display = 'none';
+}
+
+function showHistoryConvo() {
+  $('historyListView').style.display = 'none';
+  $('historyConvoView').style.display = 'flex';
+}
+
+async function loadHistorySessions() {
+  var list = $('historyList');
+  list.innerHTML = '<div class="history-loading">Loading sessions</div>';
+
+  try {
+    // Load stats first
+    var sr = await api('/api/history/stats');
+    HISTORY.stats = await sr.json();
+    updateHistoryTabs();
+
+    // Load all sessions
+    var url = '/api/history/sessions?limit=200';
+    if (HISTORY.currentAgent) url += '&agent=' + HISTORY.currentAgent;
+    var r = await api(url);
+    var data = await r.json();
+    HISTORY.sessions = data.sessions;
+    HISTORY.loaded = true;
+
+    renderHistorySessions(HISTORY.sessions);
+  } catch (err) {
+    list.innerHTML = '<div class="history-empty"><div class="history-empty-icon">&#x26A0;</div><div class="history-empty-text">' + escapeHtml(err.message) + '</div></div>';
+  }
+}
+
+function updateHistoryTabs() {
+  if (!HISTORY.stats) return;
+  var s = HISTORY.stats;
+  $('tabCountAll').textContent = s.total_sessions || 0;
+  $('tabCountAg').textContent = (s.by_agent && s.by_agent.antigravity) || 0;
+  $('tabCountCl').textContent = (s.by_agent && s.by_agent.claude) || 0;
+  $('tabCountCx').textContent = (s.by_agent && s.by_agent.codex) || 0;
+}
+
+function filterHistory(agent, btn) {
+  HISTORY.currentAgent = agent;
+  // Update active tab
+  $('historyTabs').querySelectorAll('.history-tab').forEach(function(t) {
+    t.classList.remove('active');
+  });
+  if (btn) btn.classList.add('active');
+
+  // Update subtitle
+  var names = { antigravity: 'Antigravity', claude: 'Claude Code', codex: 'Codex' };
+  $('historySubtitle').textContent = agent ? names[agent] || agent : 'All agents';
+
+  // Filter from cached sessions or reload
+  if (HISTORY.loaded && !agent) {
+    renderHistorySessions(HISTORY.sessions);
+  } else if (HISTORY.loaded && agent) {
+    var filtered = HISTORY.sessions.filter(function(s) { return s.agent === agent; });
+    renderHistorySessions(filtered);
+  } else {
+    loadHistorySessions();
+  }
+}
+
+function renderHistorySessions(sessions) {
+  var list = $('historyList');
+
+  if (!sessions || sessions.length === 0) {
+    list.innerHTML = '<div class="history-empty"><div class="history-empty-icon">&#x1F4AD;</div><div class="history-empty-text">No sessions found</div></div>';
+    return;
+  }
+
+  var html = '';
+  sessions.forEach(function(s) {
+    var agentIcons = { antigravity: '&#x2728;', claude: '&#x1F7E0;', codex: '&#x1F7E2;' };
+    var agentNames = { antigravity: 'Antigravity', claude: 'Claude', codex: 'Codex' };
+    var icon = agentIcons[s.agent] || '&#x1F916;';
+    var name = agentNames[s.agent] || s.agent;
+    var time = formatHistoryTime(s.started_at);
+    var project = '';
+    if (s.project) {
+      var parts = s.project.replace(/\\/g, '/').split('/');
+      project = parts[parts.length - 1] || s.project;
+    }
+
+    html += '<div class="history-card" onclick="openConversation(\'' + escapeAttr(s.id) + '\')">';
+    html += '  <div class="history-card-agent ag-' + s.agent + '">' + icon + '</div>';
+    html += '  <div class="history-card-body">';
+    html += '    <div class="history-card-top">';
+    html += '      <span class="history-card-agent-label ag-' + s.agent + '">' + escapeHtml(name) + '</span>';
+    html += '      <span class="history-card-time">' + escapeHtml(time) + '</span>';
+    html += '    </div>';
+    html += '    <div class="history-card-title">' + escapeHtml(s.title || 'Untitled session') + '</div>';
+    html += '    <div class="history-card-meta">';
+    if (project) {
+      html += '      <span class="history-card-meta-item">&#x1F4C1; ' + escapeHtml(project) + '</span>';
+    }
+    html += '      <span class="history-card-meta-item">&#x1F4AC; ' + (s.message_count || 0) + ' msgs</span>';
+    html += '    </div>';
+    html += '  </div>';
+    html += '</div>';
+  });
+
+  list.innerHTML = html;
+}
+
+function escapeAttr(s) {
+  return s.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function formatHistoryTime(iso) {
+  if (!iso) return '';
+  try {
+    var d = new Date(iso);
+    var now = new Date();
+    var diff = now - d;
+    // Today
+    if (d.toDateString() === now.toDateString()) {
+      return 'Today ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    // Yesterday
+    var yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    // Within last 7 days
+    if (diff < 7 * 24 * 60 * 60 * 1000) {
+      return d.toLocaleDateString([], { weekday: 'short' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    // Older
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch (e) {
+    return iso.substring(0, 10);
+  }
+}
+
+async function openConversation(sessionId) {
+  HISTORY.currentSessionId = sessionId;
+  HISTORY.convoMessages = [];
+  HISTORY.convoOffset = 0;
+  HISTORY.convoTotal = 0;
+
+  // Find session info
+  var session = HISTORY.sessions.find(function(s) { return s.id === sessionId; });
+  var agentNames = { antigravity: 'Antigravity', claude: 'Claude', codex: 'Codex' };
+  $('convoTitle').textContent = session ? (session.title || 'Conversation') : 'Conversation';
+  $('convoSubtitle').textContent = session ? (agentNames[session.agent] || session.agent) + (session.project ? ' · ' + session.project.split(/[\\/]/).pop() : '') : '';
+
+  showHistoryConvo();
+
+  var convo = $('historyConvo');
+  convo.innerHTML = '<div class="history-loading">Loading messages</div>';
+
+  try {
+    var r = await api('/api/history/sessions/' + encodeURIComponent(sessionId) + '?limit=100&offset=0');
+    var data = await r.json();
+    HISTORY.convoMessages = data.messages || [];
+    HISTORY.convoTotal = data.total || 0;
+    HISTORY.convoOffset = HISTORY.convoMessages.length;
+
+    renderConversation();
+  } catch (err) {
+    convo.innerHTML = '<div class="history-empty"><div class="history-empty-icon">&#x26A0;</div><div class="history-empty-text">' + escapeHtml(err.message) + '</div></div>';
+  }
+}
+
+function renderConversation() {
+  var convo = $('historyConvo');
+  var msgs = HISTORY.convoMessages;
+
+  if (!msgs || msgs.length === 0) {
+    convo.innerHTML = '<div class="history-empty"><div class="history-empty-icon">&#x1F4AD;</div><div class="history-empty-text">No messages in this session</div></div>';
+    return;
+  }
+
+  var html = '';
+
+  msgs.forEach(function(m, idx) {
+    var roleClass = 'msg-' + (m.role || 'system');
+    var roleLabel = (m.role || 'system').charAt(0).toUpperCase() + (m.role || 'system').slice(1);
+    var time = '';
+    if (m.timestamp) {
+      try {
+        var d = new Date(m.timestamp);
+        time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      } catch(e) {}
+    }
+
+    // Truncate very long messages for readability
+    var content = m.content || '';
+    var truncated = false;
+    if (content.length > 3000) {
+      content = content.substring(0, 3000);
+      truncated = true;
+    }
+
+    // Basic markdown-ish formatting
+    content = formatMsgContent(content);
+
+    html += '<div class="history-msg ' + roleClass + '" style="animation-delay:' + (idx * 0.03) + 's">';
+    html += '  <div class="history-msg-role">' + escapeHtml(roleLabel) + '</div>';
+    html += '  <div class="history-msg-content">' + content + '</div>';
+    if (truncated) {
+      html += '  <div style="font-size:10px;color:var(--text-dim);margin-top:4px;font-style:italic;">Message truncated (original: ' + m.content.length + ' chars)</div>';
+    }
+    if (time) {
+      html += '  <div class="history-msg-time">' + escapeHtml(time) + '</div>';
+    }
+    html += '</div>';
+  });
+
+  // Load more button if there are more messages
+  if (HISTORY.convoOffset < HISTORY.convoTotal) {
+    html += '<div class="history-load-more"><button class="history-load-more-btn" onclick="loadMoreMessages()">Load more (' + (HISTORY.convoTotal - HISTORY.convoOffset) + ' remaining)</button></div>';
+  }
+
+  convo.innerHTML = html;
+}
+
+async function loadMoreMessages() {
+  if (!HISTORY.currentSessionId) return;
+
+  try {
+    var r = await api('/api/history/sessions/' + encodeURIComponent(HISTORY.currentSessionId) + '?limit=100&offset=' + HISTORY.convoOffset);
+    var data = await r.json();
+    var newMsgs = data.messages || [];
+    HISTORY.convoMessages = HISTORY.convoMessages.concat(newMsgs);
+    HISTORY.convoOffset += newMsgs.length;
+    renderConversation();
+  } catch (err) {
+    console.error('Failed to load more messages:', err);
+  }
+}
+
+function formatMsgContent(text) {
+  // Escape HTML first
+  text = escapeHtml(text);
+
+  // Code blocks: ```...```
+  text = text.replace(/```([\s\S]*?)```/g, function(_, code) {
+    return '<pre>' + code.trim() + '</pre>';
+  });
+
+  // Inline code: `...`
+  text = text.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  // Bold: **...**
+  text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+  return text;
+}
+
+/* ==========================================================================
+   Mobile UX — Smart Suggestions, Favorites, Recents, Collapse, Notifications
+   ========================================================================== */
+
+/* ---------- Terminal Output Buffer (for context detection) ---------- */
+var _outputBuffer = '';
+var _chipTimer = null;
+
+function onTerminalOutput(data) {
+  _outputBuffer += data;
+  // Keep only last 2000 chars for pattern matching
+  if (_outputBuffer.length > 2000) _outputBuffer = _outputBuffer.slice(-2000);
+  // Debounce chip updates
+  if (_chipTimer) clearTimeout(_chipTimer);
+  _chipTimer = setTimeout(updateSuggestionChips, 300);
+}
+
+/* ---------- Smart Suggestion Chips ---------- */
+var _chipPatterns = [
+  { regex: /\b(approve|permission|allow|accept)\b.*\?/i, chips: [
+    { text: '✅ Yes, approve', cmd: 'y\r\n', cls: 'approve' },
+    { text: '❌ No, reject', cmd: 'n\r\n', cls: 'reject' },
+    { text: 'Show diff first', cmd: 'diff\r\n', cls: '' },
+  ]},
+  { regex: /\b(yes|no)\b.*\?/i, chips: [
+    { text: 'Yes', cmd: 'yes\r\n', cls: 'approve' },
+    { text: 'No', cmd: 'no\r\n', cls: 'reject' },
+  ]},
+  { regex: /\b(continue|proceed)\b.*\?/i, chips: [
+    { text: '▶ Continue', cmd: '\r\n', cls: 'approve' },
+    { text: '⏹ Stop', cmd: '\x03', cls: 'reject' },
+  ]},
+  { regex: /\berror\b|\bfailed\b|\btraceback\b/i, chips: [
+    { text: '🔄 Retry', cmd: '!!\r\n', cls: '' },
+    { text: '📖 Explain', cmd: 'explain the error\r\n', cls: '' },
+    { text: '🛑 Cancel', cmd: '\x03', cls: 'reject' },
+  ]},
+  { regex: /\b(waiting|press enter|hit enter)\b/i, chips: [
+    { text: '⏎ Enter', cmd: '\r\n', cls: 'approve' },
+  ]},
+];
+
+function updateSuggestionChips() {
+  var container = $('suggestionChips');
+  if (!container) return;
+  // Check last 500 chars for patterns
+  var tail = _outputBuffer.slice(-500);
+  var matched = null;
+  for (var i = 0; i < _chipPatterns.length; i++) {
+    if (_chipPatterns[i].regex.test(tail)) {
+      matched = _chipPatterns[i];
+      break;
+    }
+  }
+  if (matched) {
+    container.innerHTML = matched.chips.map(function(c) {
+      return '<button class="chip ' + c.cls + '" onclick="sendChipCmd(\'' +
+        c.cmd.replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\x03/g, '\\x03') +
+        '\')">' + c.text + '</button>';
+    }).join('');
+    container.classList.add('visible');
+  } else {
+    container.classList.remove('visible');
+  }
+}
+
+function sendChipCmd(cmd) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd }));
+  $('suggestionChips').classList.remove('visible');
+  _outputBuffer = '';
+  addToRecent(cmd.replace(/[\r\n\x03]/g, '').trim());
+}
+
+/* ---------- Command Favorites ---------- */
+function getFavorites() {
+  try { return JSON.parse(localStorage.getItem('corvus_favorites') || '[]'); }
+  catch(e) { return []; }
+}
+function saveFavorites(favs) {
+  localStorage.setItem('corvus_favorites', JSON.stringify(favs));
+}
+
+function renderFavBar() {
+  var favs = getFavorites();
+  var scroll = $('favScroll');
+  if (!scroll) return;
+  if (favs.length === 0) {
+    scroll.innerHTML = '<span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">No favorites yet — tap ⭐ to add</span>';
+    return;
+  }
+  scroll.innerHTML = favs.map(function(f, i) {
+    return '<button class="fav-chip" onclick="sendFavCmd(' + i + ')" title="' +
+      f.replace(/"/g, '&quot;') + '">' + escapeHtml(f) + '</button>';
+  }).join('');
+}
+
+function sendFavCmd(index) {
+  var favs = getFavorites();
+  if (index >= favs.length) return;
+  var cmd = favs[index];
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
+  addToRecent(cmd);
+}
+
+function toggleFavManager() {
+  $('favModal').classList.toggle('active');
+  if ($('favModal').classList.contains('active')) renderFavPanel();
+}
+function closeFavManager() {
+  $('favModal').classList.remove('active');
+}
+
+function renderFavPanel() {
+  var favs = getFavorites();
+  var list = $('favPanelList');
+  if (favs.length === 0) {
+    list.innerHTML = '<div class="fav-empty">No favorites yet. Add one below!</div>';
+    return;
+  }
+  list.innerHTML = favs.map(function(f, i) {
+    return '<div class="fav-panel-item">' +
+      '<span>⭐</span>' +
+      '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(f) + '</span>' +
+      '<span class="fav-del" onclick="event.stopPropagation();removeFavorite(' + i + ')">✕</span>' +
+      '</div>';
+  }).join('');
+}
+
+function addFavorite() {
+  var input = $('favAddInput');
+  var cmd = input.value.trim();
+  if (!cmd) return;
+  var favs = getFavorites();
+  if (favs.indexOf(cmd) !== -1) { input.value = ''; return; } // no dupes
+  favs.push(cmd);
+  saveFavorites(favs);
+  input.value = '';
+  renderFavPanel();
+  renderFavBar();
+}
+
+function removeFavorite(index) {
+  var favs = getFavorites();
+  favs.splice(index, 1);
+  saveFavorites(favs);
+  renderFavPanel();
+  renderFavBar();
+}
+
+/* ---------- Recent Commands ---------- */
+var _recentCmds = [];
+var MAX_RECENT = 20;
+
+function addToRecent(cmd) {
+  if (!cmd || cmd.length < 2) return;
+  // Remove if already exists
+  var idx = _recentCmds.indexOf(cmd);
+  if (idx !== -1) _recentCmds.splice(idx, 1);
+  _recentCmds.unshift(cmd);
+  if (_recentCmds.length > MAX_RECENT) _recentCmds.pop();
+  try { sessionStorage.setItem('corvus_recent', JSON.stringify(_recentCmds)); } catch(e) {}
+}
+
+function loadRecent() {
+  try {
+    var saved = sessionStorage.getItem('corvus_recent');
+    if (saved) _recentCmds = JSON.parse(saved);
+  } catch(e) {}
+}
+
+function toggleRecentDrawer() {
+  var drawer = $('recentDrawer');
+  if (drawer.classList.contains('visible')) {
+    drawer.classList.remove('visible');
+    return;
+  }
+  renderRecentDrawer();
+  drawer.classList.add('visible');
+}
+
+function renderRecentDrawer() {
+  var drawer = $('recentDrawer');
+  if (_recentCmds.length === 0) {
+    drawer.innerHTML = '<div class="fav-empty">No recent commands</div>';
+    return;
+  }
+  var html = '<div class="recent-header"><span>Recent Commands</span><button class="recent-clear" onclick="clearRecent()">Clear</button></div>';
+  html += _recentCmds.map(function(cmd) {
+    return '<button class="recent-item" onclick="sendRecentCmd(\'' + cmd.replace(/'/g, "\\'") + '\')">' +
+      '<span class="recent-icon">▸</span>' +
+      '<span class="recent-text">' + escapeHtml(cmd) + '</span></button>';
+  }).join('');
+  drawer.innerHTML = html;
+}
+
+function sendRecentCmd(cmd) {
+  if (!TERMINAL.ws || TERMINAL.ws.readyState !== WebSocket.OPEN) return;
+  TERMINAL.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
+  $('recentDrawer').classList.remove('visible');
+  addToRecent(cmd);
+}
+
+function clearRecent() {
+  _recentCmds = [];
+  try { sessionStorage.removeItem('corvus_recent'); } catch(e) {}
+  $('recentDrawer').classList.remove('visible');
+}
+
+/* ---------- Collapsible Terminal ---------- */
+function toggleTerminalCollapse() {
+  var screen = $('terminalScreen');
+  if (!screen) return;
+  screen.classList.toggle('terminal-collapsed');
+  // Refit terminal after animation
+  setTimeout(function() {
+    if (TERMINAL.fitAddon) TERMINAL.fitAddon.fit();
+    sendResize();
+  }, 300);
+}
+
+/* ---------- Push Notifications ---------- */
+function checkNotificationSupport() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default' && !localStorage.getItem('corvus_notif_dismissed')) {
+    setTimeout(function() {
+      var banner = $('notifBanner');
+      if (banner) banner.classList.add('visible');
+    }, 3000);
+  }
+}
+
+function enableNotifications() {
+  Notification.requestPermission().then(function(perm) {
+    $('notifBanner').classList.remove('visible');
+    if (perm === 'granted') {
+      localStorage.setItem('corvus_notif_enabled', 'true');
+      new Notification('CorvusTunnel', {
+        body: 'Notifications enabled! You\'ll be notified when your agent needs attention.',
+        icon: '/static/icons/icon-192.png',
+      });
+    }
+  });
+}
+
+function dismissNotifBanner() {
+  $('notifBanner').classList.remove('visible');
+  localStorage.setItem('corvus_notif_dismissed', 'true');
+}
+
+function sendNotification(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (document.visibilityState === 'visible') return; // Don't notify if tab is active
+  try {
+    new Notification(title || 'CorvusTunnel', {
+      body: body,
+      icon: '/static/icons/icon-192.png',
+      badge: '/static/icons/icon-192.png',
+      tag: 'corvus-agent',
+      renotify: true,
+    });
+  } catch(e) {}
+}
+
+/* ---------- PWA Service Worker ---------- */
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/sw.js').catch(function() {});
+  }
+}
+
+/* ==========================================================================
+   Boot
+   ========================================================================== */
+document.addEventListener('DOMContentLoaded', async function() {
+  var saved = localStorage.getItem('corvus_workdir');
+  if (saved) $('workDirInput').value = saved;
+
+  // Check for token in URL fragment (#token=xxx or #token=xxx&e2e=yyy)
+  var hash = window.location.hash;
+  var bootToken = null;
+  if (hash && hash.length > 1) {
+    var params = new URLSearchParams(hash.substring(1));
+    bootToken = params.get('token');
+  }
+
+  if (bootToken) {
+    // Clear fragment from URL bar immediately (security)
+    history.replaceState(null, '', window.location.pathname);
+    // Always claim fresh boot token — don't let stale localStorage interfere
+    localStorage.removeItem('corvus_token');
+    STATE.token = '';
+    await claimAndBoot(bootToken);
+  } else if (STATE.token) {
+    // Have a saved session token — verify it actually works with an auth'd request
+    try {
+      var resp = await fetch('/api/browse', {
+        headers: { 'Authorization': 'Bearer ' + STATE.token },
+      });
+      if (resp.ok || resp.status === 200) {
+        bootApp();
+      } else {
+        // Token is stale (server restarted with new boot token)
+        localStorage.removeItem('corvus_token');
+        STATE.token = '';
+      }
+    } catch (e) { /* show auth screen */ }
+  }
+
+  // Mobile UX initialization
+  loadRecent();
+  renderFavBar();
+  checkNotificationSupport();
+  registerServiceWorker();
+
+  $('tokenInput').addEventListener('keydown', function(e) { if (e.key === 'Enter') handleAuth(); });
+
+  $('folderModal').addEventListener('click', function(e) {
+    if (e.target === this) closeFolderBrowser();
+  });
+
+  $('newFolderInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') createNewFolder();
+  });
+});
+</script>
+
+</body>
+</html>

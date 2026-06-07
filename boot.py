@@ -75,9 +75,13 @@ def print_qr(data: str, label: str) -> None:
 
         print()
 
-        # Print the URL as a clickable fallback (strip the token fragment)
-        url_base = data.split("#")[0]
-        print(f"  URL: {url_base}")
+        # Print the full URL as a clickable/copyable fallback for devices
+        # that can't scan QR codes. Safe because:
+        #  - The #fragment is never sent to the server
+        #  - The boot token is one-time-use (consumed on claim)
+        #  - Anyone seeing the URL can already see the QR on the same console
+        print(f"  \033[90mOr open this link on any device (one-time use):\033[0m")
+        print(f"  \033[4m{data}\033[0m")
         print()
 
     except ImportError:

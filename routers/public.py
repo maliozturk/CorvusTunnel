@@ -238,15 +238,35 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
 @limiter.limit("20/minute")
 async def check_agents(request: Request):
     """Check which AI agents are available on the system PATH."""
+    import os
+    from pathlib import Path
+    from config.settings import get_settings
+
     agy_path = shutil.which("agy")
     codex_path = shutil.which("codex")
     claude_path = shutil.which("claude")
+
+    settings = get_settings()
+    cwd = os.getcwd()
+    default_dir = cwd
+
+    # Check if current working directory falls under any allowed roots
+    roots = [Path(d).resolve() for d in settings.allowed_dir_list]
+    cwd_path = Path(cwd).resolve()
+    cwd_allowed = any(
+        cwd_path == root or cwd_path.is_relative_to(root)
+        for root in roots
+    )
+    if not cwd_allowed and settings.allowed_dir_list:
+        default_dir = settings.allowed_dir_list[0]
+
     return {
         "agents": [
             {"name": "agy", "available": agy_path is not None, "path": agy_path},
             {"name": "codex", "available": codex_path is not None, "path": codex_path},
             {"name": "claude", "available": claude_path is not None, "path": claude_path},
-        ]
+        ],
+        "default_work_dir": str(Path(default_dir).resolve()),
     }
 
 
@@ -533,11 +553,11 @@ async def terminal_ws(
         # ── Session ───────────────────────────────────────────────
         session = get_terminal_session()
 
-        # If session is alive but for a different work_dir, restart it
-        if session.is_alive and session.work_dir != work_dir:
+        # If session is alive but for a different work_dir or agent, restart it
+        if session.is_alive and (session.work_dir != work_dir or session.command != agent):
             logger.info(
-                "Switching terminal work_dir: %s → %s",
-                session.work_dir, work_dir,
+                "Switching terminal: %s(%s) → %s(%s)",
+                session.command, session.work_dir, agent, work_dir,
             )
             session.stop()
 

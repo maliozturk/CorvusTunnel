@@ -183,14 +183,14 @@ class TestAllowedDirList:
         assert "/tmp/test" in dirs  # should be stripped
 
     def test_empty_allowed_dirs(self, monkeypatch, tmp_path):
-        """Empty ALLOWED_DIRS should return an empty list."""
+        """Empty ALLOWED_DIRS should fall back to current working directory."""
         monkeypatch.setenv("AGENT_TOKEN", "test")
         monkeypatch.setenv("ALLOWED_DIRS", "")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
-
+    
         from config.settings import Settings
         s = Settings()
-        assert s.allowed_dir_list == []
+        assert s.allowed_dir_list == [os.getcwd()]
 
 
 class TestAuditLogDir:

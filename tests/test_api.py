@@ -145,6 +145,17 @@ class TestCheckAgentsEndpoint:
             assert "available" in agent
             assert "path" in agent
 
+    @pytest.mark.asyncio
+    async def test_check_agents_includes_default_work_dir(self, authed_public_client):
+        """GET /api/check-agents should include default_work_dir."""
+        resp = await authed_public_client.get("/api/check-agents")
+        assert resp.status_code == 200
+
+        data = resp.json()
+        assert "default_work_dir" in data
+        assert isinstance(data["default_work_dir"], str)
+        assert len(data["default_work_dir"]) > 0
+
 
 class TestClaimEndpoint:
     """Tests for POST /api/claim (boot token exchange)."""

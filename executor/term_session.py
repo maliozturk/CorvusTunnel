@@ -156,6 +156,7 @@ class TerminalSession:
         self._process = None
         self._alive: bool = False
         self._work_dir: str | None = None
+        self._command: str | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._reader_thread: threading.Thread | None = None
         self._started_at: float | None = None
@@ -187,6 +188,10 @@ class TerminalSession:
     def work_dir(self) -> str | None:
         return self._work_dir
 
+    @property
+    def command(self) -> str | None:
+        return self._command
+
     # ── Lifecycle ─────────────────────────────────────────────────────
 
     def start(self, work_dir: str, cols: int = 120, rows: int = 30,
@@ -196,6 +201,7 @@ class TerminalSession:
             self.stop()
 
         self._work_dir = work_dir
+        self._command = command
         self._loop = asyncio.get_event_loop()
         self._alive = True
         self._started_at = time.time()
