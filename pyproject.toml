@@ -78,6 +78,9 @@ packages = [
     "middleware",
     "routers",
     "crypto",
+    "static",
+    "static.assets",
+    "static.icons",
 ]
 py-modules = [
     "cli",
@@ -88,7 +91,10 @@ py-modules = [
 ]
 
 [tool.setuptools.package-data]
-"*" = ["*.key", "*.html", "*.css", "*.js", "*.svg", "*.png", "*.ico"]
+"*" = [
+    "*.key", "*.html", "*.css", "*.js", "*.svg", "*.png", "*.ico", "*.json",
+    "**/*.key", "**/*.html", "**/*.css", "**/*.js", "**/*.svg", "**/*.png", "**/*.ico", "**/*.json"
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
