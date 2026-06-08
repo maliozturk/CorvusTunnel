@@ -8,7 +8,11 @@
   import FolderModal from './lib/FolderModal.svelte';
   import FavModal from './lib/FavModal.svelte';
   import HistoryPanel from './lib/HistoryPanel.svelte';
-  import { Bell, ShieldCheck, X } from 'lucide-svelte';
+  import OnboardingWalkthrough from './lib/OnboardingWalkthrough.svelte';
+  import ExitConfirmDialog from './lib/ExitConfirmDialog.svelte';
+  import CorvusIcon from './lib/CorvusIcon.svelte';
+  import ThemeToggle from './lib/ThemeToggle.svelte';
+  import { Bell, X } from 'lucide-svelte';
 
   onMount(async () => {
     // 1. Check url hash for token (direct/LAN mode)
@@ -48,12 +52,28 @@
       }
     }
 
-    // 2. Check for local browser notification permissions request
+    // 3. Check for local browser notification permissions request
     checkNotificationStatus();
     
-    // 3. Register service worker for PWA caching
+    // 4. Register service worker for PWA caching
     registerServiceWorker();
+
+    // 5. Setup beforeunload handler for exit prevention
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   });
+
+  // ── beforeunload handler ──────────────────────────────────────
+  function handleBeforeUnload(e) {
+    if (STATE.phase === 'terminal' && STATE.wsStatus === 'connected') {
+      e.preventDefault();
+      e.returnValue = 'You have an active terminal session. Are you sure you want to leave?';
+      return e.returnValue;
+    }
+  }
 
   function checkNotificationStatus() {
     if (!('Notification' in window)) return;
@@ -113,10 +133,13 @@
     <!-- Screen Phase selection -->
     {#if STATE.phase === 'launcher'}
       <div class="dashboard-header">
-        <div class="header-logo">🦅 CORVUS_TUNNEL</div>
-        <button class="header-logs-btn" onclick={() => STATE.showHistoryPanel = true} title="Logs History">
-          VIEW_HISTORY
-        </button>
+        <div class="header-logo"><CorvusIcon size={18} /> CORVUS_TUNNEL</div>
+        <div class="header-actions">
+          <button class="header-logs-btn" onclick={() => STATE.showHistoryPanel = true} title="Logs History">
+            VIEW_HISTORY
+          </button>
+          <ThemeToggle />
+        </div>
       </div>
       <LauncherScreen />
     {:else}
@@ -127,6 +150,8 @@
     <FolderModal />
     <FavModal />
     <HistoryPanel />
+    <ExitConfirmDialog />
+    <OnboardingWalkthrough />
   {/if}
 
 </main>
@@ -138,21 +163,28 @@
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
-    background: #000000;
-    color: #e6e6e6;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: background var(--transition-smooth), color var(--transition-smooth);
   }
 
   .notification-request-banner {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #0c0c0c;
+    background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     padding: 10px 14px;
     z-index: 500;
     font-family: var(--font-sans);
     font-size: 11px;
     flex-shrink: 0;
+    animation: slideDown 300ms ease-out;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-100%); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .banner-left {
@@ -177,19 +209,24 @@
   }
 
   .banner-btn {
-    background: #ffffff;
-    color: #000000;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
     border: none;
     border-radius: var(--radius-sm);
-    padding: 4px 8px;
+    padding: 4px 10px;
     font-family: var(--font-mono);
     font-size: 9px;
     font-weight: 700;
     cursor: pointer;
+    transition: all var(--transition-fast);
   }
 
   .banner-btn:hover {
-    background: #e6e6e6;
+    background: var(--btn-primary-hover);
+  }
+
+  .banner-btn:active {
+    transform: scale(0.95);
   }
 
   .banner-close {
@@ -201,10 +238,13 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: var(--radius-xs);
+    transition: all var(--transition-fast);
   }
 
   .banner-close:hover {
-    color: #ffffff;
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
   .dashboard-header {
@@ -212,17 +252,25 @@
     align-items: center;
     justify-content: space-between;
     padding: 18px 16px;
-    background: #000000;
+    padding-top: calc(18px + var(--safe-top));
+    background: var(--bg-primary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     font-family: var(--font-mono);
+    transition: background var(--transition-smooth);
   }
 
   .header-logo {
     font-size: 14px;
     font-weight: 700;
     letter-spacing: 1.5px;
-    color: #ffffff;
+    color: var(--text-primary);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .header-logs-btn {
@@ -239,8 +287,12 @@
   }
 
   .header-logs-btn:hover {
-    color: #ffffff;
-    background: #0c0c0c;
-    border-color: var(--text-secondary);
+    color: var(--text-primary);
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+
+  .header-logs-btn:active {
+    transform: scale(0.97);
   }
 </style>

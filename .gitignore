@@ -1,8 +1,4 @@
-# Environment
-.env
-*.env
-
-# Python
+# ── Python ────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,29 +9,34 @@ build/
 venv/
 .eggs/
 
-# Logs & Audit
+# ── Environment ──────────────────────────────────────────
+.env
+*.env
+
+# ── Logs & Audit (runtime generated) ─────────────────────
 logs/
-audit*.jsonl
 
-# Workspace
-workspace/
+# ── Node / Frontend ──────────────────────────────────────
+node_modules/
+frontend/public/
 
-# IDE
+# ── IDE ──────────────────────────────────────────────────
 .vscode/
 .idea/
 
-# OS
+# ── OS ───────────────────────────────────────────────────
 Thumbs.db
 .DS_Store
 
-# Cloudflare
+# ── Cloudflare ───────────────────────────────────────────
 .wrangler/
 
-# Keys (NEVER commit)
+# ── Keys (NEVER commit) ─────────────────────────────────
 *.key
 
-# Projects data
-projects/*
+# ── Test & Cache ─────────────────────────────────────────
+.pytest_cache/
+.kalai_cache/
 
-# Antigravity
+# ── Tool configs ─────────────────────────────────────────
 .antigravitycli/

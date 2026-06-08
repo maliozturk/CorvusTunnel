@@ -1,6 +1,8 @@
 <script>
-  import { STATE, connectTerminal } from './state.svelte.js';
-  import { FolderOpen, Settings, Play, CheckSquare, Square, AlertTriangle, ShieldCheck } from 'lucide-svelte';
+  import { STATE, connectTerminal, handleLogout, toggleTerminalTheme, hapticTap, resetOnboarding } from './state.svelte.js';
+  import { FolderOpen, Play, AlertTriangle, ChevronDown, ChevronUp, Settings, LogOut, Monitor, Bell, BellOff, HelpCircle, Star, ExternalLink } from 'lucide-svelte';
+  import ThemeToggle from './ThemeToggle.svelte';
+  import CorvusIcon from './CorvusIcon.svelte';
 
   // Extract directory name for friendly display
   const folderName = $derived.by(() => {
@@ -22,20 +24,45 @@
     isAgentAvailable && STATE.currentFolder !== '' && STATE.currentFolder !== 'Projects'
   );
 
+  let notificationsEnabled = $state(
+    typeof Notification !== 'undefined' && Notification.permission === 'granted'
+  );
+
   function selectAgent(agent) {
     if (!agent.available) return;
+    hapticTap();
     STATE.selectedAgent = agent.name;
     localStorage.setItem('corvus_agent', agent.name);
   }
 
   function handleConnectClick() {
     if (!canConnect) return;
+    hapticTap();
     STATE.phase = 'terminal';
     connectTerminal();
   }
 
-  function toggleAutoApprove() {
-    STATE.autoApprove = !STATE.autoApprove;
+
+
+  function toggleNotifications() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      // Can't revoke, just toggle local flag
+      notificationsEnabled = !notificationsEnabled;
+      localStorage.setItem('corvus_notif_enabled', notificationsEnabled ? 'true' : 'false');
+    } else {
+      Notification.requestPermission().then((perm) => {
+        if (perm === 'granted') {
+          notificationsEnabled = true;
+          localStorage.setItem('corvus_notif_enabled', 'true');
+        }
+      });
+    }
+  }
+
+  function showHelp() {
+    resetOnboarding();
+    STATE.showOnboarding = true;
   }
 </script>
 
@@ -72,7 +99,7 @@
             onclick={() => selectAgent(agent)}
           >
             <span class="agent-title">{agent.name.toUpperCase()}</span>
-            <span class="agent-path" title={agent.path}>
+            <span class="agent-status">
               {agent.available ? 'AVAILABLE' : 'NOT_INSTALLED'}
             </span>
           </button>
@@ -80,23 +107,7 @@
       {/if}
     </div>
 
-    <!-- Security & Flags -->
-    <div class="section-title">SESSION_FLAGS</div>
-    <div class="flags-card">
-      <button class="flag-row" onclick={toggleAutoApprove}>
-        <div class="flag-checkbox">
-          {#if STATE.autoApprove}
-            <CheckSquare size={16} class="checked-icon" />
-          {:else}
-            <Square size={16} class="unchecked-icon" />
-          {/if}
-        </div>
-        <div class="flag-info">
-          <div class="flag-label">AUTO_APPROVE_MODE</div>
-          <div class="flag-desc">Skip manual confirmations for agent tool calls.</div>
-        </div>
-      </button>
-    </div>
+
 
     <!-- Connection Launcher Button -->
     <div class="action-wrap">
@@ -124,18 +135,105 @@
       {/if}
     </div>
 
+    <!-- Settings Panel (Collapsible) -->
+    <div class="settings-section">
+      <button class="settings-header" onclick={() => { hapticTap(); STATE.showSettings = !STATE.showSettings; }}>
+        <div class="settings-header-left">
+          <Settings size={14} />
+          <span>SETTINGS</span>
+        </div>
+        {#if STATE.showSettings}
+          <ChevronUp size={14} />
+        {:else}
+          <ChevronDown size={14} />
+        {/if}
+      </button>
+
+      {#if STATE.showSettings}
+        <div class="settings-body">
+          <!-- App Theme -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">App Theme</div>
+              <div class="setting-desc">Switch between dark and light mode</div>
+            </div>
+            <ThemeToggle />
+          </div>
+
+          <!-- Terminal Theme -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Terminal Theme</div>
+              <div class="setting-desc">{STATE.terminalTheme === 'dark' ? 'Dark background' : 'Light background'}</div>
+            </div>
+            <button class="setting-toggle-btn" onclick={() => { hapticTap(); toggleTerminalTheme(); }}>
+              <Monitor size={14} />
+              <span>{STATE.terminalTheme.toUpperCase()}</span>
+            </button>
+          </div>
+
+          <!-- Notifications -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Notifications</div>
+              <div class="setting-desc">Alert when agent completes jobs</div>
+            </div>
+            <button class="setting-toggle-btn" onclick={toggleNotifications}>
+              {#if notificationsEnabled}
+                <Bell size={14} />
+                <span>ON</span>
+              {:else}
+                <BellOff size={14} />
+                <span>OFF</span>
+              {/if}
+            </button>
+          </div>
+
+          <!-- Show Walkthrough -->
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">Walkthrough</div>
+              <div class="setting-desc">Re-show the getting started guide</div>
+            </div>
+            <button class="setting-toggle-btn" onclick={showHelp}>
+              <HelpCircle size={14} />
+              <span>SHOW</span>
+            </button>
+          </div>
+
+          <!-- Logout -->
+          <button class="logout-btn" onclick={handleLogout}>
+            <LogOut size={14} />
+            <span>LOGOUT</span>
+          </button>
+        </div>
+      {/if}
+    </div>
+
+    <!-- GitHub Star -->
+    <a class="github-star-link" href="https://github.com/maliozturk/CorvusTunnel" target="_blank" rel="noopener">
+      <Star size={13} />
+      <span>Star on GitHub</span>
+      <ExternalLink size={10} />
+    </a>
+
   </div>
 </div>
 
 <style>
   .launcher-screen {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 24px 16px;
-    background: #000000;
+    padding-bottom: calc(40px + var(--safe-bottom));
+    background: var(--bg-primary);
     display: flex;
     justify-content: center;
+    align-items: flex-start;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    transition: background var(--transition-smooth);
   }
 
   .launcher-container {
@@ -144,6 +242,12 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    animation: fadeInUp 400ms ease-out;
+  }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .section-title {
@@ -160,18 +264,24 @@
     display: flex;
     align-items: center;
     width: 100%;
-    background: #080808;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    padding: 16px 18px;
     cursor: pointer;
     text-align: left;
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
   }
 
   .folder-card:hover {
-    background: #0c0c0c;
-    border-color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-md);
+  }
+
+  .folder-card:active {
+    transform: scale(0.99);
   }
 
   .folder-icon-wrap {
@@ -192,7 +302,7 @@
     font-family: var(--font-sans);
     font-size: 14px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     line-height: 1.2;
   }
 
@@ -231,22 +341,28 @@
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: #080808;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 12px 6px;
+    border-radius: var(--radius-md);
+    padding: 14px 6px;
     cursor: pointer;
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
   }
 
   .agent-card:hover:not(:disabled) {
-    background: #0c0c0c;
-    border-color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+
+  .agent-card:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   .agent-card.selected {
     border-color: var(--purple);
-    background: rgba(144, 96, 255, 0.05);
+    background: var(--purple-soft);
+    box-shadow: var(--shadow-glow);
   }
 
   .agent-card:disabled {
@@ -258,7 +374,7 @@
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .agent-card:disabled .agent-title {
@@ -269,77 +385,17 @@
     color: var(--purple);
   }
 
-  .agent-path {
+  .agent-status {
     font-family: var(--font-mono);
     font-size: 9px;
     color: var(--text-muted);
     margin-top: 4px;
   }
 
-  /* Flags */
-  .flags-card {
-    background: #080808;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-  }
-
-  .flag-row {
-    display: flex;
-    width: 100%;
-    align-items: flex-start;
-    background: none;
-    border: none;
-    padding: 14px 16px;
-    cursor: pointer;
-    text-align: left;
-    transition: background var(--transition-fast);
-  }
-
-  .flag-row:hover {
-    background: #0c0c0c;
-  }
-
-  .flag-checkbox {
-    margin-right: 12px;
-    margin-top: 2px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .flag-row:hover .flag-checkbox {
-    color: var(--text-secondary);
-  }
-
-  :global(.checked-icon) {
-    color: var(--purple);
-  }
-
-  .flag-info {
-    flex: 1;
-  }
-
-  .flag-label {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    font-weight: 700;
-    color: #ffffff;
-  }
-
-  .flag-desc {
-    font-family: var(--font-sans);
-    font-size: 11px;
-    color: var(--text-secondary);
-    margin-top: 3px;
-    line-height: 1.3;
-  }
 
   /* Launch button */
   .action-wrap {
-    margin-top: 12px;
+    margin-top: 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -351,22 +407,22 @@
     justify-content: center;
     gap: 8px;
     width: 100%;
-    background: #ffffff;
-    color: #000000;
-    border: 1px solid #ffffff;
-    border-radius: var(--radius-sm);
-    padding: 14px;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border: 1px solid var(--btn-primary-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
     font-family: var(--font-mono);
     font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     transition: all var(--transition-fast);
     letter-spacing: 1px;
+    box-shadow: var(--shadow-sm);
   }
 
   .connect-launch-btn:hover:not(:disabled) {
-    background: #e6e6e6;
-    border-color: #e6e6e6;
+    background: var(--btn-primary-hover);
   }
 
   .connect-launch-btn:active:not(:disabled) {
@@ -374,10 +430,11 @@
   }
 
   .connect-launch-btn:disabled {
-    background: #080808;
-    border-color: var(--border);
-    color: var(--text-muted);
+    background: var(--btn-disabled-bg);
+    border-color: var(--btn-disabled-border);
+    color: var(--btn-disabled-text);
     cursor: not-allowed;
+    box-shadow: none;
   }
 
   .connect-hint {
@@ -394,5 +451,155 @@
 
   .connect-hint.error {
     color: var(--red);
+  }
+
+  /* ── Settings Panel ────────────────────────────────────────── */
+  .settings-section {
+    margin-top: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .settings-header {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1.5px;
+    transition: all var(--transition-fast);
+  }
+
+  .settings-header:hover {
+    color: var(--text-secondary);
+    background: var(--bg-hover);
+  }
+
+  .settings-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .settings-body {
+    border-top: 1px solid var(--border);
+    padding: 8px 0;
+  }
+
+  .setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    gap: 12px;
+  }
+
+  .setting-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .setting-label {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .setting-desc {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .setting-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 6px 10px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+  }
+
+  .setting-toggle-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+  }
+
+  .setting-toggle-btn:active {
+    transform: scale(0.95);
+  }
+
+  .logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: calc(100% - 32px);
+    margin: 8px 16px;
+    padding: 12px;
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--red);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .logout-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .logout-btn:active {
+    transform: scale(0.98);
+  }
+
+  /* GitHub Star */
+  .github-star-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
+  }
+
+  .github-star-link:hover {
+    color: var(--yellow);
+    background: rgba(245, 158, 11, 0.05);
+  }
+
+  .github-star-link:active {
+    transform: scale(0.97);
   }
 </style>

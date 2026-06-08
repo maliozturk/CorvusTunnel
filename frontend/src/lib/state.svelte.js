@@ -3,6 +3,27 @@ import { api } from './api.js';
 // Screen Wake Lock reference
 let wakeLock = null;
 
+// ── Theme Initialization ──────────────────────────────────────────
+function getInitialTheme() {
+  const stored = localStorage.getItem('corvus_theme');
+  if (stored === 'light' || stored === 'dark') return stored;
+  return 'dark'; // default
+}
+
+function getInitialTerminalTheme() {
+  const stored = localStorage.getItem('corvus_terminal_theme');
+  if (stored === 'light' || stored === 'dark') return stored;
+  return 'dark'; // default
+}
+
+// Apply theme to DOM immediately
+function applyThemeToDOM(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+}
+
+// Apply initial theme before Svelte mounts
+applyThemeToDOM(getInitialTheme());
+
 export const STATE = $state({
   token: localStorage.getItem('corvus_token') || '',
   connected: false,
@@ -23,13 +44,12 @@ export const STATE = $state({
   // Terminal state
   term: null,
   fitAddon: null,
-  canvasAddon: null,
   ws: null,
   reconnectAttempt: 0,
   maxReconnect: 10,
   ctrlActive: false,
   altActive: false,
-  autoApprove: false,
+
   recentCommands: JSON.parse(sessionStorage.getItem('corvus_recent') || '[]'),
   favorites: JSON.parse(localStorage.getItem('corvus_favorites') || '[]'),
   
@@ -41,9 +61,139 @@ export const STATE = $state({
   
   // Notification Banner
   showNotifBanner: false,
+
+  // ── NEW: Theme ──────────────────────────────────────────────
+  theme: getInitialTheme(),           // 'dark' | 'light'
+  terminalTheme: getInitialTerminalTheme(), // 'dark' | 'light'
+  
+  // ── NEW: Onboarding ─────────────────────────────────────────
+  showOnboarding: false,
+  onboardingComplete: localStorage.getItem('corvus_onboarding_done') === 'true',
+  
+  // ── NEW: Exit Confirmation ──────────────────────────────────
+  showExitConfirm: false,
+  
+  // ── NEW: Settings Panel ─────────────────────────────────────
+  showSettings: false,
+  
+  // ── NEW: Screen Transition ──────────────────────────────────
+  screenTransition: '', // 'slide-left', 'slide-right', 'fade'
 });
 
-export function showAuthErr(msg) {
+// ── Theme Management ──────────────────────────────────────────────
+function setTheme(theme) {
+  STATE.theme = theme;
+  localStorage.setItem('corvus_theme', theme);
+  applyThemeToDOM(theme);
+}
+
+export function toggleTheme() {
+  setTheme(STATE.theme === 'dark' ? 'light' : 'dark');
+}
+
+function setTerminalTheme(theme) {
+  STATE.terminalTheme = theme;
+  localStorage.setItem('corvus_terminal_theme', theme);
+  
+  // Update xterm theme if terminal is active
+  if (STATE.term) {
+    applyXtermTheme(STATE.term, theme);
+  }
+}
+
+export function toggleTerminalTheme() {
+  setTerminalTheme(STATE.terminalTheme === 'dark' ? 'light' : 'dark');
+}
+
+export function applyXtermTheme(term, theme) {
+  if (theme === 'light') {
+    term.options.theme = {
+      background: '#f8f9fa',
+      foreground: '#1a1a2e',
+      cursor: '#7c3aed',
+      cursorAccent: '#f8f9fa',
+      selectionBackground: 'rgba(124, 58, 237, 0.2)',
+      black: '#1a1a2e',
+      red: '#dc2626',
+      green: '#059669',
+      yellow: '#d97706',
+      blue: '#2563eb',
+      magenta: '#7c3aed',
+      cyan: '#0891b2',
+      white: '#e5e5e7',
+      brightBlack: '#718096',
+      brightRed: '#ef4444',
+      brightGreen: '#10b981',
+      brightYellow: '#f59e0b',
+      brightBlue: '#3b82f6',
+      brightMagenta: '#9060ff',
+      brightCyan: '#06b6d4',
+      brightWhite: '#1a1a2e',
+    };
+  } else {
+    term.options.theme = {
+      background: '#000000',
+      foreground: '#e6e6e6',
+      cursor: '#9060ff',
+      cursorAccent: '#000000',
+      selectionBackground: 'rgba(144, 96, 255, 0.25)',
+      black: '#000000',
+      red: '#ef4444',
+      green: '#10b981',
+      yellow: '#f59e0b',
+      blue: '#3b82f6',
+      magenta: '#9060ff',
+      cyan: '#06b6d4',
+      white: '#e6e6e6',
+      brightBlack: '#606060',
+      brightRed: '#f87171',
+      brightGreen: '#4ade80',
+      brightYellow: '#fde047',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#c084fc',
+      brightCyan: '#22d3ee',
+      brightWhite: '#ffffff',
+    };
+  }
+}
+
+// ── Onboarding Management ─────────────────────────────────────────
+export function completeOnboarding() {
+  STATE.onboardingComplete = true;
+  STATE.showOnboarding = false;
+  localStorage.setItem('corvus_onboarding_done', 'true');
+}
+
+export function resetOnboarding() {
+  STATE.onboardingComplete = false;
+  localStorage.removeItem('corvus_onboarding_done');
+}
+
+function showOnboardingIfNeeded() {
+  if (!STATE.onboardingComplete) {
+    STATE.showOnboarding = true;
+  }
+}
+
+// ── Haptic Feedback ───────────────────────────────────────────────
+export function hapticTap() {
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate(10);
+    } catch (e) { /* ignore */ }
+  }
+}
+
+export function hapticHeavy() {
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate(25);
+    } catch (e) { /* ignore */ }
+  }
+}
+
+// ── Auth & Session ────────────────────────────────────────────────
+function showAuthErr(msg) {
   STATE.error = msg;
 }
 
@@ -96,9 +246,12 @@ export function bootApp() {
   STATE.phase = 'launcher';
   startHealth();
   checkAgentAvailability();
+  
+  // Show onboarding for first-time users
+  showOnboardingIfNeeded();
 }
 
-export function startHealth() {
+function startHealth() {
   if (STATE.healthTimer) clearInterval(STATE.healthTimer);
   
   const checkHealth = async () => {
@@ -118,7 +271,7 @@ export function startHealth() {
   STATE.healthTimer = setInterval(checkHealth, 10000);
 }
 
-export async function checkAgentAvailability() {
+async function checkAgentAvailability() {
   if (STATE.checkingAvailability) return;
   STATE.checkingAvailability = true;
   try {
@@ -140,7 +293,7 @@ export async function checkAgentAvailability() {
 }
 
 // ── Screen Wake Lock ───────────────────────────────────────────────
-export async function acquireWakeLock() {
+async function acquireWakeLock() {
   if (!('wakeLock' in navigator)) return;
   try {
     wakeLock = await navigator.wakeLock.request('screen');
@@ -234,10 +387,7 @@ export async function connectTerminal() {
       + `&work_dir=${encodeURIComponent(STATE.currentFolder)}`
       + `&agent=${encodeURIComponent(STATE.selectedAgent)}`;
       
-    if (STATE.autoApprove) {
-      url += '&flags=' + encodeURIComponent('auto-approve');
-    }
-    
+
     const ws = new WebSocket(url);
     STATE.ws = ws;
     
@@ -336,6 +486,12 @@ export function sendResize() {
   }
 }
 
+// ── Manual Reconnect (for status bar tap) ─────────────────────────
+export function manualReconnect() {
+  STATE.reconnectAttempt = 0;
+  connectTerminal();
+}
+
 // URL detection toast
 let _urlBuf = '';
 function detectUrl(data) {
@@ -378,4 +534,78 @@ function sendBrowserNotification(title, body) {
     tag: 'corvus-agent',
     renotify: true,
   });
+}
+
+// ── Two-Finger Scroll Setup ──────────────────────────────────────
+export function setupTwoFingerScroll(terminalContainer, term) {
+  if (!terminalContainer || !term) return null;
+  
+  let touchCount = 0;
+  let lastTwoFingerY = 0;
+  let isTwoFinger = false;
+  
+  const onTouchStart = (e) => {
+    touchCount = e.touches.length;
+    if (touchCount === 2) {
+      isTwoFinger = true;
+      lastTwoFingerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      e.preventDefault();
+    } else {
+      isTwoFinger = false;
+    }
+  };
+  
+  const onTouchMove = (e) => {
+    if (isTwoFinger && e.touches.length === 2) {
+      e.preventDefault();
+      const currentY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const delta = lastTwoFingerY - currentY;
+      lastTwoFingerY = currentY;
+      
+      // Scroll xterm buffer
+      const lineHeight = 18; // approximate
+      const lines = Math.round(delta / lineHeight);
+      if (lines !== 0) {
+        term.scrollLines(lines);
+      }
+    }
+  };
+  
+  const onTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      isTwoFinger = false;
+    }
+    touchCount = e.touches.length;
+  };
+  
+  terminalContainer.addEventListener('touchstart', onTouchStart, { passive: false });
+  terminalContainer.addEventListener('touchmove', onTouchMove, { passive: false });
+  terminalContainer.addEventListener('touchend', onTouchEnd, { passive: true });
+  
+  // Return cleanup function
+  return () => {
+    terminalContainer.removeEventListener('touchstart', onTouchStart);
+    terminalContainer.removeEventListener('touchmove', onTouchMove);
+    terminalContainer.removeEventListener('touchend', onTouchEnd);
+  };
+}
+
+// ── Visual Viewport Keyboard Handler ─────────────────────────────
+export function setupKeyboardResize(callback) {
+  if (!window.visualViewport) return null;
+  
+  const handler = () => {
+    const vv = window.visualViewport;
+    // When keyboard opens, visualViewport.height < window.innerHeight
+    const keyboardHeight = window.innerHeight - vv.height;
+    callback(keyboardHeight, vv.height);
+  };
+  
+  window.visualViewport.addEventListener('resize', handler);
+  window.visualViewport.addEventListener('scroll', handler);
+  
+  return () => {
+    window.visualViewport.removeEventListener('resize', handler);
+    window.visualViewport.removeEventListener('scroll', handler);
+  };
 }

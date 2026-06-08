@@ -1,34 +1,146 @@
-:root {
-  --purple: #9060ff;
-  --purple-glow: rgba(144, 96, 255, 0.25);
-  
-  --border: rgba(255, 255, 255, 0.08);
-  --border-light: rgba(255, 255, 255, 0.12);
-  
+/* ═══════════════════════════════════════════════════════════════════
+   CorvusTunnel — Design System & Theme Variables
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Dark Theme (Default) ──────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  --bg-primary: #000000;
+  --bg-secondary: #080808;
+  --bg-tertiary: #0c0c0c;
+  --bg-elevated: #141414;
+  --bg-surface: #1a1a1a;
+  --bg-hover: #0c0c0c;
+  --bg-input: #080808;
+  --bg-card: #080808;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.85);
+
   --text-primary: #ffffff;
   --text-secondary: #a0a0a0;
   --text-muted: #606060;
   --text-dim: #404040;
+  --text-inverse: #000000;
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-light: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.20);
+  --border-focus: var(--purple);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.8);
+  --shadow-panel: -4px 0 24px rgba(0, 0, 0, 0.9);
+  --shadow-glow: 0 0 20px rgba(144, 96, 255, 0.15);
+
+  --btn-primary-bg: #ffffff;
+  --btn-primary-text: #000000;
+  --btn-primary-hover: #e6e6e6;
+  --btn-primary-border: #ffffff;
+  --btn-disabled-bg: #080808;
+  --btn-disabled-text: var(--text-muted);
+  --btn-disabled-border: var(--border);
+
+  --glass-bg: rgba(20, 20, 20, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-blur: 12px;
   
+  --scrollbar-thumb: var(--text-dim);
+  --scrollbar-thumb-hover: var(--text-muted);
+}
+
+/* ── Light Theme ──────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg-primary: #f5f5f7;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #eeeef0;
+  --bg-elevated: #ffffff;
+  --bg-surface: #e5e5e7;
+  --bg-hover: #eaeaec;
+  --bg-input: #ffffff;
+  --bg-card: #ffffff;
+  --bg-modal-overlay: rgba(0, 0, 0, 0.4);
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a5568;
+  --text-muted: #718096;
+  --text-dim: #a0aec0;
+  --text-inverse: #ffffff;
+
+  --border: rgba(0, 0, 0, 0.08);
+  --border-light: rgba(0, 0, 0, 0.06);
+  --border-hover: rgba(0, 0, 0, 0.15);
+  --border-focus: var(--purple);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --shadow-panel: -4px 0 24px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.1);
+
+  --btn-primary-bg: #1a1a2e;
+  --btn-primary-text: #ffffff;
+  --btn-primary-hover: #2d2d4a;
+  --btn-primary-border: #1a1a2e;
+  --btn-disabled-bg: #eeeef0;
+  --btn-disabled-text: var(--text-muted);
+  --btn-disabled-border: var(--border);
+
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-blur: 12px;
+
+  --scrollbar-thumb: #c0c0c0;
+  --scrollbar-thumb-hover: #a0a0a0;
+
+  --purple: #7c3aed;
+  --purple-glow: rgba(124, 58, 237, 0.2);
+  --purple-soft: rgba(124, 58, 237, 0.06);
+  --red: #dc2626;
+  --green: #059669;
+  --yellow: #d97706;
+}
+
+/* ── Shared Design Tokens ────────────────────────────────────── */
+:root {
+  /* Accent Palette */
+  --purple: #9060ff;
+  --purple-glow: rgba(144, 96, 255, 0.25);
+  --purple-soft: rgba(144, 96, 255, 0.08);
   --red: #ef4444;
   --green: #10b981;
   --yellow: #f59e0b;
-  
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --blue: #3b82f6;
+  --orange: #f97316;
+
+  /* Radii */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
-  
+
+  /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  
+  --transition-smooth: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Typography */
   --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  
+
+  /* Safe Areas */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* Touch Targets */
+  --touch-min: 44px;
 }
 
+/* ── Reset & Base ────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -40,11 +152,14 @@ html {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
+  /* Prevent pull-to-refresh */
+  overscroll-behavior: none;
+  overscroll-behavior-y: contain;
 }
 
 body {
-  background: #000000;
-  color: #e6e6e6;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: var(--font-sans);
   height: 100%;
   height: 100dvh;
@@ -55,9 +170,15 @@ body {
   left: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent iOS rubber-banding */
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+  /* Prevent pull-to-refresh */
+  touch-action: pan-x pan-y;
+  transition: background var(--transition-smooth), color var(--transition-smooth);
 }
 
-/* Scrollbar Customization */
+/* ── Scrollbar Styling ───────────────────────────────────────── */
 ::-webkit-scrollbar {
   width: 4px;
   height: 4px;
@@ -66,9 +187,60 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--text-dim);
+  background: var(--scrollbar-thumb);
   border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+/* ── iOS Rubber-band / Overscroll Prevention ─────────────────── */
+.no-overscroll {
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
+}
+
+/* ── Reduced Motion ──────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Focus Visible (keyboard-only focus rings) ───────────────── */
+:focus-visible {
+  outline: 2px solid var(--purple);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── Selection ───────────────────────────────────────────────── */
+::selection {
+  background: var(--purple-glow);
+  color: var(--text-primary);
+}
+
+/* ── Utility Classes ─────────────────────────────────────────── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

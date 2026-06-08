@@ -5,7 +5,6 @@ CorvusTunnel Settings — Pydantic-based configuration loaded from environment.
 from __future__ import annotations
 
 import os
-import secrets
 from functools import lru_cache
 from pathlib import Path
 
@@ -103,7 +102,3 @@ def get_settings() -> Settings:
     """Return a singleton Settings instance."""
     return Settings()
 
-
-def generate_token(length: int = 64) -> str:
-    """Generate a cryptographically secure random token."""
-    return secrets.token_urlsafe(length)

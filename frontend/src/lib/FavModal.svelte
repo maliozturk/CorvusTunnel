@@ -88,13 +88,21 @@
   .fav-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.85);
+    background: var(--bg-modal-overlay);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
     padding: 16px;
     font-family: var(--font-mono);
+    animation: fadeIn 200ms ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .fav-modal {
@@ -102,12 +110,19 @@
     max-width: 400px;
     max-height: 520px;
     height: 70vh;
-    background: #000000;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    animation: scaleIn 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
   }
 
   .fav-header {
@@ -122,7 +137,7 @@
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 1px;
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .close-btn {
@@ -135,10 +150,12 @@
     align-items: center;
     justify-content: center;
     transition: color var(--transition-fast);
+    border-radius: var(--radius-xs);
   }
 
   .close-btn:hover {
-    color: #ffffff;
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
   .fav-list {
@@ -149,6 +166,7 @@
     flex-direction: column;
     gap: 6px;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 
   .fav-empty {
@@ -165,7 +183,7 @@
     justify-content: space-between;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    background: #080808;
+    background: var(--bg-card);
     overflow: hidden;
   }
 
@@ -176,7 +194,7 @@
     gap: 8px;
     background: none;
     border: none;
-    color: #ffffff;
+    color: var(--text-primary);
     padding: 10px 12px;
     font-family: var(--font-mono);
     font-size: 12px;
@@ -187,7 +205,7 @@
   }
 
   .fav-use-btn:hover {
-    background: #141414;
+    background: var(--bg-hover);
   }
 
   :global(.use-icon) {
@@ -228,31 +246,36 @@
     padding: 12px 16px;
     border-top: 1px solid var(--border);
     gap: 8px;
-    background: #080808;
+    background: var(--bg-tertiary);
   }
 
   .fav-add-input {
     flex: 1;
-    background: #000000;
+    background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 8px 12px;
     font-family: var(--font-mono);
     font-size: 12px;
-    color: #ffffff;
+    color: var(--text-primary);
     outline: none;
+    transition: border-color var(--transition-fast);
   }
 
   .fav-add-input:focus {
     border-color: var(--purple);
   }
 
+  .fav-add-input::placeholder {
+    color: var(--text-muted);
+  }
+
   .fav-add-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #141414;
-    color: #ffffff;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 8px 14px;
@@ -264,20 +287,19 @@
   }
 
   .fav-add-btn:hover {
-    background: #202020;
-    border-color: var(--text-secondary);
+    background: var(--bg-surface);
+    border-color: var(--border-hover);
   }
 
   .fav-footer {
     padding: 16px;
     border-top: 1px solid var(--border);
-    background: #000000;
   }
 
   .footer-close-btn {
     width: 100%;
-    background: #141414;
-    color: #ffffff;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 12px;
@@ -290,7 +312,11 @@
   }
 
   .footer-close-btn:hover {
-    background: #202020;
-    border-color: var(--text-secondary);
+    background: var(--bg-surface);
+    border-color: var(--border-hover);
+  }
+
+  .footer-close-btn:active {
+    transform: scale(0.98);
   }
 </style>

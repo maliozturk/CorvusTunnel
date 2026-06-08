@@ -5,7 +5,6 @@ Covers:
   - Settings loads successfully with AGENT_TOKEN set
   - Settings fails without AGENT_TOKEN (required field)
   - Port validation (public and internal ports must differ)
-  - generate_token returns proper length tokens
   - allowed_dir_list parsing (comma-separated)
   - Default values for optional fields
   - audit_log_dir creates directory if missing
@@ -119,40 +118,6 @@ class TestPortValidation:
         with pytest.raises(ValidationError):
             Settings()
 
-
-class TestGenerateToken:
-    """Tests for the generate_token() helper function."""
-
-    def test_generate_token_default_length(self):
-        """generate_token() should return a URL-safe token."""
-        from config.settings import generate_token
-        token = generate_token()
-        assert isinstance(token, str)
-        assert len(token) > 0
-
-    def test_generate_token_custom_length(self):
-        """generate_token(length) should respect the length parameter."""
-        from config.settings import generate_token
-
-        t32 = generate_token(32)
-        t64 = generate_token(64)
-
-        # Longer byte length → longer base64 string
-        assert len(t64) > len(t32)
-
-    def test_generate_token_uniqueness(self):
-        """Each call to generate_token should produce a different value."""
-        from config.settings import generate_token
-        tokens = {generate_token() for _ in range(10)}
-        assert len(tokens) == 10, "Tokens should all be unique"
-
-    def test_generate_token_url_safe(self):
-        """Token should be URL-safe (no +, /, or = characters)."""
-        from config.settings import generate_token
-        for _ in range(10):
-            token = generate_token()
-            assert "+" not in token
-            assert "/" not in token
 
 
 class TestAllowedDirList:

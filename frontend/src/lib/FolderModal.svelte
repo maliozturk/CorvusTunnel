@@ -142,7 +142,7 @@
           <!-- Go Up Option -->
           {#if parentPath !== null && parentPath !== undefined}
             <button class="folder-item up-dir" onclick={() => loadFolder(parentPath)}>
-              <ChevronUp size={16} class="folder-icon" />
+              <ChevronUp size={16} />
               <span class="folder-name">.. (Go Up)</span>
             </button>
           {/if}
@@ -157,7 +157,7 @@
           <!-- Directories -->
           {#each directories as dir}
             <button class="folder-item" onclick={() => loadFolder(dir.path)}>
-              <Folder size={16} class="folder-icon" />
+              <Folder size={16} />
               <span class="folder-name">{dir.name}</span>
             </button>
           {/each}
@@ -183,13 +183,21 @@
   .folder-modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.85);
+    background: var(--bg-modal-overlay);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2000;
     padding: 16px;
     font-family: var(--font-mono);
+    animation: fadeIn 200ms ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .folder-modal {
@@ -197,12 +205,19 @@
     max-width: 420px;
     height: 80vh;
     max-height: 580px;
-    background: #000000;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    animation: scaleIn 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
   }
 
   .folder-header {
@@ -217,7 +232,7 @@
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 1px;
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .close-btn {
@@ -230,17 +245,19 @@
     align-items: center;
     justify-content: center;
     transition: color var(--transition-fast);
+    border-radius: var(--radius-xs);
   }
 
   .close-btn:hover {
-    color: #ffffff;
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
   .folder-path {
     padding: 12px 16px;
     font-size: 11px;
     color: var(--text-secondary);
-    background: #080808;
+    background: var(--bg-tertiary);
     border-bottom: 1px solid var(--border);
     word-break: break-all;
   }
@@ -253,26 +270,31 @@
 
   .folder-create-input {
     flex: 1;
-    background: #000000;
+    background: var(--bg-input);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 8px 12px;
     font-family: var(--font-mono);
     font-size: 12px;
-    color: #ffffff;
+    color: var(--text-primary);
     outline: none;
+    transition: border-color var(--transition-fast);
   }
 
   .folder-create-input:focus {
     border-color: var(--purple);
   }
 
+  .folder-create-input::placeholder {
+    color: var(--text-muted);
+  }
+
   .folder-create-btn {
     display: flex;
     align-items: center;
     gap: 6px;
-    background: #141414;
-    color: #ffffff;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: 8px 14px;
@@ -284,8 +306,8 @@
   }
 
   .folder-create-btn:hover {
-    background: #202020;
-    border-color: var(--text-secondary);
+    background: var(--bg-surface);
+    border-color: var(--border-hover);
   }
 
   .folder-error-text {
@@ -305,6 +327,7 @@
     flex-direction: column;
     gap: 4px;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 
   .folder-item {
@@ -325,17 +348,17 @@
   }
 
   .folder-item:hover {
-    background: #0c0c0c;
-    color: #ffffff;
+    background: var(--bg-hover);
+    color: var(--text-primary);
     border-color: var(--border);
+  }
+
+  .folder-item:active {
+    background: var(--bg-elevated);
   }
 
   .folder-item.up-dir {
     color: var(--purple);
-  }
-
-  :global(.folder-icon) {
-    flex-shrink: 0;
   }
 
   .folder-name {
@@ -371,9 +394,9 @@
 
   .select-btn {
     width: 100%;
-    background: #ffffff;
-    color: #000000;
-    border: 1px solid #ffffff;
+    background: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border: 1px solid var(--btn-primary-border);
     border-radius: var(--radius-sm);
     padding: 12px;
     font-family: var(--font-mono);
@@ -385,16 +408,20 @@
   }
 
   .select-btn:hover {
-    background: #e6e6e6;
+    background: var(--btn-primary-hover);
+  }
+
+  .select-btn:active {
+    transform: scale(0.98);
   }
 
   .select-btn.cancel {
-    background: #141414;
+    background: var(--bg-elevated);
     border-color: var(--border);
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .select-btn.cancel:hover {
-    background: #202020;
+    background: var(--bg-surface);
   }
 </style>

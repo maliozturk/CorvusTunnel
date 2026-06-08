@@ -182,7 +182,8 @@
 </script>
 
 {#if STATE.showHistoryPanel}
-  <div class="history-overlay" onclick={handleClose} onkeydown={(e) => e.key === 'Escape' && handleClose()} role="button" tabIndex={0}></div>
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="history-overlay" onclick={handleClose} onkeydown={(e) => e.key === 'Escape' && handleClose()}></div>
   <div class="history-panel">
     
     <!-- ── 1. List View ─────────────────────────────────────────────── -->
@@ -322,8 +323,16 @@
   .history-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: var(--bg-modal-overlay);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
     z-index: 1500;
+    animation: fadeIn 200ms ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 
   .history-panel {
@@ -333,13 +342,20 @@
     bottom: 0;
     width: 100%;
     max-width: 480px;
-    background: #000000;
+    background: var(--bg-primary);
     border-left: 1px solid var(--border);
     z-index: 1600;
     display: flex;
     flex-direction: column;
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.9);
+    box-shadow: var(--shadow-panel);
     font-family: var(--font-mono);
+    animation: slideInPanel 250ms ease-out;
+    transition: background var(--transition-smooth);
+  }
+
+  @keyframes slideInPanel {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
   }
 
   .history-layout {
@@ -355,15 +371,16 @@
     justify-content: space-between;
     padding: 16px;
     border-bottom: 1px solid var(--border);
-    background: #000000;
+    background: var(--bg-primary);
     gap: 12px;
+    transition: background var(--transition-smooth);
   }
 
   .history-title {
     font-size: 13px;
     font-weight: 700;
     letter-spacing: 1px;
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .history-subtitle {
@@ -381,19 +398,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: color var(--transition-fast);
+    transition: all var(--transition-fast);
+    border-radius: var(--radius-xs);
   }
 
   .close-btn:hover, .back-btn:hover {
-    color: #ffffff;
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
   .history-tabs {
     display: flex;
     border-bottom: 1px solid var(--border);
-    background: #080808;
+    background: var(--bg-secondary);
     overflow-x: auto;
     scrollbar-width: none;
+    transition: background var(--transition-smooth);
   }
   
   .history-tabs::-webkit-scrollbar {
@@ -422,15 +442,14 @@
   }
 
   .history-tab.active {
-    color: #ffffff;
-    border-color: #ffffff;
-    background: #000000;
+    color: var(--text-primary);
+    border-color: var(--purple);
   }
 
   .tab-count {
     font-size: 9px;
     color: var(--text-dim);
-    background: #141414;
+    background: var(--bg-elevated);
     padding: 1px 4px;
     border-radius: 2px;
     margin-left: 2px;
@@ -438,7 +457,7 @@
 
   .history-tab.active .tab-count {
     color: var(--text-secondary);
-    background: #202020;
+    background: var(--bg-surface);
   }
 
   .history-list {
@@ -449,6 +468,7 @@
     flex-direction: column;
     gap: 8px;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 
   .list-msg {
@@ -476,18 +496,24 @@
   .history-card {
     display: flex;
     width: 100%;
-    background: #050505;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     padding: 12px;
     cursor: pointer;
     text-align: left;
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-sm);
   }
 
   .history-card:hover {
-    background: #0d0d0d;
-    border-color: var(--text-secondary);
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+    box-shadow: var(--shadow-md);
+  }
+
+  .history-card:active {
+    transform: scale(0.99);
   }
 
   .card-left {
@@ -515,7 +541,7 @@
   }
 
   .card-agent-badge.ag-claude {
-    color: #f97316;
+    color: var(--orange);
     border-color: rgba(249, 115, 22, 0.3);
   }
 
@@ -550,7 +576,7 @@
   .card-title {
     font-size: 12px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     margin-bottom: 6px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -579,7 +605,7 @@
   .convo-title {
     font-size: 12px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -594,9 +620,10 @@
   .history-convo-container {
     flex: 1;
     overflow: hidden;
-    background: #000000;
+    background: var(--bg-primary);
     display: flex;
     flex-direction: column;
+    transition: background var(--transition-smooth);
   }
 
   .convo-status-msg {
@@ -617,12 +644,13 @@
     flex-direction: column;
     gap: 16px;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
   }
 
   .history-msg {
     max-width: 90%;
     padding: 12px 14px;
-    border-radius: var(--radius-sm);
+    border-radius: var(--radius-md);
     font-size: 12px;
     line-height: 1.5;
     word-break: break-word;
@@ -630,21 +658,21 @@
 
   .history-msg.msg-user {
     align-self: flex-end;
-    background: #080808;
+    background: var(--bg-card);
     border: 1px solid var(--border);
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   .history-msg.msg-assistant {
     align-self: flex-start;
-    background: #000000;
+    background: var(--bg-primary);
     border: 1px solid var(--border);
     color: var(--text-secondary);
   }
 
   .history-msg.msg-system {
     align-self: center;
-    background: #0c0c0c;
+    background: var(--bg-tertiary);
     border: 1px solid var(--border);
     color: var(--text-muted);
     font-size: 10px;
@@ -672,23 +700,23 @@
   :global(.convo-code) {
     font-family: var(--font-mono);
     font-size: 11px;
-    background: #101010;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
     padding: 1px 4px;
     border-radius: 2px;
-    color: #ffffff;
+    color: var(--text-primary);
   }
 
   :global(.convo-pre-code) {
     font-family: var(--font-mono);
     font-size: 11px;
-    background: #050505;
+    background: var(--bg-secondary);
     border: 1px solid var(--border);
-    border-radius: 2px;
+    border-radius: var(--radius-sm);
     padding: 8px 10px;
     margin: 8px 0;
     overflow-x: auto;
-    color: #e0e0e0;
+    color: var(--text-primary);
     line-height: 1.4;
   }
 
@@ -713,7 +741,7 @@
   }
 
   .load-more-btn {
-    background: #080808;
+    background: var(--bg-card);
     color: var(--text-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -726,7 +754,11 @@
   }
 
   .load-more-btn:hover {
-    background: #141414;
-    color: #ffffff;
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  .load-more-btn:active {
+    transform: scale(0.97);
   }
 </style>

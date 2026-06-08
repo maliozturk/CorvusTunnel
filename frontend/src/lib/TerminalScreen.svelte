@@ -1,28 +1,36 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { STATE, disconnectTerminal, sendResize, hideUrlToast, addRecent } from './state.svelte.js';
+  import { STATE, disconnectTerminal, sendResize, hideUrlToast, addRecent, hapticTap, applyXtermTheme, setupTwoFingerScroll, setupKeyboardResize } from './state.svelte.js';
   import { Terminal as Xterm } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { CanvasAddon } from '@xterm/addon-canvas';
   import { WebLinksAddon } from '@xterm/addon-web-links';
   import { 
-    ChevronLeft, Settings, Keyboard, Star, HelpCircle, 
-    CornerDownLeft, Compass, Globe, Folder, ShieldCheck, ChevronUp, ChevronDown, ArrowDownToLine, Bot, Trash2 
+    ChevronLeft, Keyboard, Star, 
+    Globe, Folder, ArrowDownToLine, Home,
+    X
   } from 'lucide-svelte';
 
   // CSS for xterm
   import '@xterm/xterm/css/xterm.css';
 
+  // Sub-components
+  import ConnectionStatusBar from './ConnectionStatusBar.svelte';
+  import QuickActions from './QuickActions.svelte';
+  import InfiniteKeypad from './InfiniteKeypad.svelte';
+  import ThemeToggle from './ThemeToggle.svelte';
+
   let terminalContainer = $state(null);
-  let fontSize = $state(13);
+  let fontSize = $state(parseInt(localStorage.getItem('corvus_font_size') || '13', 10));
   let suggestionChips = $state([]);
   let outputBuffer = $state('');
   let chipTimer = null;
 
-  // Virtual Keypad States
-  let ctrlActive = $state(false);
-  let altActive = $state(false);
   let showScrollDown = $state(false);
+
+  // Cleanup refs
+  let cleanupTwoFingerScroll = null;
+  let cleanupKeyboardResize = null;
 
   // Suggested patterns for chips
   const chipPatterns = [
@@ -47,16 +55,32 @@
     { regex: /\b(waiting|press enter|hit enter)\b/i, chips: [
       { text: '⏎ Enter', cmd: '\r\n', cls: 'approve' },
     ]},
+    // NEW: git patterns
+    { regex: /\bgit\b.*\b(merge|rebase|conflict)\b/i, chips: [
+      { text: '✅ Accept', cmd: '\r\n', cls: 'approve' },
+      { text: '⏹ Abort', cmd: '\x03', cls: 'reject' },
+      { text: 'git status', cmd: 'git status\r\n', cls: '' },
+    ]},
+    // NEW: npm patterns
+    { regex: /\bnpm\b.*\b(audit|install|update)\b.*\?/i, chips: [
+      { text: 'Yes', cmd: 'yes\r\n', cls: 'approve' },
+      { text: 'No', cmd: 'no\r\n', cls: 'reject' },
+    ]},
   ];
 
-  function backToLauncher() {
-    disconnectTerminal(true);
-    STATE.phase = 'launcher';
+  function requestExitToLauncher() {
+    if (STATE.wsStatus === 'connected') {
+      STATE.showExitConfirm = true;
+    } else {
+      disconnectTerminal(true);
+      STATE.phase = 'launcher';
+    }
   }
 
-  // Handle local Font change
+  // Handle Font change
   function handleFontChange(e) {
     fontSize = parseInt(e.target.value, 10);
+    localStorage.setItem('corvus_font_size', String(fontSize));
     if (STATE.term) {
       STATE.term.options.fontSize = fontSize;
       setTimeout(() => {
@@ -69,13 +93,38 @@
   onMount(() => {
     if (!terminalContainer) return;
 
+    // Get terminal theme
+    const termTheme = STATE.terminalTheme;
+
     // Create Terminal Instance
     const term = new Xterm({
       cursorBlink: true,
       cursorStyle: 'underline',
       fontSize: fontSize,
       fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
-      theme: {
+      theme: termTheme === 'light' ? {
+        background: '#f8f9fa',
+        foreground: '#1a1a2e',
+        cursor: '#7c3aed',
+        cursorAccent: '#f8f9fa',
+        selectionBackground: 'rgba(124, 58, 237, 0.2)',
+        black: '#1a1a2e',
+        red: '#dc2626',
+        green: '#059669',
+        yellow: '#d97706',
+        blue: '#2563eb',
+        magenta: '#7c3aed',
+        cyan: '#0891b2',
+        white: '#e5e5e7',
+        brightBlack: '#718096',
+        brightRed: '#ef4444',
+        brightGreen: '#10b981',
+        brightYellow: '#f59e0b',
+        brightBlue: '#3b82f6',
+        brightMagenta: '#9060ff',
+        brightCyan: '#06b6d4',
+        brightWhite: '#1a1a2e',
+      } : {
         background: '#000000',
         foreground: '#e6e6e6',
         cursor: '#9060ff',
@@ -115,7 +164,6 @@
     try {
       const canvasAddon = new CanvasAddon();
       term.loadAddon(canvasAddon);
-      STATE.canvasAddon = canvasAddon;
       console.log('[xterm] Canvas hardware renderer loaded');
     } catch(e) {
       console.warn('[xterm] Canvas renderer load failed, falling back to DOM:', e);
@@ -133,13 +181,11 @@
     STATE.fitAddon = fitAddon;
 
     // Track scroll position to show/hide "scroll to bottom" button
-    // Use xterm's native scroll API (DOM scroll events don't fire reliably on mobile)
     term.onScroll(() => {
       const buf = term.buffer.active;
       const atBottom = buf.viewportY >= buf.baseY;
       showScrollDown = !atBottom;
     });
-    // Also detect when new content arrives and user is scrolled up
     term.onWriteParsed(() => {
       const buf = term.buffer.active;
       const atBottom = buf.viewportY >= buf.baseY;
@@ -149,37 +195,38 @@
     // Listen to keystrokes
     term.onData((data) => {
       if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
-
-      let sendData = data;
-      
-      if (ctrlActive && sendData.length === 1) {
-        const code = sendData.toUpperCase().charCodeAt(0);
-        if (code >= 64 && code <= 95) {
-          sendData = String.fromCharCode(code - 64);
-        }
-        ctrlActive = false;
-      }
-      
-      if (altActive && sendData.length === 1) {
-        sendData = '\x1b' + sendData;
-        altActive = false;
-      }
-
-      STATE.ws.send(JSON.stringify({ type: 'input', data: sendData }));
+      STATE.ws.send(JSON.stringify({ type: 'input', data: data }));
     });
 
     // Capture terminal text to parse suggestion chips
-    term.onWriteParsed && term.onWriteParsed(() => {}); // placeholder for deep hook
-    
-    // Custom write wrapper to feed buffer
     const originalWrite = term.write.bind(term);
     term.write = (data) => {
       originalWrite(data);
-      // Process buffer
       if (typeof data === 'string') {
         processOutputBuffer(data);
       }
     };
+
+    // ── Two-finger scroll for terminal history ──
+    cleanupTwoFingerScroll = setupTwoFingerScroll(terminalContainer, term);
+
+    // ── Virtual keyboard resize handler ──
+    cleanupKeyboardResize = setupKeyboardResize((keyboardHeight, viewportHeight) => {
+      if (terminalContainer && STATE.fitAddon) {
+        // Adjust terminal container height when keyboard appears
+        if (keyboardHeight > 50) {
+          // Keyboard is open
+          terminalContainer.style.height = `${viewportHeight - terminalContainer.getBoundingClientRect().top}px`;
+        } else {
+          // Keyboard is closed
+          terminalContainer.style.height = '';
+        }
+        try {
+          STATE.fitAddon.fit();
+          sendResize();
+        } catch(e) {}
+      }
+    });
 
     // Window Resize Handler
     window.addEventListener('resize', handleWindowResize);
@@ -188,13 +235,14 @@
   onDestroy(() => {
     window.removeEventListener('resize', handleWindowResize);
     if (chipTimer) clearTimeout(chipTimer);
+    if (cleanupTwoFingerScroll) cleanupTwoFingerScroll();
+    if (cleanupKeyboardResize) cleanupKeyboardResize();
     
     if (STATE.term) {
       try { STATE.term.dispose(); } catch(e) {}
       STATE.term = null;
     }
     STATE.fitAddon = null;
-    STATE.canvasAddon = null;
   });
 
   function handleWindowResize() {
@@ -236,28 +284,17 @@
   // Handle suggestion chip click
   function sendChip(cmd) {
     if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
+    hapticTap();
     STATE.ws.send(JSON.stringify({ type: 'input', data: cmd }));
     suggestionChips = [];
     outputBuffer = '';
-    
-    // Add to history
     addRecent(cmd.replace(/[\r\n\x03]/g, '').trim());
   }
 
-  // Send virtual key sequences
-  function sendVK(seq) {
+  // Send key sequence from keypad or quick actions
+  function handleKeySend(seq) {
     if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
     STATE.ws.send(JSON.stringify({ type: 'input', data: seq }));
-  }
-
-  function toggleVK(which) {
-    if (which === 'ctrl') {
-      ctrlActive = !ctrlActive;
-      altActive = false;
-    } else {
-      altActive = !altActive;
-      ctrlActive = false;
-    }
   }
 
   function toggleKeyboard() {
@@ -274,6 +311,7 @@
 
   function runFavorite(fav) {
     if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
+    hapticTap();
     STATE.ws.send(JSON.stringify({ type: 'input', data: fav + '\r\n' }));
     addRecent(fav);
   }
@@ -289,19 +327,14 @@
       showScrollDown = false;
     }
   }
-
-  function sendAgentCommand(cmd) {
-    if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
-    STATE.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r\n' }));
-  }
 </script>
 
-<div class="terminal-screen" class:collapsed={STATE.terminalCollapsed}>
+<div class="terminal-screen">
   
   <!-- Header bar -->
   <div class="term-header">
-    <button class="header-back-btn" onclick={backToLauncher} title="Back to Launcher">
-      <ChevronLeft size={16} />
+    <button class="header-back-btn" onclick={requestExitToLauncher} title="Back to Launcher">
+      <ChevronLeft size={18} />
       <span>EXIT</span>
     </button>
     
@@ -310,34 +343,33 @@
         <Folder size={11} class="folder-ic" />
         <span>{getFolderBase(STATE.currentFolder)}</span>
       </div>
-      <div class="term-status" class:online={STATE.wsStatus === 'connected'} class:connecting={STATE.wsStatus === 'connecting'}>
-        {STATE.wsStatus.toUpperCase()}
-      </div>
     </div>
     
     <div class="header-controls">
       <select class="font-select" value={fontSize} onchange={handleFontChange} aria-label="Font size">
-        <option value={11}>11px</option>
-        <option value={12}>12px</option>
-        <option value={13}>13px</option>
-        <option value={14}>14px</option>
-        <option value={15}>15px</option>
-        <option value={16}>16px</option>
+        <option value={10}>10</option>
+        <option value={11}>11</option>
+        <option value={12}>12</option>
+        <option value={13}>13</option>
+        <option value={14}>14</option>
+        <option value={15}>15</option>
+        <option value={16}>16</option>
       </select>
 
-      <button class="header-ctrl-btn" onclick={() => sendAgentCommand('/model')} title="Change model">
-        <Bot size={14} />
-      </button>
-
-      <button class="header-ctrl-btn" onclick={() => sendAgentCommand('/clear')} title="Clear terminal">
-        <Trash2 size={14} />
-      </button>
-
-      <button class="header-ctrl-btn" onclick={() => STATE.showFavModal = true} title="Favorites">
+      <button class="header-ctrl-btn" onclick={() => { hapticTap(); STATE.showFavModal = true; }} title="Favorites">
         <Star size={14} />
       </button>
+
+      <button class="header-ctrl-btn kb-btn" onclick={toggleKeyboard} title="Toggle keyboard">
+        <Keyboard size={14} />
+      </button>
+
+      <ThemeToggle />
     </div>
   </div>
+
+  <!-- Connection Status Bar -->
+  <ConnectionStatusBar />
 
   <!-- Main viewport -->
   <div class="terminal-wrapper">
@@ -355,6 +387,13 @@
     {/if}
 
     <div bind:this={terminalContainer} class="terminal-container"></div>
+
+    <!-- Scroll to bottom FAB -->
+    {#if showScrollDown}
+      <button class="scroll-fab" onclick={scrollToBottom} title="Scroll to bottom">
+        <ArrowDownToLine size={16} />
+      </button>
+    {/if}
   </div>
 
   <!-- Smart Suggestion Chips -->
@@ -374,59 +413,28 @@
   {/if}
 
   <!-- Command Favorites bar -->
-  <div class="favorites-bar">
-    <div class="fav-scroll">
-      {#if STATE.favorites.length === 0}
-        <span class="fav-empty-lbl">No shortcuts configured</span>
-      {:else}
+  {#if STATE.favorites.length > 0}
+    <div class="favorites-bar">
+      <div class="fav-scroll">
         {#each STATE.favorites as fav}
           <button class="fav-chip" onclick={() => runFavorite(fav)}>
             {fav}
           </button>
         {/each}
-      {/if}
+      </div>
     </div>
-    
-    <!-- Collapse controls -->
-    <button class="collapse-btn" onclick={() => STATE.terminalCollapsed = !STATE.terminalCollapsed}>
-      {#if STATE.terminalCollapsed}
-        <ChevronUp size={14} />
-      {:else}
-        <ChevronDown size={14} />
-      {/if}
-    </button>
-  </div>
+  {/if}
 
-  <!-- Keyboard keypad -->
-  <div class="keypad-bar">
-    <button class="keypad-btn active-toggle" class:active={ctrlActive} onclick={() => toggleVK('ctrl')}>
-      CTRL
-    </button>
-    <button class="keypad-btn" onclick={() => sendVK('\x1b')}>
-      ESC
-    </button>
-    <button class="keypad-btn arrow" onclick={() => sendVK('\x1b[A')}>
-      ▲
-    </button>
-    <button class="keypad-btn arrow" onclick={() => sendVK('\x1b[B')}>
-      ▼
-    </button>
-    <button class="keypad-btn arrow" onclick={() => sendVK('\x1b[D')}>
-      ◀
-    </button>
-    <button class="keypad-btn arrow" onclick={() => sendVK('\x1b[C')}>
-      ▶
-    </button>
-    <button class="keypad-btn enter" onclick={() => sendVK('\r')}>
-      ⏎
-    </button>
-    <button class="keypad-btn scroll-bottom" onclick={scrollToBottom} title="Scroll to bottom">
-      <ArrowDownToLine size={14} />
-    </button>
-    <button class="keypad-btn kb-toggle" onclick={toggleKeyboard}>
-      <Keyboard size={14} />
-    </button>
-  </div>
+  <!-- Quick Actions -->
+  <QuickActions onSend={handleKeySend} />
+
+  <!-- Infinite Keypad Carousel -->
+  <InfiniteKeypad onSend={handleKeySend} />
+
+  <!-- Floating launcher shortcut -->
+  <button class="launcher-fab" onclick={requestExitToLauncher} title="Back to launcher">
+    <Home size={16} />
+  </button>
 
 </div>
 
@@ -435,9 +443,16 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    background: #000000;
+    background: var(--bg-primary);
     overflow: hidden;
     position: relative;
+    animation: slideInRight 300ms ease-out;
+    transition: background var(--transition-smooth);
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
   }
 
   .term-header {
@@ -445,30 +460,37 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 12px;
-    background: #000000;
+    padding-top: calc(10px + var(--safe-top));
+    background: var(--bg-primary);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
     font-family: var(--font-mono);
+    transition: background var(--transition-smooth);
   }
 
   .header-back-btn {
     display: flex;
     align-items: center;
-    gap: 4px;
-    background: none;
-    border: none;
-    color: var(--text-secondary);
+    gap: 2px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    color: var(--red);
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 6px 10px;
     border-radius: var(--radius-sm);
+    transition: all var(--transition-fast);
   }
 
   .header-back-btn:hover {
-    color: #ffffff;
-    background: #0c0c0c;
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .header-back-btn:active {
+    transform: scale(0.95);
   }
 
   .header-center {
@@ -483,9 +505,9 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
-    color: #ffffff;
+    color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -498,22 +520,6 @@
     flex-shrink: 0;
   }
 
-  .term-status {
-    font-size: 8px;
-    font-weight: 700;
-    color: var(--text-muted);
-    margin-top: 2px;
-    letter-spacing: 0.5px;
-  }
-
-  .term-status.online {
-    color: var(--green);
-  }
-
-  .term-status.connecting {
-    color: var(--yellow);
-  }
-
   .header-controls {
     display: flex;
     align-items: center;
@@ -521,14 +527,15 @@
   }
 
   .font-select {
-    background: #000000;
+    background: var(--bg-card);
     color: var(--text-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    padding: 3px 6px;
+    padding: 4px 6px;
     font-family: var(--font-mono);
     font-size: 10px;
     outline: none;
+    cursor: pointer;
   }
 
   .header-ctrl-btn {
@@ -537,8 +544,8 @@
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     cursor: pointer;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -546,9 +553,17 @@
   }
 
   .header-ctrl-btn:hover {
-    color: #ffffff;
-    background: #0c0c0c;
-    border-color: var(--text-secondary);
+    color: var(--text-primary);
+    background: var(--bg-hover);
+    border-color: var(--border-hover);
+  }
+
+  .header-ctrl-btn:active {
+    transform: scale(0.9);
+  }
+
+  .header-ctrl-btn.kb-btn {
+    color: var(--purple);
   }
 
   /* Viewport wrapper */
@@ -556,8 +571,10 @@
     flex: 1;
     position: relative;
     overflow: hidden;
-    background: #000000;
-    padding: 6px;
+    padding: 4px;
+    /* Prevent iOS overscroll on terminal area */
+    overscroll-behavior: none;
+    touch-action: none;
   }
 
   .terminal-container {
@@ -565,13 +582,10 @@
     height: 100%;
   }
 
-  /* Override xterm rendering to make it cleaner */
+  /* Override xterm rendering */
   :global(.xterm-viewport) {
-    background-color: #000000 !important;
-  }
-  
-  :global(.xterm-screen) {
-    background-color: #000000 !important;
+    /* Prevent native scroll — we handle it with two-finger */
+    overscroll-behavior: none;
   }
 
   /* URL Popup Toast */
@@ -580,15 +594,22 @@
     top: 8px;
     left: 8px;
     right: 8px;
-    background: #0c0c0c;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
     display: flex;
     align-items: center;
     justify-content: space-between;
     z-index: 100;
-    padding: 8px 12px;
+    padding: 10px 14px;
     font-family: var(--font-mono);
+    box-shadow: var(--shadow-md);
+    animation: slideDown 200ms ease-out;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .url-toast {
@@ -606,7 +627,7 @@
   }
 
   .url-toast:hover {
-    color: #c084fc;
+    opacity: 0.8;
   }
 
   .url-toast-close {
@@ -614,16 +635,48 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 2px;
+    padding: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border-radius: var(--radius-xs);
+    transition: all var(--transition-fast);
   }
 
   .url-toast-close:hover {
-    color: #ffffff;
+    color: var(--text-primary);
+    background: var(--bg-hover);
   }
 
+  /* Scroll to bottom FAB */
+  .scroll-fab {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    background: var(--purple);
+    color: #ffffff;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(144, 96, 255, 0.4);
+    z-index: 50;
+    animation: fadeIn 200ms ease-out;
+    transition: all var(--transition-fast);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.8); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .scroll-fab:active {
+    transform: scale(0.9);
+  }
 
   /* Suggestion chips */
   .suggestion-bar {
@@ -631,11 +684,17 @@
     gap: 6px;
     padding: 6px 12px;
     overflow-x: auto;
-    background: #080808;
+    background: var(--bg-secondary);
     border-top: 1px solid var(--border);
     flex-shrink: 0;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    animation: slideUp 200ms ease-out;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   .suggestion-bar::-webkit-scrollbar {
@@ -644,21 +703,28 @@
 
   .suggestion-chip {
     flex-shrink: 0;
-    background: #141414;
+    background: var(--bg-elevated);
     color: var(--text-secondary);
     border: 1px solid var(--border);
     border-radius: var(--radius-full);
-    padding: 6px 12px;
+    padding: 7px 14px;
     font-family: var(--font-mono);
     font-size: 11px;
     font-weight: 700;
     cursor: pointer;
     transition: all var(--transition-fast);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
   .suggestion-chip:hover {
-    color: #ffffff;
-    border-color: var(--text-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+  }
+
+  .suggestion-chip:active {
+    transform: scale(0.95);
   }
 
   .suggestion-chip.approve {
@@ -685,11 +751,10 @@
   .favorites-bar {
     display: flex;
     align-items: center;
-    background: #000000;
+    background: var(--bg-primary);
     border-top: 1px solid var(--border);
     padding: 4px 12px;
     flex-shrink: 0;
-    gap: 8px;
   }
 
   .fav-scroll {
@@ -707,12 +772,6 @@
     display: none;
   }
 
-  .fav-empty-lbl {
-    font-size: 10px;
-    color: var(--text-dim);
-    font-family: var(--font-mono);
-  }
-
   .fav-chip {
     flex-shrink: 0;
     background: none;
@@ -728,89 +787,47 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     transition: all var(--transition-fast);
+    touch-action: manipulation;
   }
 
   .fav-chip:hover {
-    color: #ffffff;
-    border-color: var(--text-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-hover);
   }
 
-  .collapse-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  .fav-chip:active {
+    transform: scale(0.95);
   }
 
-  .collapse-btn:hover {
-    color: #ffffff;
-  }
-
-  /* Keypad bar */
-  .keypad-bar {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    background: #000000;
-    border-top: 1px solid var(--border);
-    padding: 4px;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .terminal-screen.collapsed .keypad-bar {
-    display: none;
-  }
-
-  .keypad-btn {
-    background: #080808;
+  /* Floating launcher shortcut */
+  .launcher-fab {
+    position: absolute;
+    bottom: 100px;
+    left: 12px;
+    width: 40px;
+    height: 40px;
+    background: var(--bg-elevated);
     color: var(--text-secondary);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: 10px 0;
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 700;
-    cursor: pointer;
+    border: 1px solid var(--border-light);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: manipulation;
+    cursor: pointer;
+    box-shadow: var(--shadow-md);
+    z-index: 40;
+    opacity: 0.6;
     transition: all var(--transition-fast);
   }
 
-  .keypad-btn:active {
-    background: #141414;
-    transform: scale(0.96);
+  .launcher-fab:hover {
+    opacity: 1;
+    color: var(--text-primary);
+    border-color: var(--border-hover);
   }
 
-  .keypad-btn.active-toggle.active {
-    background: rgba(144, 96, 255, 0.15);
-    border-color: var(--purple);
-    color: var(--purple);
-  }
-
-  .keypad-btn.arrow {
-    background: #0a0a0a;
-    font-size: 12px;
-  }
-
-  .keypad-btn.kb-toggle {
-    color: var(--purple);
-    background: #080808;
-  }
-
-  .keypad-btn.enter {
-    color: var(--green);
-    font-size: 14px;
-  }
-
-  .keypad-btn.scroll-bottom {
-    color: var(--purple);
+  .launcher-fab:active {
+    transform: scale(0.9);
+    opacity: 1;
   }
 </style>

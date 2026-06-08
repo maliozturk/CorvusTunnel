@@ -591,7 +591,7 @@ async def terminal_ws(
 
             async def ws_to_pty():
                 """Read messages from WebSocket, forward to PTY."""
-                nonlocal _input_tokens, _input_last, _input_flood_count, _input_flood_window
+                nonlocal _input_tokens, _input_last, _input_flood_count, _input_flood_window, _last_client_activity
 
                 while True:
                     try:
@@ -605,6 +605,7 @@ async def terminal_ws(
                         continue
 
                     msg_type = msg.get("type", "")
+                    _last_client_activity = time.monotonic()
 
                     if msg_type == "input":
                         # ── Input throttling ──────────────────────
@@ -649,19 +650,54 @@ async def terminal_ws(
                     except asyncio.CancelledError:
                         return
 
-                    try:
-                        await websocket.send_json(msg)
-                    except Exception:
-                        return
+                    # Retry transient send failures (Cloudflare tunnel hiccups)
+                    for attempt in range(3):
+                        try:
+                            await websocket.send_json(msg)
+                            break  # success
+                        except WebSocketDisconnect:
+                            return  # client genuinely gone
+                        except Exception:
+                            if attempt < 2:
+                                await asyncio.sleep(0.3 * (attempt + 1))
+                            else:
+                                return  # 3 retries exhausted
 
                     # If process exited, we're done
                     if msg.get("type") == "exited":
                         return
 
-            # Run both loops; when either finishes, cancel the other
+            async def server_heartbeat():
+                """Server-side heartbeat: ping client every 25s.
+
+                If the client doesn't respond within 60s (2 missed pings),
+                the connection is considered dead and we clean up.
+                This prevents ghost connections from Cloudflare tunnel drops.
+                """
+                nonlocal _last_client_activity
+                while True:
+                    await asyncio.sleep(25)
+                    try:
+                        await websocket.send_json({"type": "pong"})
+                    except Exception:
+                        return  # send failed → connection dead
+                    # Check if client has been silent too long
+                    if time.monotonic() - _last_client_activity > 60:
+                        logger.info("Client silent for >60s, closing WS (ip=%s)", client_ip)
+                        try:
+                            await websocket.close(code=4408, reason="Heartbeat timeout")
+                        except Exception:
+                            pass
+                        return
+
+            # Track last client activity for heartbeat timeout
+            _last_client_activity = time.monotonic()
+
+            # Run all three loops; when any finishes, cancel the others
             done, pending = await asyncio.wait(
                 [asyncio.create_task(ws_to_pty()),
-                 asyncio.create_task(pty_to_ws())],
+                 asyncio.create_task(pty_to_ws()),
+                 asyncio.create_task(server_heartbeat())],
                 return_when=asyncio.FIRST_COMPLETED,
             )
             for task in pending:
