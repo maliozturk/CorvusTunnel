@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="CorvusTunnel",
     description="Remote Agent Control System",
-    version="1.0.0",
+    version="1.0.3",
     docs_url="/docs",
     redoc_url=None,
 )

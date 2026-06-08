@@ -5,11 +5,14 @@
 
   // Define the key sequence for the infinite carousel
   const keys = [
+    { label: 'PASTE', seq: null, type: 'paste' },
     { label: 'CTRL', seq: null, type: 'ctrl' },
     { label: 'ESC', seq: '\x1b', type: 'key' },
     { label: 'TAB', seq: '\t', type: 'key' },
     { label: '▲', seq: '\x1b[A', type: 'arrow' },
     { label: '▼', seq: '\x1b[B', type: 'arrow' },
+    { label: '⇧▲', seq: '\x1b[1;2A', type: 'arrow' },
+    { label: '⇧▼', seq: '\x1b[1;2B', type: 'arrow' },
     { label: '◀', seq: '\x1b[D', type: 'arrow' },
     { label: '▶', seq: '\x1b[C', type: 'arrow' },
     { label: '⏎', seq: '\r', type: 'enter' },
@@ -27,9 +30,22 @@
   let scrollContainer = $state(null);
   let isResetting = false;
 
-  function handleKeyTap(key) {
+  async function handleKeyTap(key) {
     hapticTap();
     
+    if (key.type === 'paste') {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text && onSend) {
+          onSend(text);
+        }
+      } catch (e) {
+        console.warn('Clipboard read failed:', e);
+        alert('Could not access clipboard automatically. Please focus the input area and use your keyboard to paste.');
+      }
+      return;
+    }
+
     if (key.type === 'ctrl') {
       ctrlActive = !ctrlActive;
       return;
@@ -92,6 +108,7 @@
         class:ctrl-active={key.type === 'ctrl' && ctrlActive}
         class:arrow={key.type === 'arrow'}
         class:enter={key.type === 'enter'}
+        class:paste={key.type === 'paste'}
         onclick={() => handleKeyTap(key)}
       >
         {key.label}
@@ -176,5 +193,16 @@
     color: var(--green);
     font-size: 16px;
     min-width: 48px;
+  }
+
+  .kp-btn.paste {
+    color: var(--purple);
+    border-color: rgba(144, 96, 255, 0.4);
+    background: rgba(144, 96, 255, 0.05);
+    min-width: 58px;
+  }
+
+  .kp-btn.paste:active {
+    background: rgba(144, 96, 255, 0.15);
   }
 </style>

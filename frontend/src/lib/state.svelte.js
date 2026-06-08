@@ -367,6 +367,14 @@ export async function connectTerminal() {
   disconnectTerminal();
   STATE.wsStatus = 'connecting';
   
+  _urlBuf = '';
+  _lastShownLen = 0;
+  _autoScrollSent = false;
+  if (_urlToastTimer) {
+    clearTimeout(_urlToastTimer);
+    _urlToastTimer = null;
+  }
+  
   if (STATE.term) {
     STATE.term.write('\r\n\x1b[33mConnecting to ' + STATE.currentFolder + '...\x1b[0m\r\n');
   }
@@ -492,28 +500,84 @@ export function manualReconnect() {
   connectTerminal();
 }
 
-// URL detection toast
+// URL detection toast (catches long wrapped URLs in terminal output)
 let _urlBuf = '';
-function detectUrl(data) {
-  _urlBuf += data;
-  if (_urlBuf.length > 5000) _urlBuf = _urlBuf.slice(-2000);
-  
-  // Simple regex to detect localhost ports or generic URLs
-  const urlRegex = /(https?:\/\/[^\s"'()<>]+|localhost:\d+|127\.0\.0\.1:\d+)/gi;
-  const matches = [..._urlBuf.matchAll(urlRegex)];
-  
-  if (matches.length > 0) {
-    const lastMatch = matches[matches.length - 1][0];
-    let fullUrl = lastMatch;
-    
-    // Resolve short localhost entries
-    if (!fullUrl.startsWith('http')) {
-      fullUrl = 'http://' + fullUrl;
+let _urlToastTimer = null;
+let _lastShownLen = 0;
+let _autoScrollSent = false;
+
+function showUrlToast(url, complete) {
+  STATE.urlToastHref = url;
+  if (complete) {
+    STATE.urlToastText = '🔗 Tap to Open Link';
+  } else {
+    STATE.urlToastText = '⏳ Loading full URL...';
+  }
+  STATE.urlToastVisible = true;
+
+  // Auto-hide after 60s
+  if (_urlToastTimer) clearTimeout(_urlToastTimer);
+  _urlToastTimer = setTimeout(hideUrlToast, 60000);
+}
+
+function detectUrl(chunk) {
+  // Strip ANSI escape codes and accumulate
+  const clean = chunk.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  _urlBuf += clean;
+  // Keep only last 8KB
+  if (_urlBuf.length > 8192) _urlBuf = _urlBuf.slice(-8192);
+
+  // Strip pager UI artifacts before URL detection
+  let stripped = _urlBuf;
+  stripped = stripped.replace(/\(\d+-\d+\s*of\s*\d+\s*lines?\)/gi, ' ');
+  stripped = stripped.replace(/shift\+up\/down\s*Navigate/gi, ' ');
+  stripped = stripped.replace(/Press\s*q\s*to\s*quit/gi, ' ');
+  stripped = stripped.replace(/\(END\)/g, ' ');
+  stripped = stripped.replace(/Open\s*this\s*link\s*in\s*the\s*browser[^h]*/gi, ' ');
+
+  // Remove all whitespace/newlines to reassemble wrapped URLs
+  const flat = stripped.replace(/[\r\n\s]+/g, '');
+
+  // Match https:// URLs — stop at characters that shouldn't be in URLs
+  const matches = flat.match(/https?:\/\/[a-zA-Z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+/g);
+  if (!matches) return;
+
+  // Take the longest (most complete) URL found
+  let url = matches.reduce(function(a, b) { return a.length >= b.length ? a : b; });
+
+  // Trim trailing artifacts
+  url = url.replace(/[)}\]]+$/, '');
+
+  // Skip short URLs
+  if (url.length < 40) return;
+
+  // Only track URLs that look like auth URLs (Google OAuth, etc)
+  const isAuthUrl = url.indexOf('accounts.google.com') !== -1 || url.indexOf('oauth') !== -1;
+  if (!isAuthUrl && url.length < 80) return;
+
+  // Check if URL looks complete (has key OAuth params)
+  const looksComplete = !isAuthUrl ||
+    (url.indexOf('response_type') !== -1 && url.indexOf('scope') !== -1);
+
+  // Update toast if URL grew longer
+  if (url.length > _lastShownLen) {
+    _lastShownLen = url.length;
+    showUrlToast(url, looksComplete);
+
+    // If URL is incomplete and we haven't auto-scrolled yet, send Down keys to advance pager
+    if (!looksComplete && !_autoScrollSent && STATE.ws && STATE.ws.readyState === WebSocket.OPEN) {
+      _autoScrollSent = true;
+      // Send space/down keys with delay to scroll through the pager
+      let scrollCount = 0;
+      const scrollInterval = setInterval(function() {
+        if (scrollCount >= 15 || !STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) {
+          clearInterval(scrollInterval);
+          return;
+        }
+        STATE.ws.send(JSON.stringify({ type: 'input', data: '\x1b[1;2B' })); // shift+down in agy pager
+        scrollCount++;
+      }, 300);
     }
-    
-    STATE.urlToastText = `Open Link: ${lastMatch}`;
-    STATE.urlToastHref = fullUrl;
-    STATE.urlToastVisible = true;
   }
 }
 
@@ -521,6 +585,12 @@ export function hideUrlToast() {
   STATE.urlToastVisible = false;
   STATE.urlToastText = '';
   STATE.urlToastHref = '';
+  if (_urlToastTimer) {
+    clearTimeout(_urlToastTimer);
+    _urlToastTimer = null;
+  }
+  _lastShownLen = 0;
+  _autoScrollSent = false;
 }
 
 // Browser notification helper

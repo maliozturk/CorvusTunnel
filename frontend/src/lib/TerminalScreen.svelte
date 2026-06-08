@@ -224,6 +224,12 @@
         try {
           STATE.fitAddon.fit();
           sendResize();
+          // Auto-scroll to bottom so prompt is not hidden by the keyboard
+          setTimeout(() => {
+            if (STATE.term) {
+              STATE.term.scrollToBottom();
+            }
+          }, 80);
         } catch(e) {}
       }
     });
