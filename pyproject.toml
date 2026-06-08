@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corvustunnel"
-version = "1.0.3"
+version = "1.0.4"
 description = "Control AI coding agents from your phone — Claude Code, Codex, and Antigravity. Self-hosted, E2E encrypted, open source."
 readme = "README.md"
 license = {text = "MIT"}
