@@ -1,11 +1,13 @@
-"""
-Tests for boot.py — QR code generation helper.
-
-Verifies that print_qr:
-  - Doesn't crash on normal input
-  - Handles URLs with fragments (token data)
-  - Gracefully degrades when qrcode library is missing
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        tests/test_boot.py
+# Description: Tests for QR-code rendering.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -15,10 +17,7 @@ from unittest.mock import patch
 
 
 class TestPrintQR:
-    """Tests for the print_qr function."""
-
     def test_print_qr_does_not_crash(self):
-        """print_qr should run without raising exceptions."""
         from corvustunnel.boot import print_qr
 
         captured = StringIO()
@@ -32,7 +31,6 @@ class TestPrintQR:
         assert len(output) > 0, "print_qr should produce some output"
 
     def test_print_qr_with_url_and_fragment(self):
-        """print_qr should handle URLs with hash fragments (token data)."""
         from corvustunnel.boot import print_qr
 
         captured = StringIO()
@@ -46,13 +44,10 @@ class TestPrintQR:
             sys.stdout = sys.__stdout__
 
         output = captured.getvalue()
-        # Should print the label
         assert "Connect" in output
-        # URL fallback should strip the fragment
         assert "https://example.com/" in output
 
     def test_print_qr_shows_label(self):
-        """print_qr should display the provided label."""
         from corvustunnel.boot import print_qr
 
         captured = StringIO()
@@ -66,17 +61,15 @@ class TestPrintQR:
         assert "My Label" in output
 
     def test_print_qr_fallback_without_qrcode(self):
-        """When qrcode is not installed, print_qr should print the URL directly."""
 
         with patch.dict("sys.modules", {"qrcode": None}):
-            # Force ImportError on import qrcode
             captured = StringIO()
             sys.stdout = captured
             try:
-                # Reimport to trigger fallback path
                 import importlib
 
                 import boot
+
                 importlib.reload(boot)
                 boot.print_qr("https://example.com", "Fallback Test")
             finally:
@@ -87,7 +80,6 @@ class TestPrintQR:
             assert "https://example.com" in output
 
     def test_print_qr_with_empty_data(self):
-        """print_qr should handle empty string data without crashing."""
         from corvustunnel.boot import print_qr
 
         captured = StringIO()
@@ -97,6 +89,5 @@ class TestPrintQR:
         finally:
             sys.stdout = sys.__stdout__
 
-        # Should not crash — output may vary
         output = captured.getvalue()
         assert "Empty" in output

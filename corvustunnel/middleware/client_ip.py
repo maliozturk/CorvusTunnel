@@ -1,16 +1,14 @@
-"""
-Canonical client-IP resolution.
-
-Every IP-based control (rate limiting, IP bans, session IP-binding) must use
-the *same* notion of "client IP", and that notion must not be spoofable.
-
-``X-Forwarded-For`` is attacker-controlled on any request that reaches the
-server directly. We therefore trust it **only** when the immediate peer is a
-trusted proxy — by default the loopback address, since the relay bridge and
-cloudflared both run on localhost and connect to the public port over
-127.0.0.1. For a direct connection from any other address the header is
-ignored and the real socket address is used instead.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/middleware/client_ip.py
+# Description: Spoof-resistant client-IP resolution; trusts
+#              X-Forwarded-For only from a trusted proxy.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -26,12 +24,6 @@ def _trusted_proxies() -> set[str]:
 
 
 def get_trusted_client_ip(conn: Any) -> str:
-    """Resolve the real client IP for a Starlette ``Request`` or ``WebSocket``.
-
-    Trusts the first ``X-Forwarded-For`` hop only when the direct peer is a
-    trusted proxy; otherwise returns the direct socket address so the header
-    cannot be used to spoof bans, rate limits, or IP binding.
-    """
     peer = None
     client = getattr(conn, "client", None)
     if client is not None:

@@ -1,8 +1,14 @@
-"""
-CorvusTunnel Internal Application — Port 8001.
-
-Runs ONLY on 127.0.0.1. Provides admin views and system status.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/apps/internal.py
+# Description: Internal FastAPI app (port 8001, localhost only): admin
+#              and status views.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -22,13 +28,11 @@ app = FastAPI(
     docs_url="/docs",
 )
 
-# ── Mount internal router ────────────────────────────────────────────
 app.include_router(internal_router)
 
 
 @app.get("/", include_in_schema=False)
 async def root():
-    """Internal API root."""
     return {
         "service": "CorvusTunnel Internal API",
         "version": __version__,

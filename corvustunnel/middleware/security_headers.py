@@ -1,9 +1,14 @@
-"""
-CorvusTunnel Security Headers Middleware.
-
-Adds security headers to every HTTP response to harden the application
-against common web vulnerabilities (clickjacking, MIME-sniffing, XSS, etc.).
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/middleware/security_headers.py
+# Description: Adds security headers (CSP, HSTS, frame options, etc.) to
+#              every response.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -12,18 +17,6 @@ from starlette.middleware.base import RequestResponseEndpoint
 
 
 def add_security_headers(app: FastAPI) -> None:
-    """Register the security-headers middleware on *app*.
-
-    Appends the following headers to every response:
-
-    - X-Frame-Options
-    - X-Content-Type-Options
-    - Strict-Transport-Security
-    - Referrer-Policy
-    - Permissions-Policy
-    - Content-Security-Policy
-    - X-XSS-Protection
-    """
 
     @app.middleware("http")
     async def _security_headers_middleware(
@@ -33,13 +26,9 @@ def add_security_headers(app: FastAPI) -> None:
 
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Strict-Transport-Security"] = (
-            "max-age=31536000; includeSubDomains"
-        )
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = (
-            "camera=(), microphone=(), geolocation=()"
-        )
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self' 'unsafe-inline'; "

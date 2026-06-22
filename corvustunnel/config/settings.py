@@ -1,6 +1,14 @@
-"""
-CorvusTunnel Settings — Pydantic-based configuration loaded from environment.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/config/settings.py
+# Description: Environment-driven settings: ports, allowed dirs, trusted
+#              proxies, log paths.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -13,25 +21,16 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables.
-
-    In Docker, all settings are passed via `-e` flags or set by
-    the boot orchestrator (boot.py).
-    """
-
     model_config = {"env_file_encoding": "utf-8"}
 
-    # ── Auth ──────────────────────────────────────────────────────────
     agent_token: str = Field(
         ...,
         description="Bearer token for API authentication",
     )
 
-    # ── Server ────────────────────────────────────────────────────────
     public_port: int = Field(default=8000, ge=1024, le=65535)
     internal_port: int = Field(default=8001, ge=1024, le=65535)
 
-    # ── Audit ─────────────────────────────────────────────────────────
     audit_log_dir: str = Field(
         default="./logs",
         description="Directory for audit log files (hashed, safe)",
@@ -39,64 +38,53 @@ class Settings(BaseSettings):
     deep_log_dir: str = Field(
         default="",
         description="Directory for deep (plaintext) logs. "
-                    "Defaults to /app/logs/deep inside container.",
+        "Defaults to /app/logs/deep inside container.",
     )
 
     @property
     def resolved_deep_log_dir(self) -> str:
-        """Return the deep log directory, defaulting to a secure location."""
         if self.deep_log_dir:
             return self.deep_log_dir
         return os.path.join(os.path.expanduser("~"), ".corvustunnel", "logs")
 
-    # ── Trusted proxies ───────────────────────────────────────────────
     trusted_proxies: str = Field(
         default="",
         description="Comma-separated extra IPs (besides loopback) whose "
-                    "X-Forwarded-For header is trusted. Set this only if you "
-                    "front CorvusTunnel with your own reverse proxy.",
+        "X-Forwarded-For header is trusted. Set this only if you "
+        "front CorvusTunnel with your own reverse proxy.",
     )
 
     @property
     def trusted_proxy_list(self) -> list[str]:
-        """Parse the comma-separated trusted proxy IPs (loopback is always trusted)."""
         if not self.trusted_proxies:
             return []
         return [ip.strip() for ip in self.trusted_proxies.split(",") if ip.strip()]
 
-    # ── Workspace ─────────────────────────────────────────────────────
     allowed_dirs: str = Field(
         default="",
         description="Comma-separated directories visible in folder browser. "
-                    "Defaults to current working directory if not set.",
+        "Defaults to current working directory if not set.",
     )
 
     @property
     def allowed_dir_list(self) -> list[str]:
-        """Parse comma-separated allowed directories.
-
-        Falls back to the current working directory if not set.
-        """
         if not self.allowed_dirs:
             import os
-            return [os.getcwd()]
-        return [d.strip() for d in self.allowed_dirs.split(',') if d.strip()]
 
-    # ── Chat History ─────────────────────────────────────────────────
+            return [os.getcwd()]
+        return [d.strip() for d in self.allowed_dirs.split(",") if d.strip()]
+
     chat_history_dirs: str = Field(
         default="",
         description="Override paths to agent data dirs. Format: "
-                    "'antigravity=/path,claude=/path,codex=/path'. "
-                    "If empty, auto-discovers from home directory "
-                    "(~/.gemini, ~/.claude, ~/.codex).",
+        "'antigravity=/path,claude=/path,codex=/path'. "
+        "If empty, auto-discovers from home directory "
+        "(~/.gemini, ~/.claude, ~/.codex).",
     )
-
-    # ── Validators ────────────────────────────────────────────────────
 
     @field_validator("audit_log_dir")
     @classmethod
     def ensure_directory_exists(cls, v: str) -> str:
-        """Create the directory if it doesn't exist."""
         path = Path(v)
         path.mkdir(parents=True, exist_ok=True)
         return str(path.resolve())
@@ -104,7 +92,6 @@ class Settings(BaseSettings):
     @field_validator("public_port", "internal_port")
     @classmethod
     def ports_must_differ(cls, v: int, info) -> int:
-        """Ensure public and internal ports are different."""
         if info.field_name == "internal_port":
             data = info.data
             if "public_port" in data and data["public_port"] == v:
@@ -114,6 +101,4 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return a singleton Settings instance."""
     return Settings()
-

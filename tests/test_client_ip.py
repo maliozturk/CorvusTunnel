@@ -1,7 +1,13 @@
-"""
-Tests for middleware.client_ip.get_trusted_client_ip — the anti-spoofing
-client IP resolver that backs rate limiting, IP bans, and session IP binding.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        tests/test_client_ip.py
+# Description: Tests for trusted client-IP resolution.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -12,8 +18,6 @@ class _Client:
 
 
 class _Conn:
-    """Minimal stand-in for a Starlette Request/WebSocket."""
-
     def __init__(self, peer, headers=None):
         self.client = _Client(peer) if peer else None
         self.headers = headers or {}
@@ -24,13 +28,11 @@ class TestTrustedClientIP:
         from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
         conn = _Conn("127.0.0.1", {"x-forwarded-for": "203.0.113.7, 10.0.0.1"})
-        # Relay runs on loopback → trust the first forwarded hop
         assert get_trusted_client_ip(conn) == "203.0.113.7"
 
     def test_xff_ignored_from_untrusted_peer(self, env_token):
         from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
-        # Direct attacker spoofing XFF from a non-loopback address
         conn = _Conn("198.51.100.99", {"x-forwarded-for": "127.0.0.1"})
         assert get_trusted_client_ip(conn) == "198.51.100.99"
 

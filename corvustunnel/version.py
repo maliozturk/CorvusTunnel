@@ -1,7 +1,12 @@
-"""Single source of truth for the CorvusTunnel version.
-
-Every module that needs the version string imports it from here so the
-package, CLI, HTTP banner, and /health endpoint can never drift apart.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/version.py
+# Description: Single source of truth for the package version.
+# \*---------------------------------------------------------------------*/
 
 __version__ = "1.1.0"

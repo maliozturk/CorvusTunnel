@@ -1,10 +1,13 @@
-"""
-CorvusTunnel Rate Limiting Middleware.
-
-Uses slowapi to enforce per-IP rate limits on API endpoints.
-The custom key function prefers ``X-Forwarded-For`` so that rate limits
-apply to the real client IP behind a reverse proxy.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/middleware/rate_limit.py
+# Description: Per-IP request rate limiting via slowapi.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -15,8 +18,6 @@ from slowapi.util import get_remote_address
 
 
 def get_real_ip(request: Request) -> str:
-    """Return the real client IP, trusting ``X-Forwarded-For`` only when it
-    comes from a trusted proxy (see :mod:`middleware.client_ip`)."""
     from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
     ip = get_trusted_client_ip(request)
@@ -28,10 +29,5 @@ limiter = Limiter(key_func=get_real_ip)
 
 
 def setup_rate_limiting(app: FastAPI) -> None:
-    """Attach slowapi rate-limiting middleware and exception handler to *app*.
-
-    After calling this function, routes can use ``@limiter.limit(...)`` to
-    enforce per-endpoint rate limits.
-    """
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

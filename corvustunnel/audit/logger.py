@@ -1,10 +1,13 @@
-"""
-CorvusTunnel Audit Logger — Append-only JSONL audit trail.
-
-Every significant action (submit, approve, reject, execute, auth failure)
-is logged with timestamp, action type, and metadata. Prompts are hashed
-(not stored in plaintext) to avoid leaking sensitive data in logs.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/audit/logger.py
+# Description: Hashed, tamper-evident audit trail safe to retain.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -18,20 +21,16 @@ from typing import Any
 
 
 class AuditLogger:
-    """Append-only JSONL audit logger with daily log rotation."""
-
     def __init__(self, log_dir: str = "./logs"):
         self._log_dir = Path(log_dir)
         self._log_dir.mkdir(parents=True, exist_ok=True)
 
     def _get_log_path(self) -> Path:
-        """Get the log file path for today (daily rotation)."""
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         return self._log_dir / f"audit_{today}.jsonl"
 
     @staticmethod
     def _hash_prompt(prompt: str) -> str:
-        """Hash a prompt for logging (don't store plaintext)."""
         return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
 
     def log(
@@ -45,20 +44,6 @@ class AuditLogger:
         detail: str | None = None,
         **extra: Any,
     ) -> None:
-        """
-        Append an audit event to the log file.
-
-        Args:
-            action: Event type (submit, approve, reject, execute_start,
-                    execute_done, blocked, auth_fail, access_denied)
-            job_id: Job identifier
-            target: Executor target name
-            prompt: Prompt text (will be hashed, not stored plaintext)
-            client_ip: Client IP address
-            result_code: Process return code (for execute_done)
-            detail: Additional detail string
-            **extra: Any additional key-value pairs
-        """
         event: dict[str, Any] = {
             "ts": time.time(),
             "iso": datetime.now(timezone.utc).isoformat(),
@@ -85,12 +70,11 @@ class AuditLogger:
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event, ensure_ascii=False) + "\n")
         except OSError:
-            # If we can't write audit logs, print to stderr as fallback
             import sys
+
             print(f"[AUDIT FALLBACK] {json.dumps(event)}", file=sys.stderr)
 
     def read_recent(self, limit: int = 50) -> list[dict]:
-        """Read the most recent audit entries (from today's log)."""
         log_path = self._get_log_path()
         if not log_path.exists():
             return []
@@ -113,7 +97,7 @@ class AuditLogger:
 
 @lru_cache(maxsize=1)
 def get_audit_logger() -> AuditLogger:
-    """Return a singleton AuditLogger instance."""
     from corvustunnel.config.settings import get_settings
+
     settings = get_settings()
     return AuditLogger(log_dir=settings.audit_log_dir)

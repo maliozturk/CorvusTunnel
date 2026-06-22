@@ -1,8 +1,11 @@
-"""
-CorvusTunnel History Module.
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/history/__init__.py
+# Description: Chat-history package.
+# \*---------------------------------------------------------------------*/
 
-Parses and serves chat session histories from AI coding assistants:
-- Antigravity (~/.gemini/antigravity-ide/brain/)
-- Claude Code (~/.claude/projects/)
-- Codex (~/.codex/sessions/)
-"""

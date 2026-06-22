@@ -1,8 +1,14 @@
-"""
-CorvusTunnel FastAPI Auth Dependencies.
-
-Provides reusable Depends() functions for route protection.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/auth/dependencies.py
+# Description: FastAPI dependencies enforcing bearer auth and
+#              localhost-only access.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -13,28 +19,14 @@ from corvustunnel.auth.bearer import verify_bearer_token
 
 
 async def require_public_auth(request: Request) -> None:
-    """
-    Dependency: Require valid Bearer token for public endpoints.
-
-    In Quick Tunnel mode (no Cloudflare Access), Bearer token is the
-    primary auth layer. When Access is enabled, both JWT and Bearer
-    are validated.
-
-    The real client IP is extracted from ``X-Forwarded-For`` (first
-    entry) when available, falling back to ``request.client.host``.
-    This IP is forwarded to :func:`verify_bearer_token` so that
-    IP-binding checks are enforced.
-    """
     from corvustunnel.audit.deep_logger import get_deep_logger
     from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
     authorization = request.headers.get("Authorization", "")
 
-    # Real client IP — X-Forwarded-For is trusted only from a trusted proxy
     client_ip = get_trusted_client_ip(request)
 
     if not verify_bearer_token(authorization, client_ip=client_ip):
-        # Log failed auth attempt
         logger = get_audit_logger()
         logger.log(
             action="auth_fail",
@@ -52,12 +44,6 @@ async def require_public_auth(request: Request) -> None:
 
 
 async def require_local_only(request: Request) -> None:
-    """
-    Dependency: Restrict access to localhost connections only.
-    
-    Used for internal endpoints (approve, reject, pending) that
-    must never be accessible from the tunnel.
-    """
     client_host = request.client.host if request.client else None
     allowed_hosts = {"127.0.0.1", "::1", "localhost"}
 

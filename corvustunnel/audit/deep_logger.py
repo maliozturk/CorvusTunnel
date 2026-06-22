@@ -1,17 +1,13 @@
-"""
-CorvusTunnel Deep Logger — Full forensic trail of every action.
-
-Unlike the audit logger (which hashes prompts), the deep logger records
-everything in plaintext:  prompts, full outputs, paths browsed, auth
-events, errors, and timing.  Files are stored locally with daily
-rotation and are NEVER exposed through the public API.
-
-Usage:
-    from corvustunnel.audit.deep_logger import deep_log
-
-    deep_log("prompt_submitted", prompt="list files", job_id="abc123",
-             client_ip="198.41.200.1", work_dir="C:\\projects\\demo")
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/audit/deep_logger.py
+# Description: Verbose plaintext forensic log (localhost-only, admin).
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -29,30 +25,17 @@ from typing import Any
 
 
 class DeepLogger:
-    """Append-only JSONL deep logger with daily rotation and thread safety.
-
-    Every event includes:
-        - Monotonic and wall-clock timestamps
-        - Event category and action name
-        - Full payload (prompts, outputs, paths — never hashed)
-        - System context on first boot event
-
-    Files are named  ``deep_YYYY-MM-DD.jsonl``  inside the log directory.
-    """
-
     _BOOT_LOGGED = False
 
     def __init__(self, log_dir: str = "./logs"):
         self._log_dir = Path(log_dir) / "deep"
         self._log_dir.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self._seq = 0  # Monotonic event counter
+        self._seq = 0
 
         if not DeepLogger._BOOT_LOGGED:
             DeepLogger._BOOT_LOGGED = True
             self._log_boot()
-
-    # ── Public API ────────────────────────────────────────────────────
 
     def log(
         self,
@@ -61,13 +44,6 @@ class DeepLogger:
         category: str = "general",
         **kwargs: Any,
     ) -> None:
-        """Append an event to the deep log.
-
-        Args:
-            action:   Short verb, e.g. ``prompt_submitted``, ``job_approved``
-            category: Grouping tag — ``auth``, ``job``, ``browse``, ``exec``, ``system``
-            **kwargs: Arbitrary payload (prompts, outputs, paths, IPs, etc.)
-        """
         with self._lock:
             self._seq += 1
             seq = self._seq
@@ -79,14 +55,11 @@ class DeepLogger:
             "category": category,
             "action": action,
         }
-        # Flatten payload — skip None values to keep logs clean
         for k, v in kwargs.items():
             if v is not None:
                 event[k] = v
 
         self._write(event)
-
-    # ── Convenience shortcuts ─────────────────────────────────────────
 
     def auth_success(self, client_ip: str) -> None:
         self.log("auth_success", category="auth", client_ip=client_ip)
@@ -122,9 +95,7 @@ class DeepLogger:
     def job_rejected(self, job_id: str) -> None:
         self.log("job_rejected", category="job", job_id=job_id)
 
-    def exec_start(
-        self, job_id: str, command: str, work_dir: str, mode: str = "agy"
-    ) -> None:
+    def exec_start(self, job_id: str, command: str, work_dir: str, mode: str = "agy") -> None:
         self.log(
             "exec_start",
             category="exec",
@@ -183,15 +154,7 @@ class DeepLogger:
             **ctx,
         )
 
-    # ── Reading (for the internal admin endpoint) ─────────────────────
-
     def read_recent(self, limit: int = 100, date: str | None = None) -> list[dict]:
-        """Read recent deep log entries.
-
-        Args:
-            limit: Max entries to return (newest first)
-            date:  ``YYYY-MM-DD`` string; defaults to today
-        """
         if date is None:
             date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         log_path = self._log_dir / f"deep_{date}.jsonl"
@@ -214,16 +177,12 @@ class DeepLogger:
         return entries[-limit:]
 
     def list_dates(self) -> list[str]:
-        """Return available log dates (newest first)."""
         dates = []
         for p in sorted(self._log_dir.glob("deep_*.jsonl"), reverse=True):
             dates.append(p.stem.replace("deep_", ""))
         return dates
 
-    # ── Internal ──────────────────────────────────────────────────────
-
     def _log_boot(self) -> None:
-        """Log a boot event with system info on first init."""
         self.log(
             "server_boot",
             category="system",
@@ -250,15 +209,8 @@ class DeepLogger:
             )
 
 
-# ── Singleton ────────────────────────────────────────────────────────
-
 @lru_cache(maxsize=1)
 def get_deep_logger() -> DeepLogger:
-    """Return the singleton DeepLogger.
-
-    Logs are stored at ``~/.corvustunnel/logs/deep/`` by default —
-    outside any ALLOWED_DIRS path so they are unreachable from the tunnel.
-    """
     from corvustunnel.config.settings import get_settings
 
     settings = get_settings()
@@ -266,5 +218,4 @@ def get_deep_logger() -> DeepLogger:
 
 
 def deep_log(action: str, *, category: str = "general", **kwargs: Any) -> None:
-    """Module-level shortcut for quick logging."""
     get_deep_logger().log(action, category=category, **kwargs)

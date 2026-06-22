@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
-"""CorvusTunnel Boot Helpers.
-
-Provides compact QR code generation and banner printing for the entrypoint.
-Single QR code contains URL#token for one-scan onboarding.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/boot.py
+# Description: Renders the connection QR code as terminal block art.
+# \*---------------------------------------------------------------------*/
 
 import sys
 
 
 def print_qr(data: str, label: str) -> None:
-    """Print a QR code directly in the terminal as Unicode block art.
-
-    Uses the compact half-block technique (▀▄█ ) so the QR fits nicely
-    in a standard 80-column terminal. Falls back to ASCII on terminals
-    that don't support Unicode.
-    """
     import os
 
-    # Ensure stdout can handle Unicode blocks on Windows
     if sys.platform == "win32":
         try:
             sys.stdout.reconfigure(encoding="utf-8")
@@ -36,7 +34,6 @@ def print_qr(data: str, label: str) -> None:
         qr.add_data(data)
         qr.make(fit=True)
 
-        # Get the QR matrix
         matrix = qr.get_matrix()
         rows = len(matrix)
 
@@ -44,7 +41,6 @@ def print_qr(data: str, label: str) -> None:
         print()
 
         def _render_unicode(matrix, rows):
-            """Render using Unicode half-block characters (compact)."""
             for y in range(0, rows, 2):
                 line = "  "
                 for x in range(len(matrix[0])):
@@ -61,7 +57,6 @@ def print_qr(data: str, label: str) -> None:
                 print(line)
 
         def _render_ascii(matrix, rows):
-            """Render using ASCII characters (fallback)."""
             for y in range(rows):
                 line = "  "
                 for x in range(len(matrix[0])):
@@ -75,16 +70,10 @@ def print_qr(data: str, label: str) -> None:
 
         print()
 
-        # Print the full URL as a clickable/copyable fallback for devices
-        # that can't scan QR codes. Safe because:
-        #  - The #fragment is never sent to the server
-        #  - The boot token is one-time-use (consumed on claim)
-        #  - Anyone seeing the URL can already see the QR on the same console
         print("  \033[90mOr open this link on any device (one-time use):\033[0m")
         print(f"  \033[4m{data}\033[0m")
         print()
 
     except ImportError:
-        # No qrcode library — just print the URL
         print(f"  {label}: {data}")
         print()

@@ -1,9 +1,14 @@
-"""
-Chat History Service — unified discovery and retrieval.
-
-Aggregates sessions from all parsers, caches the index in memory,
-and provides a clean API for the router layer.
-"""
+# /*--------------------------------*- py -*-----------------------------*\
+# | ___                 _____                  _                          |
+# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
+# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
+# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
+# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/history/service.py
+# Description: Discovers and serves agent chat sessions across
+#              Antigravity, Claude, and Codex.
+# \*---------------------------------------------------------------------*/
 
 from __future__ import annotations
 
@@ -20,20 +25,11 @@ from corvustunnel.history.parsers import (
 
 logger = logging.getLogger(__name__)
 
-# Cache TTL in seconds (re-scan filesystem every 60s at most)
 _CACHE_TTL = 60
 
 
 class HistoryService:
-    """High-level service for browsing chat histories."""
-
     def __init__(self, custom_dirs: str | None = None):
-        """
-        Args:
-            custom_dirs: Comma-separated override paths in the format
-                         "antigravity=/path,claude=/path,codex=/path".
-                         If empty/None, auto-discovers from home dir.
-        """
         ag_dir = cl_dir = cx_dir = None
 
         if custom_dirs:
@@ -56,27 +52,20 @@ class HistoryService:
             "codex": CodexParser(base_dir=cx_dir),
         }
 
-        # In-memory cache
         self._session_cache: list[ChatSession] = []
         self._cache_time: float = 0
 
-    # ── Session Discovery ────────────────────────────────────────────
-
     def _refresh_cache(self) -> None:
-        """Re-scan all parsers and rebuild the session index."""
         all_sessions: list[ChatSession] = []
 
         for agent_name, parser in self._parsers.items():
             try:
                 sessions = parser.discover_sessions()
                 all_sessions.extend(sessions)
-                logger.info(
-                    "Discovered %d %s sessions", len(sessions), agent_name
-                )
+                logger.info("Discovered %d %s sessions", len(sessions), agent_name)
             except Exception as e:
                 logger.error("Error scanning %s sessions: %s", agent_name, e)
 
-        # Sort by start time, newest first
         all_sessions.sort(
             key=lambda s: s.started_at or "",
             reverse=True,
@@ -86,11 +75,8 @@ class HistoryService:
         self._cache_time = time.monotonic()
 
     def _ensure_cache(self) -> None:
-        """Refresh cache if stale."""
         if time.monotonic() - self._cache_time > _CACHE_TTL:
             self._refresh_cache()
-
-    # ── Public API ───────────────────────────────────────────────────
 
     def list_sessions(
         self,
@@ -98,16 +84,6 @@ class HistoryService:
         limit: int = 50,
         offset: int = 0,
     ) -> dict:
-        """Return paginated session list.
-
-        Args:
-            agent: Filter by agent name (antigravity, claude, codex).
-            limit: Max sessions to return.
-            offset: Pagination offset.
-
-        Returns:
-            {"sessions": [...], "total": N, "limit": N, "offset": N}
-        """
         self._ensure_cache()
 
         sessions = self._session_cache
@@ -130,19 +106,8 @@ class HistoryService:
         limit: int = 200,
         offset: int = 0,
     ) -> dict:
-        """Load messages for a specific session.
-
-        Args:
-            session_id: Session ID in the format "agent:id".
-            limit: Max messages to return.
-            offset: Pagination offset.
-
-        Returns:
-            {"session": {...}, "messages": [...], "total": N}
-        """
         self._ensure_cache()
 
-        # Find session
         session = None
         for s in self._session_cache:
             if s.id == session_id:
@@ -152,7 +117,6 @@ class HistoryService:
         if session is None:
             return {"error": "Session not found", "session_id": session_id}
 
-        # Determine which parser to use
         agent_key = session.agent
         parser = self._parsers.get(agent_key)
         if parser is None:
@@ -176,14 +140,12 @@ class HistoryService:
         }
 
     def get_stats(self) -> dict:
-        """Return quick stats about available sessions."""
         self._ensure_cache()
 
         stats: dict[str, int] = {}
         for s in self._session_cache:
             stats[s.agent] = stats.get(s.agent, 0) + 1
 
-        # Date range
         dates = [s.started_at for s in self._session_cache if s.started_at]
         oldest = min(dates) if dates else None
         newest = max(dates) if dates else None
@@ -198,24 +160,20 @@ class HistoryService:
         }
 
     def force_refresh(self) -> dict:
-        """Force a cache refresh and return stats."""
         self._cache_time = 0
         self._ensure_cache()
         return self.get_stats()
 
 
-# ── Singleton ────────────────────────────────────────────────────────
-
 _service_instance: HistoryService | None = None
 
 
 def get_history_service() -> HistoryService:
-    """Return a singleton HistoryService instance."""
     global _service_instance
     if _service_instance is None:
-        # Try to load custom dirs from settings
         try:
             from corvustunnel.config.settings import get_settings
+
             settings = get_settings()
             custom_dirs = getattr(settings, "chat_history_dirs", "") or ""
         except Exception:
