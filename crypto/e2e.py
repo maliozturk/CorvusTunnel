@@ -2,19 +2,25 @@
 CorvusTunnel E2E Encryption — PyNaCl (libsodium).
 
 Implements end-to-end encryption between the client (phone/browser)
-and the server using X25519 Diffie-Hellman key exchange + NaCl SecretBox.
+and the server using X25519 Diffie-Hellman key exchange + NaCl Box
+(crypto_box: X25519 + XSalsa20-Poly1305).
 
-Flow:
-    1. Server generates a long-lived keypair on first boot → stored in ~/.corvustunnel/keys/
-    2. QR code includes the server's public key (base64url)
-    3. Client scans QR → generates ephemeral keypair → sends its public key to /api/e2e/exchange
-    4. Both derive a shared secret via X25519 Diffie-Hellman
-    5. All subsequent WebSocket messages are encrypted with NaCl SecretBox (XSalsa20-Poly1305)
+Flow (per session — full forward secrecy):
+    1. Client generates an *ephemeral* X25519 keypair on connect.
+    2. Client POSTs its public key to /api/e2e/exchange (over the relay).
+    3. Server generates a fresh *ephemeral* X25519 keypair for that session,
+       derives the shared Box, stores it, and returns its ephemeral public key.
+    4. Both sides hold an identical Box and encrypt every WebSocket frame.
+    5. When the session ends the Box is dropped — the keys never touch disk.
+
+Wire format for an encrypted frame (matches tweetnacl on the client):
+    base64url( nonce[24] || ciphertext )   — ciphertext includes the Poly1305 tag.
 
 Security properties:
-    - Forward secrecy per session (client uses ephemeral keys)
-    - Authenticated encryption (Poly1305 MAC)
-    - 24-byte random nonce per message (prepended to ciphertext)
+    - Forward secrecy: both endpoints use ephemeral keys, nothing persisted.
+    - Authenticated encryption (Poly1305 MAC).
+    - 24-byte random nonce per message (prepended to ciphertext).
+    - The relay only ever sees opaque ciphertext.
 """
 
 from __future__ import annotations
@@ -22,9 +28,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
-import os
 import threading
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger("corvustunnel.crypto")
@@ -33,7 +37,6 @@ logger = logging.getLogger("corvustunnel.crypto")
 _nacl_available = False
 try:
     import nacl.public
-    import nacl.utils
     import nacl.encoding
     _nacl_available = True
 except ImportError:
@@ -43,13 +46,6 @@ except ImportError:
     )
 
 
-def _get_keys_dir() -> Path:
-    """Return the directory for storing server keys."""
-    keys_dir = Path.home() / ".corvustunnel" / "keys"
-    keys_dir.mkdir(parents=True, exist_ok=True)
-    return keys_dir
-
-
 def _b64url_encode(data: bytes) -> str:
     """Base64url-encode bytes (no padding)."""
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
@@ -57,92 +53,58 @@ def _b64url_encode(data: bytes) -> str:
 
 def _b64url_decode(s: str) -> bytes:
     """Base64url-decode a string (with padding restoration)."""
-    s += "=" * (4 - len(s) % 4)
+    s += "=" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s.encode("ascii"))
 
 
 class E2ECrypto:
     """End-to-end encryption manager.
 
-    Manages the server's long-lived keypair and per-session shared secrets.
+    Holds one ephemeral shared :class:`Box` per session. There is no
+    long-lived server keypair: every session derives fresh keys, giving
+    forward secrecy, and nothing is written to disk.
+
     Thread-safe for concurrent WebSocket connections.
     """
 
     def __init__(self) -> None:
-        self._lock = threading.Lock()
-        self._server_private_key: nacl.public.PrivateKey | None = None
-        self._server_public_key: nacl.public.PublicKey | None = None
-
         # Per-session shared secrets: session_id → Box
         self._session_boxes: dict[str, nacl.public.Box] = {}
         self._session_lock = threading.Lock()
 
-        if _nacl_available:
-            self._load_or_generate_keys()
-
     @property
     def available(self) -> bool:
         """Whether E2E encryption is available (PyNaCl installed)."""
-        return _nacl_available and self._server_public_key is not None
+        return _nacl_available
 
     @property
     def server_public_key_b64(self) -> str:
-        """Server's public key as base64url string (for QR code)."""
-        if not self.available:
-            return ""
-        return _b64url_encode(
-            self._server_public_key.encode(encoder=nacl.encoding.RawEncoder)
-        )
+        """Deprecated: there is no global server key in the ephemeral model.
 
-    # ── Key Management ───────────────────────────────────────────────
-
-    def _load_or_generate_keys(self) -> None:
-        """Load existing server keypair or generate a new one."""
-        keys_dir = _get_keys_dir()
-        private_key_file = keys_dir / "server_private.key"
-        public_key_file = keys_dir / "server_public.key"
-
-        if private_key_file.exists():
-            # Load existing keys
-            try:
-                private_bytes = private_key_file.read_bytes()
-                self._server_private_key = nacl.public.PrivateKey(private_bytes)
-                self._server_public_key = self._server_private_key.public_key
-                logger.info("Loaded E2E server keys from %s", keys_dir)
-                return
-            except Exception as e:
-                logger.warning("Failed to load E2E keys, regenerating: %s", e)
-
-        # Generate new keypair
-        self._server_private_key = nacl.public.PrivateKey.generate()
-        self._server_public_key = self._server_private_key.public_key
-
-        # Save keys (private key file readable only by owner)
-        private_key_file.write_bytes(
-            self._server_private_key.encode(encoder=nacl.encoding.RawEncoder)
-        )
-        os.chmod(str(private_key_file), 0o600)
-
-        public_key_file.write_bytes(
-            self._server_public_key.encode(encoder=nacl.encoding.RawEncoder)
-        )
-
-        logger.info("Generated new E2E server keys in %s", keys_dir)
+        Kept so older callers (e.g. QR/relay registration) degrade gracefully
+        to "no key advertised" — the client performs a live key exchange
+        instead. Always returns an empty string.
+        """
+        return ""
 
     # ── Key Exchange ─────────────────────────────────────────────────
 
     def exchange(self, session_id: str, client_public_key_b64: str) -> str:
-        """Perform key exchange with a client.
+        """Perform an ephemeral key exchange with a client.
+
+        Generates a fresh server keypair for *session_id*, derives the shared
+        Box from it and the client's public key, stores the Box, and returns
+        the server's ephemeral public key.
 
         Args:
             session_id: Unique identifier for this session.
-            client_public_key_b64: Client's public key as base64url string.
+            client_public_key_b64: Client's ephemeral public key (base64url).
 
         Returns:
-            Server's public key as base64url string.
+            Server's ephemeral public key as a base64url string.
 
         Raises:
-            ValueError: If E2E is not available or key is invalid.
+            ValueError: If E2E is not available or the key is invalid.
         """
         if not self.available:
             raise ValueError("E2E encryption not available (PyNaCl not installed)")
@@ -153,14 +115,18 @@ class E2ECrypto:
         except Exception as e:
             raise ValueError(f"Invalid client public key: {e}")
 
-        # Create a Box (shared secret derived via X25519 DH)
-        box = nacl.public.Box(self._server_private_key, client_public_key)
+        # Fresh ephemeral server keypair → forward secrecy, no disk persistence.
+        server_private_key = nacl.public.PrivateKey.generate()
+        box = nacl.public.Box(server_private_key, client_public_key)
 
         with self._session_lock:
             self._session_boxes[session_id] = box
 
+        server_public_b64 = _b64url_encode(
+            server_private_key.public_key.encode(encoder=nacl.encoding.RawEncoder)
+        )
         logger.info("E2E key exchange completed for session %s", session_id)
-        return self.server_public_key_b64
+        return server_public_b64
 
     def has_session(self, session_id: str) -> bool:
         """Check if a session has completed key exchange."""
@@ -168,7 +134,7 @@ class E2ECrypto:
             return session_id in self._session_boxes
 
     def remove_session(self, session_id: str) -> None:
-        """Remove a session's encryption state."""
+        """Drop a session's encryption state (called on disconnect)."""
         with self._session_lock:
             self._session_boxes.pop(session_id, None)
 
@@ -193,9 +159,7 @@ class E2ECrypto:
         if box is None:
             raise KeyError(f"No E2E session: {session_id}")
 
-        plaintext_bytes = plaintext.encode("utf-8")
-        encrypted = box.encrypt(plaintext_bytes)  # nonce prepended automatically
-
+        encrypted = box.encrypt(plaintext.encode("utf-8"))  # nonce prepended
         return _b64url_encode(encrypted)
 
     def decrypt(self, session_id: str, ciphertext_b64: str) -> str:
@@ -210,7 +174,7 @@ class E2ECrypto:
 
         Raises:
             KeyError: If session has no encryption state.
-            nacl.exceptions.CryptoError: If decryption fails.
+            nacl.exceptions.CryptoError: If decryption/authentication fails.
         """
         with self._session_lock:
             box = self._session_boxes.get(session_id)
@@ -218,9 +182,7 @@ class E2ECrypto:
         if box is None:
             raise KeyError(f"No E2E session: {session_id}")
 
-        ciphertext_bytes = _b64url_decode(ciphertext_b64)
-        plaintext_bytes = box.decrypt(ciphertext_bytes)
-
+        plaintext_bytes = box.decrypt(_b64url_decode(ciphertext_b64))
         return plaintext_bytes.decode("utf-8")
 
     def encrypt_json(self, session_id: str, data: dict[str, Any]) -> str:
@@ -229,8 +191,7 @@ class E2ECrypto:
 
     def decrypt_json(self, session_id: str, ciphertext_b64: str) -> dict[str, Any]:
         """Decrypt a JSON message."""
-        plaintext = self.decrypt(session_id, ciphertext_b64)
-        return json.loads(plaintext)
+        return json.loads(self.decrypt(session_id, ciphertext_b64))
 
 
 # ── Singleton ────────────────────────────────────────────────────────

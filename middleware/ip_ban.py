@@ -111,16 +111,11 @@ def get_ban_tracker() -> IPBanTracker:
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract the real client IP from the request.
+    """Extract the real client IP, trusting X-Forwarded-For only from a
+    trusted proxy (see :mod:`middleware.client_ip`)."""
+    from middleware.client_ip import get_trusted_client_ip
 
-    Checks ``X-Forwarded-For`` first (first entry), then falls back to
-    ``request.client.host``.
-    """
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # X-Forwarded-For can be a comma-separated list; first entry is the client
-        return forwarded_for.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    return get_trusted_client_ip(request)
 
 
 def add_ip_ban_middleware(app: FastAPI) -> None:

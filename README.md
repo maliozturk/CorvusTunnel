@@ -28,7 +28,7 @@ Scan the QR code with your phone → you're connected.
 ## Features
 
 - **Multi-agent support** — Claude Code, Codex CLI, Antigravity
-- **End-to-end encryption** — NaCl/libsodium, key exchange via QR code
+- **End-to-end encryption** — NaCl/libsodium, ephemeral key exchange on every connection (relay sees only ciphertext)
 - **QR code connect** — scan to connect, no manual URL typing
 - **Real-time streaming** — WebSocket-based terminal I/O via xterm.js
 - **Push notifications** — Web Push API alerts for agent events
@@ -68,14 +68,31 @@ corvustunnel start
 
 ## Security
 
-- **E2E Encryption**: All terminal I/O encrypted with NaCl SecretBox (XSalsa20-Poly1305)
-- **Key Exchange**: X25519 Diffie-Hellman during QR code scanning
+- **E2E Encryption**: Every terminal frame is encrypted with NaCl Box (`crypto_box`: X25519 key agreement + XSalsa20-Poly1305 authenticated encryption). The browser and your machine are the only endpoints that hold keys — the relay forwards opaque ciphertext.
+- **Forward secrecy**: Both sides generate ephemeral X25519 keypairs per connection; keys never touch disk and are dropped on disconnect.
 - **Auth**: One-time boot token → session token with IP binding
 - **WebSocket**: Ticket-based auth (one-time, 30s TTL, IP-bound)
 - **Rate Limiting**: Per-endpoint via slowapi
 - **IP Auto-Ban**: After repeated auth failures
 
 See [SECURITY.md](SECURITY.md) for full details and vulnerability reporting.
+
+### Relay & privacy
+
+By default CorvusTunnel registers a session with the hosted relay
+(`roost.corvustunnel.com`) so your phone can reach your machine without any
+port-forwarding. Because terminal I/O is end-to-end encrypted, **the relay only
+ever forwards opaque ciphertext** — it cannot read your prompts, your code, or
+the agent's output. If you would rather not use the hosted relay at all:
+
+- `corvustunnel start --no-relay` — use a cloudflared Quick Tunnel instead.
+- `corvustunnel start --no-relay --no-tunnel` — LAN only (binds `0.0.0.0`, reachable from your local network).
+- `corvustunnel start --host https://your.domain` — front it with your own reverse proxy.
+
+The public port binds to `127.0.0.1` by default (relay/tunnel modes). Use
+`--bind 0.0.0.0` to expose it directly, and set `TRUSTED_PROXIES` if a reverse
+proxy you control terminates the connection — otherwise `X-Forwarded-For` is
+ignored and the direct socket address is used for bans and rate limits.
 
 ## API
 
@@ -106,6 +123,7 @@ Internal API (localhost:8001):
 | `AUDIT_LOG_DIR` | `./logs` | Audit log directory |
 | `PUBLIC_PORT` | `8000` | Public API port |
 | `INTERNAL_PORT` | `8001` | Internal admin port |
+| `TRUSTED_PROXIES` | _(none)_ | Extra IPs (besides loopback) whose `X-Forwarded-For` is trusted |
 
 ## Development
 

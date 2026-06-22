@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corvustunnel"
-version = "1.0.4"
+dynamic = ["version"]
 description = "Control AI coding agents from your phone — Claude Code, Codex, and Antigravity. Self-hosted, E2E encrypted, open source."
 readme = "README.md"
 license = {text = "MIT"}
@@ -88,7 +88,11 @@ py-modules = [
     "boot",
     "public_app",
     "internal_app",
+    "_version",
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "_version.__version__"}
 
 [tool.setuptools.package-data]
 "*" = [

@@ -10,6 +10,7 @@ import logging
 
 from fastapi import FastAPI
 
+from _version import __version__
 from routers.internal import router as internal_router
 
 logger = logging.getLogger(__name__)
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="CorvusTunnel Internal",
     description="Local-only admin API",
-    version="0.2.0",
+    version=__version__,
     docs_url="/docs",
 )
 
@@ -30,7 +31,7 @@ async def root():
     """Internal API root."""
     return {
         "service": "CorvusTunnel Internal API",
-        "version": "0.2.0",
+        "version": __version__,
         "endpoints": [
             "GET  /audit",
             "GET  /deeplog",

@@ -28,11 +28,13 @@ logger = logging.getLogger("corvustunnel")
 
 def _print_banner(public_port: int, internal_port: int) -> None:
     """Print a startup banner with configuration summary."""
+    from _version import __version__
+
     banner = f"""
 +==============================================================+
 |                                                              |
 |   CORVUSTUNNEL                                           |
-|   AI Agent Control with Voice v0.4.0                     |
+|   AI Agent Control from Your Phone v{__version__:<8}             |
 |                                                              |
 +==============================================================+
 |                                                              |

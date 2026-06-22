@@ -1,5 +1,5 @@
 <script>
-  import { STATE, addFavorite, removeFavorite } from './state.svelte.js';
+  import { STATE, addFavorite, removeFavorite, wsSend } from './state.svelte.js';
   import { X, Trash2, Plus, CornerDownLeft } from 'lucide-svelte';
 
   let inputCmd = $state('');
@@ -24,7 +24,7 @@
 
   function useFavorite(cmd) {
     if (STATE.term && STATE.ws && STATE.ws.readyState === 1) {
-      STATE.ws.send(JSON.stringify({ type: 'input', data: cmd + '\r' }));
+      wsSend({ type: 'input', data: cmd + '\r' });
       handleClose();
     }
   }

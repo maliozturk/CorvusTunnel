@@ -24,6 +24,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from _version import __version__
 from routers.public import router as public_router
 
 logger = logging.getLogger(__name__)
@@ -31,7 +32,7 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="CorvusTunnel",
     description="Remote Agent Control System",
-    version="1.0.3",
+    version=__version__,
     docs_url="/docs",
     redoc_url=None,
 )

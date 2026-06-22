@@ -27,14 +27,12 @@ async def require_public_auth(request: Request) -> None:
     """
     from audit.deep_logger import get_deep_logger
 
+    from middleware.client_ip import get_trusted_client_ip
+
     authorization = request.headers.get("Authorization", "")
 
-    # Prefer X-Forwarded-For for the real client IP behind a proxy
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        client_ip = forwarded_for.split(",")[0].strip()
-    else:
-        client_ip = request.client.host if request.client else "unknown"
+    # Real client IP — X-Forwarded-For is trusted only from a trusted proxy
+    client_ip = get_trusted_client_ip(request)
 
     if not verify_bearer_token(authorization, client_ip=client_ip):
         # Log failed auth attempt

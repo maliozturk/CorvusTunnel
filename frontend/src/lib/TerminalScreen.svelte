@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import { STATE, disconnectTerminal, sendResize, hideUrlToast, addRecent, hapticTap, applyXtermTheme, setupTwoFingerScroll, setupKeyboardResize } from './state.svelte.js';
+  import { STATE, disconnectTerminal, sendResize, hideUrlToast, addRecent, hapticTap, applyXtermTheme, setupTwoFingerScroll, setupKeyboardResize, wsSend } from './state.svelte.js';
   import { Terminal as Xterm } from '@xterm/xterm';
   import { FitAddon } from '@xterm/addon-fit';
   import { CanvasAddon } from '@xterm/addon-canvas';
@@ -194,8 +194,7 @@
 
     // Listen to keystrokes
     term.onData((data) => {
-      if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
-      STATE.ws.send(JSON.stringify({ type: 'input', data: data }));
+      wsSend({ type: 'input', data: data });
     });
 
     // Capture terminal text to parse suggestion chips
@@ -291,7 +290,7 @@
   function sendChip(cmd) {
     if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
     hapticTap();
-    STATE.ws.send(JSON.stringify({ type: 'input', data: cmd }));
+    wsSend({ type: 'input', data: cmd });
     suggestionChips = [];
     outputBuffer = '';
     addRecent(cmd.replace(/[\r\n\x03]/g, '').trim());
@@ -299,8 +298,7 @@
 
   // Send key sequence from keypad or quick actions
   function handleKeySend(seq) {
-    if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
-    STATE.ws.send(JSON.stringify({ type: 'input', data: seq }));
+    wsSend({ type: 'input', data: seq });
   }
 
   function toggleKeyboard() {
@@ -318,7 +316,7 @@
   function runFavorite(fav) {
     if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
     hapticTap();
-    STATE.ws.send(JSON.stringify({ type: 'input', data: fav + '\r\n' }));
+    wsSend({ type: 'input', data: fav + '\r\n' });
     addRecent(fav);
   }
 

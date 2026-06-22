@@ -61,9 +61,11 @@ async def health(request: Request):
     except Exception:
         pass
 
+    from _version import __version__
+
     return HealthResponse(
         status="ok",
-        version="0.4.0",
+        version=__version__,
         uptime_seconds=round(time.time() - _start_time, 1),
     )
 
@@ -427,15 +429,10 @@ def _validate_work_dir(work_dir: str) -> bool:
 
 
 def _get_client_ip(request) -> str:
-    """Extract client IP, preferring X-Forwarded-For (set by Cloudflare)."""
-    forwarded = None
-    if hasattr(request, 'headers'):
-        forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    if hasattr(request, 'client') and request.client:
-        return request.client.host
-    return "unknown"
+    """Extract client IP, trusting X-Forwarded-For only from a trusted proxy."""
+    from middleware.client_ip import get_trusted_client_ip
+
+    return get_trusted_client_ip(request)
 
 
 # ── Terminal status (used by client to check before reconnecting) ────
@@ -458,6 +455,7 @@ async def terminal_ws(
     work_dir: str = Query(""),
     flags: str = Query(""),
     agent: str = Query("agy"),
+    session_id: str = Query(""),
 ):
     """WebSocket endpoint for interactive terminal sessions.
 
@@ -483,17 +481,15 @@ async def terminal_ws(
     from executor.term_session import get_terminal_session
     from audit.deep_logger import get_deep_logger
     from middleware.ip_ban import get_ban_tracker
+    from crypto.e2e import get_e2e_crypto
 
     deep = get_deep_logger()
     ban_tracker = get_ban_tracker()
+    crypto = get_e2e_crypto()
 
     # ── Extract client IP ─────────────────────────────────────────
-    client_ip = "unknown"
-    forwarded = websocket.headers.get("x-forwarded-for")
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
-    elif websocket.client:
-        client_ip = websocket.client.host
+    from middleware.client_ip import get_trusted_client_ip
+    client_ip = get_trusted_client_ip(websocket)
 
     # ── Check IP ban ──────────────────────────────────────────────
     if ban_tracker.is_banned(client_ip):
@@ -544,10 +540,33 @@ async def terminal_ws(
 
         # ── Accept ────────────────────────────────────────────────
         await websocket.accept()
-        logger.info("Terminal WebSocket connected (agent=%s, work_dir=%s, ip=%s)", agent, work_dir, client_ip)
+
+        # ── E2E: encrypt every frame if the session completed key exchange ─
+        e2e_on = bool(session_id) and crypto.has_session(session_id)
+
+        async def send_msg(msg: dict) -> None:
+            """Send a frame, encrypting the whole payload when E2E is active."""
+            if e2e_on:
+                await websocket.send_text(crypto.encrypt(session_id, json.dumps(msg)))
+            else:
+                await websocket.send_json(msg)
+
+        def decode_msg(raw: str) -> dict | None:
+            """Decrypt (if E2E) and JSON-decode an inbound frame."""
+            try:
+                if e2e_on:
+                    raw = crypto.decrypt(session_id, raw)
+                return json.loads(raw)
+            except (json.JSONDecodeError, TypeError, KeyError, ValueError):
+                return None
+
+        logger.info(
+            "Terminal WebSocket connected (agent=%s, work_dir=%s, ip=%s, e2e=%s)",
+            agent, work_dir, client_ip, e2e_on,
+        )
         deep.log(
             "terminal_ws_connected", category="terminal",
-            work_dir=work_dir, client_ip=client_ip,
+            work_dir=work_dir, client_ip=client_ip, e2e=e2e_on,
         )
 
         # ── Session ───────────────────────────────────────────────
@@ -577,7 +596,7 @@ async def terminal_ws(
         try:
             # Send replay buffer for reconnect catch-up
             if replay_text:
-                await websocket.send_json({"type": "replay", "data": replay_text})
+                await send_msg({"type": "replay", "data": replay_text})
 
             # ── Concurrent read/write loops ───────────────────────
 
@@ -599,9 +618,8 @@ async def terminal_ws(
                     except WebSocketDisconnect:
                         return
 
-                    try:
-                        msg = json.loads(raw)
-                    except (json.JSONDecodeError, TypeError):
+                    msg = decode_msg(raw)
+                    if msg is None:
                         continue
 
                     msg_type = msg.get("type", "")
@@ -640,7 +658,7 @@ async def terminal_ws(
                             session.resize(int(cols), int(rows))
 
                     elif msg_type == "ping":
-                        await websocket.send_json({"type": "pong"})
+                        await send_msg({"type": "pong"})
 
             async def pty_to_ws():
                 """Read output from PTY queue, forward to WebSocket."""
@@ -653,7 +671,7 @@ async def terminal_ws(
                     # Retry transient send failures (Cloudflare tunnel hiccups)
                     for attempt in range(3):
                         try:
-                            await websocket.send_json(msg)
+                            await send_msg(msg)
                             break  # success
                         except WebSocketDisconnect:
                             return  # client genuinely gone
@@ -678,7 +696,7 @@ async def terminal_ws(
                 while True:
                     await asyncio.sleep(25)
                     try:
-                        await websocket.send_json({"type": "pong"})
+                        await send_msg({"type": "pong"})
                     except Exception:
                         return  # send failed → connection dead
                     # Check if client has been silent too long
@@ -716,6 +734,9 @@ async def terminal_ws(
             )
         finally:
             session.unsubscribe(queue)
+            # Drop the ephemeral E2E key so it cannot be reused (forward secrecy)
+            if session_id:
+                crypto.remove_session(session_id)
             deep.log(
                 "terminal_ws_disconnected", category="terminal",
                 work_dir=work_dir,

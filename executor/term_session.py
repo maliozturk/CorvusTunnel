@@ -33,6 +33,33 @@ LOG_FLUSH_INTERVAL_S = 2.0  # Batch deep-log output every 2s
 IS_WINDOWS = sys.platform == "win32"
 
 
+_TRUNCATION_MARKER = {"type": "output", "data": "\r\n\x1b[33m[output truncated]\x1b[0m\r\n"}
+
+
+def _enqueue(q: "asyncio.Queue", msg: dict) -> None:
+    """Put *msg* on *q*, dropping oldest frames if full (runs on loop thread).
+
+    When the queue is saturated (slow subscriber), we make room and surface a
+    single visible truncation marker so the user knows output was lost.
+    """
+    try:
+        q.put_nowait(msg)
+        return
+    except asyncio.QueueFull:
+        pass
+    # Make room for a marker plus the new message.
+    for _ in range(2):
+        try:
+            q.get_nowait()
+        except Exception:
+            break
+    for item in (_TRUNCATION_MARKER, msg):
+        try:
+            q.put_nowait(item)
+        except Exception:
+            pass
+
+
 class _TimeoutError(Exception):
     """Raised by read_nonblocking on timeout."""
 
@@ -456,15 +483,20 @@ class TerminalSession:
             self._broadcast({"type": "output", "data": data})
 
     def _broadcast(self, msg: dict) -> None:
-        """Push a message to all subscriber queues (thread-safe)."""
+        """Push a message to all subscriber queues (thread-safe).
+
+        The actual enqueue runs on the event loop thread (via
+        ``call_soon_threadsafe``) so queue operations are safe; if a subscriber
+        is too slow and its queue is full we drop the oldest frames and insert
+        a visible ``[output truncated]`` marker rather than silently corrupting
+        the stream.
+        """
         if not self._loop:
             return
         with self._sub_lock:
             for q in list(self._subscribers):
                 try:
-                    self._loop.call_soon_threadsafe(q.put_nowait, msg)
-                except asyncio.QueueFull:
-                    logger.warning("Subscriber queue full — dropping message")
+                    self._loop.call_soon_threadsafe(_enqueue, q, msg)
                 except Exception:
                     pass
 

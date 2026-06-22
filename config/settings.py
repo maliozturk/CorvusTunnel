@@ -49,6 +49,21 @@ class Settings(BaseSettings):
             return self.deep_log_dir
         return os.path.join(os.path.expanduser("~"), ".corvustunnel", "logs")
 
+    # ── Trusted proxies ───────────────────────────────────────────────
+    trusted_proxies: str = Field(
+        default="",
+        description="Comma-separated extra IPs (besides loopback) whose "
+                    "X-Forwarded-For header is trusted. Set this only if you "
+                    "front CorvusTunnel with your own reverse proxy.",
+    )
+
+    @property
+    def trusted_proxy_list(self) -> list[str]:
+        """Parse the comma-separated trusted proxy IPs (loopback is always trusted)."""
+        if not self.trusted_proxies:
+            return []
+        return [ip.strip() for ip in self.trusted_proxies.split(",") if ip.strip()]
+
     # ── Workspace ─────────────────────────────────────────────────────
     allowed_dirs: str = Field(
         default="",

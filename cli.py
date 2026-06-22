@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-__version__ = "1.0.3"
+from _version import __version__
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -359,6 +359,8 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
 
             local_ws = None
             local_ws_task = None
+            # One pooled HTTP client for all proxied requests this connection.
+            http_client = httpx.AsyncClient(timeout=25, follow_redirects=True)
 
             try:
                 async def _fwd_local_to_relay(lws, rws):
@@ -388,43 +390,40 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
                         body = msg.get("body")
 
                         try:
-                            async with httpx.AsyncClient() as client:
-                                url = f"http://localhost:{public_port}{path}"
-                                resp = await client.request(
-                                    method, url,
-                                    headers=headers,
-                                    content=body.encode("utf-8") if body else None,
-                                    timeout=25,
-                                    follow_redirects=True,
-                                )
+                            url = f"http://localhost:{public_port}{path}"
+                            resp = await http_client.request(
+                                method, url,
+                                headers=headers,
+                                content=body.encode("utf-8") if body else None,
+                            )
 
-                                ct = resp.headers.get("content-type", "")
-                                is_text = ct.startswith(("text/", "application/json",
-                                                         "application/javascript",
-                                                         "application/xml"))
+                            ct = resp.headers.get("content-type", "")
+                            is_text = ct.startswith(("text/", "application/json",
+                                                     "application/javascript",
+                                                     "application/xml"))
 
-                                if is_text:
-                                    resp_body = resp.text
-                                    encoding = None
-                                    # Rewrite HTML responses
-                                    if "text/html" in ct:
-                                        resp_body = _rewrite_html(resp_body)
-                                else:
-                                    resp_body = _b64.b64encode(resp.content).decode("ascii")
-                                    encoding = "base64"
+                            if is_text:
+                                resp_body = resp.text
+                                encoding = None
+                                # Rewrite HTML responses
+                                if "text/html" in ct:
+                                    resp_body = _rewrite_html(resp_body)
+                            else:
+                                resp_body = _b64.b64encode(resp.content).decode("ascii")
+                                encoding = "base64"
 
-                                resp_headers = dict(resp.headers)
-                                for h in ("transfer-encoding", "connection", "keep-alive"):
-                                    resp_headers.pop(h, None)
+                            resp_headers = dict(resp.headers)
+                            for h in ("transfer-encoding", "connection", "keep-alive"):
+                                resp_headers.pop(h, None)
 
-                                await ws.send(_json.dumps({
-                                    "type": "http_res",
-                                    "id": req_id,
-                                    "status": resp.status_code,
-                                    "headers": resp_headers,
-                                    "body": resp_body,
-                                    "encoding": encoding,
-                                }))
+                            await ws.send(_json.dumps({
+                                "type": "http_res",
+                                "id": req_id,
+                                "status": resp.status_code,
+                                "headers": resp_headers,
+                                "body": resp_body,
+                                "encoding": encoding,
+                            }))
                         except Exception as e:
                             logger.warning("Proxy error for %s %s: %s", method, path, e)
                             await ws.send(_json.dumps({
@@ -479,6 +478,7 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
             finally:
                 # Cleanup
                 hb_task.cancel()
+                await http_client.aclose()
                 if local_ws:
                     try:
                         await local_ws.close()
@@ -545,6 +545,7 @@ async def _run_server(
     public_port: int,
     internal_port: int,
     relay_data: dict | None = None,
+    bind_host: str = "127.0.0.1",
 ) -> None:
     """Run both public and internal servers concurrently, plus relay bridge."""
     import uvicorn
@@ -553,7 +554,7 @@ async def _run_server(
 
     public_config = uvicorn.Config(
         "public_app:app",
-        host="0.0.0.0",
+        host=bind_host,
         port=public_port,
         log_level="info",
         access_log=True,
@@ -592,17 +593,17 @@ def cmd_start(args: argparse.Namespace) -> None:
     """Handle the 'start' command."""
     _setup_logging(args.verbose)
 
-    # Set port env vars so Settings picks them up
+    # Explicit CLI flags win over pre-existing env vars; env is only a fallback.
     if args.port:
-        os.environ.setdefault("PUBLIC_PORT", str(args.port))
+        os.environ["PUBLIC_PORT"] = str(args.port)
     if args.internal_port:
-        os.environ.setdefault("INTERNAL_PORT", str(args.internal_port))
+        os.environ["INTERNAL_PORT"] = str(args.internal_port)
 
     # Set allowed dirs if provided
     if args.workspace:
-        os.environ.setdefault("ALLOWED_DIRS", ",".join(args.workspace))
+        os.environ["ALLOWED_DIRS"] = ",".join(args.workspace)
     else:
-        # Default: home dir + current working directory
+        # Default: home dir + current working directory (env wins if already set)
         home = os.path.expanduser("~")
         cwd = os.getcwd()
         dirs = [home] if home == cwd else [home, cwd]
@@ -648,12 +649,43 @@ def cmd_start(args: argparse.Namespace) -> None:
         # --no-relay but not --no-tunnel → try cloudflared
         host_url = _start_cloudflared(public_port)
 
+    # Determine bind host. Default is loopback (safe): the relay bridge and
+    # cloudflared both connect over localhost. Pure LAN mode (no relay, no
+    # tunnel, no host) must listen on all interfaces so phones can reach it.
+    logger = logging.getLogger("corvustunnel")
+    if args.bind:
+        bind_host = args.bind
+    elif relay_data or host_url:
+        bind_host = "127.0.0.1"
+    else:
+        bind_host = "0.0.0.0"
+
+    if bind_host not in ("127.0.0.1", "::1", "localhost"):
+        logger.warning(
+            "Public port bound to %s — reachable beyond localhost. "
+            "IP bans/rate limits use the direct connecting address; only set "
+            "TRUSTED_PROXIES if a reverse proxy you control fronts this server.",
+            bind_host,
+        )
+
+    if relay_data:
+        # E2E is active whenever PyNaCl is installed; the client performs a
+        # live key exchange so the relay only ever forwards ciphertext.
+        from crypto.e2e import get_e2e_crypto
+        secure = get_e2e_crypto().available
+        logger.info(
+            "Relay mode: traffic routes through %s (%s)",
+            RELAY_API.replace("https://", ""),
+            "end-to-end encrypted — relay sees only ciphertext"
+            if secure else "TLS to relay only; install PyNaCl for E2E",
+        )
+
     # Print startup info
     _print_startup_info(token, public_port, relay_data, host_url)
 
     # Run the server
     try:
-        asyncio.run(_run_server(public_port, internal_port, relay_data))
+        asyncio.run(_run_server(public_port, internal_port, relay_data, bind_host))
     except KeyboardInterrupt:
         print("\nCorvusTunnel stopped.")
 
@@ -705,6 +737,13 @@ def main() -> None:
         help="Host URL for QR code. Overrides relay and tunnel.",
     )
     start_parser.add_argument(
+        "--bind",
+        type=str, default=None,
+        help="Address to bind the public port to. Default: 127.0.0.1 (relay/"
+             "tunnel modes) or 0.0.0.0 (LAN mode). Use 0.0.0.0 to expose on "
+             "the LAN — only behind a trusted network.",
+    )
+    start_parser.add_argument(
         "--no-relay",
         action="store_true",
         help="Don't use roost.corvustunnel.com relay (try cloudflared instead)",
@@ -734,6 +773,7 @@ def main() -> None:
         args.internal_port = None
         args.workspace = None  # will use home + cwd default
         args.host = None
+        args.bind = None
         args.no_relay = False
         args.no_tunnel = False
         args.verbose = False

@@ -1,4 +1,22 @@
 import { api } from './api.js';
+import {
+  establishE2E, isE2EActive, encryptMsg, decryptMsg, newSessionId, resetE2E,
+} from './e2e.js';
+
+/**
+ * Send an object over the terminal WebSocket, encrypting it end-to-end when
+ * a secure session has been established. Returns false if the socket is not open.
+ */
+export function wsSend(obj) {
+  const ws = STATE.ws;
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  try {
+    ws.send(isE2EActive() ? encryptMsg(obj) : JSON.stringify(obj));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 // Screen Wake Lock reference
 let wakeLock = null;
@@ -352,13 +370,14 @@ export function disconnectTerminal(userExited = false) {
   clearTimeout(reconnectTimer);
   if (STATE.ws) {
     if (userExited) {
-      // Send exit command
-      try { STATE.ws.send(JSON.stringify({ type: 'input', data: '\x03' })); } catch(e) {}
+      // Send exit command (encrypted if E2E is active)
+      wsSend({ type: 'input', data: '\x03' });
     }
     STATE.ws.close();
     STATE.ws = null;
   }
-  
+
+  resetE2E();
   STATE.wsStatus = 'disconnected';
   releaseWakeLock();
 }
@@ -388,13 +407,21 @@ export async function connectTerminal() {
     
     const ticketData = await ticketResp.json();
     const ticket = ticketData.ticket;
-    
+
+    // 2. Establish end-to-end encryption (ephemeral key exchange).
+    //    If the server lacks PyNaCl this returns false and we fall back to
+    //    plaintext — the session_id is then omitted so the server matches.
+    const sessionId = newSessionId();
+    const secure = await establishE2E(sessionId);
+
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
     let url = `${proto}://${window.location.host}/api/terminal/ws`
       + `?ticket=${encodeURIComponent(ticket)}`
       + `&work_dir=${encodeURIComponent(STATE.currentFolder)}`
       + `&agent=${encodeURIComponent(STATE.selectedAgent)}`;
-      
+    if (secure) {
+      url += `&session_id=${encodeURIComponent(sessionId)}`;
+    }
 
     const ws = new WebSocket(url);
     STATE.ws = ws;
@@ -409,15 +436,14 @@ export async function connectTerminal() {
       
       // Ping interval to avoid tunnel timeouts
       ws.pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'ping' }));
-        }
+        wsSend({ type: 'ping' });
       }, 15000);
     };
-    
+
     ws.onmessage = (ev) => {
       try {
-        const msg = JSON.parse(ev.data);
+        const msg = isE2EActive() ? decryptMsg(ev.data) : JSON.parse(ev.data);
+        if (!msg) return;
         if (msg.type === 'output' || msg.type === 'replay') {
           if (STATE.term && msg.data) {
             STATE.term.write(msg.data);
@@ -488,7 +514,7 @@ export function sendResize() {
     STATE.fitAddon.fit();
     const cols = STATE.term.cols;
     const rows = STATE.term.rows;
-    STATE.ws.send(JSON.stringify({ type: 'resize', cols, rows }));
+    wsSend({ type: 'resize', cols, rows });
   } catch(e) {
     console.warn('Failed to resize terminal', e);
   }
@@ -574,7 +600,7 @@ function detectUrl(chunk) {
           clearInterval(scrollInterval);
           return;
         }
-        STATE.ws.send(JSON.stringify({ type: 'input', data: '\x1b[1;2B' })); // shift+down in agy pager
+        wsSend({ type: 'input', data: '\x1b[1;2B' }); // shift+down in agy pager
         scrollCount++;
       }, 300);
     }

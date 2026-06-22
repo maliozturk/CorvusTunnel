@@ -12,10 +12,12 @@
 CorvusTunnel implements defense-in-depth with the following layers:
 
 ### End-to-End Encryption (E2E)
-- **Key exchange**: X25519 Diffie-Hellman via PyNaCl/libsodium during QR code scanning
-- **Message encryption**: NaCl SecretBox (XSalsa20-Poly1305)
-- **What's encrypted**: All user prompts, agent responses, file contents, terminal I/O
+- **Key exchange**: Ephemeral X25519 Diffie-Hellman (PyNaCl/libsodium server-side, tweetnacl in the browser), performed live on every connection via `POST /api/e2e/exchange`
+- **Message encryption**: NaCl Box / `crypto_box` (X25519 key agreement + XSalsa20-Poly1305 authenticated encryption), 24-byte random nonce per frame
+- **Forward secrecy**: Both endpoints use ephemeral keypairs that are never written to disk and are discarded on disconnect
+- **What's encrypted**: All user prompts, agent responses, file contents, terminal I/O — the relay forwards opaque ciphertext only
 - **What's NOT encrypted**: Message timestamps, sizes, connection metadata
+- **Fallback**: If PyNaCl is not installed on the host, the client detects the failed exchange and falls back to plaintext-over-TLS; install PyNaCl (a default dependency) to keep E2E active
 
 ### Authentication
 - **Boot token**: One-time-use, cryptographically random (48-byte URL-safe), delivered via QR code

@@ -78,46 +78,45 @@ class TestBase64Helpers:
         assert "/" not in encoded
 
 
+def _client_pub_b64() -> str:
+    """Generate a fresh client public key as base64url (test helper)."""
+    import nacl.public
+
+    from crypto.e2e import _b64url_encode
+
+    client_key = nacl.public.PrivateKey.generate().public_key
+    return _b64url_encode(client_key.encode(encoder=nacl.encoding.RawEncoder))
+
+
 @pytest.mark.skipif(not _nacl_available(), reason="PyNaCl not installed")
-class TestKeyGeneration:
-    """Tests for key generation (requires PyNaCl)."""
+class TestEphemeralExchangeKeys:
+    """The server uses fresh ephemeral keys per exchange (forward secrecy)."""
 
-    def test_server_keys_generated(self, env_token):
-        """E2ECrypto should generate server keys on init."""
-        from crypto.e2e import E2ECrypto
-        crypto = E2ECrypto()
-        assert crypto.available is True
-        assert crypto.server_public_key_b64 != ""
-
-    def test_public_key_is_base64url(self, env_token):
-        """Server public key should be a valid base64url string."""
+    def test_exchange_returns_ephemeral_public_key(self, env_token):
+        """exchange() returns the session's ephemeral server public key."""
         from crypto.e2e import E2ECrypto, _b64url_decode
+
         crypto = E2ECrypto()
+        key_b64 = crypto.exchange("sess-a", _client_pub_b64())
+        assert key_b64  # non-empty
+        # X25519 public key is 32 bytes
+        assert len(_b64url_decode(key_b64)) == 32
 
-        key_b64 = crypto.server_public_key_b64
-        assert len(key_b64) > 0
-
-        # Should decode without error
-        key_bytes = _b64url_decode(key_b64)
-        assert len(key_bytes) == 32  # X25519 public key is 32 bytes
-
-    def test_multiple_instances_generate_different_keys(self, env_token, tmp_path, monkeypatch):
-        """Different key directories should yield different keypairs."""
+    def test_no_global_server_key(self, env_token):
+        """There is no persistent global server key in the ephemeral model."""
         from crypto.e2e import E2ECrypto
 
-        # Patch _get_keys_dir to use separate temp directories
-        dir1 = tmp_path / "keys1"
-        dir2 = tmp_path / "keys2"
-        dir1.mkdir()
-        dir2.mkdir()
+        crypto = E2ECrypto()
+        assert crypto.server_public_key_b64 == ""
 
-        with patch("crypto.e2e._get_keys_dir", return_value=dir1):
-            crypto1 = E2ECrypto()
-        with patch("crypto.e2e._get_keys_dir", return_value=dir2):
-            crypto2 = E2ECrypto()
+    def test_each_session_gets_a_different_key(self, env_token):
+        """Two exchanges must yield different server keys (forward secrecy)."""
+        from crypto.e2e import E2ECrypto
 
-        # Keys should be different (generated fresh each time)
-        assert crypto1.server_public_key_b64 != crypto2.server_public_key_b64
+        crypto = E2ECrypto()
+        key1 = crypto.exchange("sess-1", _client_pub_b64())
+        key2 = crypto.exchange("sess-2", _client_pub_b64())
+        assert key1 != key2
 
 
 @pytest.mark.skipif(not _nacl_available(), reason="PyNaCl not installed")
@@ -210,7 +209,9 @@ class TestKeyExchange:
         session_id = "exchange-test"
         result = server.exchange(session_id, client_b64)
 
-        assert result == server.server_public_key_b64
+        # exchange returns the session's ephemeral server public key (32 bytes)
+        from crypto.e2e import _b64url_decode
+        assert len(_b64url_decode(result)) == 32
         assert server.has_session(session_id) is True
 
     def test_remove_session(self, env_token):
@@ -239,6 +240,52 @@ class TestKeyExchange:
         server = E2ECrypto()
         with pytest.raises(ValueError, match="Invalid client public key"):
             server.exchange("bad-session", "not-a-valid-key!!!")
+
+
+@pytest.mark.skipif(not _nacl_available(), reason="PyNaCl not installed")
+class TestClientServerInterop:
+    """Prove a *separate* client (as the browser would) interoperates.
+
+    The browser uses tweetnacl; this reconstructs the client side with PyNaCl
+    using only the server's returned ephemeral public key. tweetnacl and PyNaCl
+    implement the identical crypto_box primitive, so this exercises the exact
+    wire format the JS client relies on.
+    """
+
+    def _handshake(self):
+        import nacl.public
+
+        from crypto.e2e import E2ECrypto, _b64url_decode, _b64url_encode
+
+        server = E2ECrypto()
+        client_priv = nacl.public.PrivateKey.generate()
+        client_pub_b64 = _b64url_encode(
+            client_priv.public_key.encode(encoder=nacl.encoding.RawEncoder)
+        )
+        sid = "interop"
+        server_pub_b64 = server.exchange(sid, client_pub_b64)
+        # Client derives the same Box from the server's ephemeral public key
+        server_pub = nacl.public.PublicKey(_b64url_decode(server_pub_b64))
+        client_box = nacl.public.Box(client_priv, server_pub)
+        return server, sid, client_box
+
+    def test_server_to_client(self, env_token):
+        """Client decrypts what the server encrypted."""
+        from crypto.e2e import _b64url_decode
+
+        server, sid, client_box = self._handshake()
+        ct = server.encrypt(sid, "output from PTY █ 日本語")
+        plain = client_box.decrypt(_b64url_decode(ct)).decode("utf-8")
+        assert plain == "output from PTY █ 日本語"
+
+    def test_client_to_server(self, env_token):
+        """Server decrypts what the client encrypted."""
+        from crypto.e2e import _b64url_encode
+
+        server, sid, client_box = self._handshake()
+        encrypted = client_box.encrypt(b"ls -la\r")  # nonce||ct
+        ct_b64 = _b64url_encode(bytes(encrypted))
+        assert server.decrypt(sid, ct_b64) == "ls -la\r"
 
 
 class TestCryptoFallback:

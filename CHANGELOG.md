@@ -2,6 +2,31 @@
 
 All notable changes to CorvusTunnel will be documented in this file.
 
+## [1.1.0] - 2026-06-22
+
+### Security
+- **End-to-end encryption is now wired into the live data path.** Previously the
+  `crypto` module existed but no terminal traffic was encrypted; the browser and
+  server now perform an ephemeral X25519 key exchange on connect and encrypt every
+  WebSocket frame with NaCl Box (`crypto_box`). The relay forwards ciphertext only.
+- **Forward secrecy**: per-session ephemeral keypairs on both ends; no key material
+  is written to disk, and keys are dropped on disconnect.
+- **X-Forwarded-For hardening**: the header is now trusted only from a trusted proxy
+  (loopback by default, plus optional `TRUSTED_PROXIES`). This closes IP-ban,
+  rate-limit, and session-IP-binding bypasses for directly-reachable deployments.
+- The public port now binds to `127.0.0.1` by default (relay/tunnel modes); use
+  `--bind` to expose it. LAN mode (`--no-relay --no-tunnel`) still binds `0.0.0.0`.
+
+### Changed
+- Single source of truth for the version (`_version.py`); CLI, HTTP banner, package
+  metadata, and `/health` no longer drift.
+- CLI `--port` / `--internal-port` / `--workspace` now take precedence over env vars.
+- Relay bridge reuses one pooled `httpx` client instead of one per request.
+
+### Fixed
+- Saturated subscriber queues now drop oldest frames and surface a visible
+  `[output truncated]` marker instead of silently corrupting the terminal stream.
+
 ## [1.0.0] - 2026-06-07
 
 ### Added
