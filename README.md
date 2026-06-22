@@ -94,26 +94,6 @@ The public port binds to `127.0.0.1` by default (relay/tunnel modes). Use
 proxy you control terminates the connection — otherwise `X-Forwarded-For` is
 ignored and the direct socket address is used for bans and rate limits.
 
-## API
-
-| Endpoint | Auth | Description |
-|----------|------|-------------|
-| `GET /api/health` | No | Health check |
-| `POST /api/e2e/exchange` | No | E2E key exchange |
-| `POST /api/claim` | Boot token | Exchange boot token for session token |
-| `GET /api/browse` | Session | Directory browser |
-| `GET /api/check-agents` | Session | List available AI agents |
-| `POST /api/ws-ticket` | Session | Get WebSocket connection ticket |
-| `WS /api/terminal/ws` | Ticket | Interactive terminal session |
-
-Internal API (localhost:8001):
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /audit` | View audit logs |
-| `GET /deeplog` | View deep (plaintext) logs |
-| `GET /terminal/status` | Terminal session status |
-
 ## Environment Variables
 
 | Variable | Default | Description |

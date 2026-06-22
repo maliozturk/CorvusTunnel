@@ -12,7 +12,7 @@
 CorvusTunnel implements defense-in-depth with the following layers:
 
 ### End-to-End Encryption (E2E)
-- **Key exchange**: Ephemeral X25519 Diffie-Hellman (PyNaCl/libsodium server-side, tweetnacl in the browser), performed live on every connection via `POST /api/e2e/exchange`
+- **Key exchange**: Ephemeral X25519 Diffie-Hellman (PyNaCl/libsodium server-side, tweetnacl in the browser), performed live on every connection
 - **Message encryption**: NaCl Box / `crypto_box` (X25519 key agreement + XSalsa20-Poly1305 authenticated encryption), 24-byte random nonce per frame
 - **Forward secrecy**: Both endpoints use ephemeral keypairs that are never written to disk and are discarded on disconnect
 - **What's encrypted**: All user prompts, agent responses, file contents, terminal I/O — the relay forwards opaque ciphertext only
