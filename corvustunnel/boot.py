@@ -80,7 +80,7 @@ def print_qr(data: str, label: str) -> None:
         #  - The #fragment is never sent to the server
         #  - The boot token is one-time-use (consumed on claim)
         #  - Anyone seeing the URL can already see the QR on the same console
-        print(f"  \033[90mOr open this link on any device (one-time use):\033[0m")
+        print("  \033[90mOr open this link on any device (one-time use):\033[0m")
         print(f"  \033[4m{data}\033[0m")
         print()
 

@@ -13,7 +13,6 @@ Covers:
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -152,7 +151,7 @@ class TestAllowedDirList:
         monkeypatch.setenv("AGENT_TOKEN", "test")
         monkeypatch.setenv("ALLOWED_DIRS", "")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
-    
+
         from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.allowed_dir_list == [os.getcwd()]

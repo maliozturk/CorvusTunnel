@@ -85,35 +85,6 @@ class TokenManager:
 
             return self._session_token
 
-    def verify_session_token(self, token: str, client_ip: str | None = None) -> bool:
-        """Verify a session token, optionally enforcing IP binding.
-
-        Args:
-            token: The session token to verify.
-            client_ip: If provided and an IP is bound, the request is
-                       rejected when the IPs do not match.
-
-        Returns:
-            ``True`` if the token is valid (and the IP matches, if bound).
-        """
-        with self._lock:
-            if not self._session_token:
-                return False
-            if not hmac.compare_digest(token, self._session_token):
-                return False
-
-            # Enforce IP binding
-            if self._bound_ip and client_ip:
-                if self._bound_ip != client_ip:
-                    logger.warning(
-                        "IP mismatch: bound=%s, request=%s",
-                        self._bound_ip,
-                        client_ip,
-                    )
-                    return False
-
-            return True
-
     def verify(self, token: str, client_ip: str | None = None) -> bool:
         """Verify a token (session token only, boot token is dead after claim).
 

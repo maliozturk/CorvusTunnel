@@ -14,8 +14,8 @@ import logging
 
 from fastapi import APIRouter, Depends
 
-from corvustunnel.auth.dependencies import require_local_only
 from corvustunnel.audit.logger import get_audit_logger
+from corvustunnel.auth.dependencies import require_local_only
 
 logger = logging.getLogger(__name__)
 

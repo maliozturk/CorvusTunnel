@@ -13,8 +13,6 @@ import sys
 from io import StringIO
 from unittest.mock import patch
 
-import pytest
-
 
 class TestPrintQR:
     """Tests for the print_qr function."""
@@ -69,7 +67,6 @@ class TestPrintQR:
 
     def test_print_qr_fallback_without_qrcode(self):
         """When qrcode is not installed, print_qr should print the URL directly."""
-        from corvustunnel.boot import print_qr
 
         with patch.dict("sys.modules", {"qrcode": None}):
             # Force ImportError on import qrcode
@@ -78,6 +75,7 @@ class TestPrintQR:
             try:
                 # Reimport to trigger fallback path
                 import importlib
+
                 import boot
                 importlib.reload(boot)
                 boot.print_qr("https://example.com", "Fallback Test")

@@ -10,15 +10,12 @@ Provides common pytest fixtures used across all test modules:
 
 from __future__ import annotations
 
-import os
 import sys
-import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
+import httpx
 import pytest
 import pytest_asyncio
-import httpx
 
 # ── Ensure project root is importable ────────────────────────────────
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -54,7 +51,7 @@ def _reset_singletons():
         pass
 
     try:
-        from corvustunnel.audit.deep_logger import get_deep_logger, DeepLogger
+        from corvustunnel.audit.deep_logger import DeepLogger, get_deep_logger
         get_deep_logger.cache_clear()
         DeepLogger._BOOT_LOGGED = False
     except Exception:

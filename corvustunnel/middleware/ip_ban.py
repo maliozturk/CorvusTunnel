@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any
 
 from fastapi import FastAPI, Request
 from starlette.middleware.base import RequestResponseEndpoint

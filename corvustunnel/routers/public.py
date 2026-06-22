@@ -16,16 +16,24 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import shutil
 import time
-import logging
 from collections import defaultdict
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from pydantic import BaseModel
 
-from corvustunnel.auth.dependencies import require_public_auth
 from corvustunnel.audit.logger import get_audit_logger
+from corvustunnel.auth.dependencies import require_public_auth
 from corvustunnel.middleware.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
@@ -53,14 +61,6 @@ class HealthResponse(BaseModel):
 @limiter.limit("30/minute")
 async def health(request: Request):
     """Health check endpoint (no authentication required)."""
-    # Check E2E status
-    e2e_enabled = False
-    try:
-        from corvustunnel.crypto.e2e import get_e2e_crypto
-        e2e_enabled = get_e2e_crypto().available
-    except Exception:
-        pass
-
     from corvustunnel.version import __version__
 
     return HealthResponse(
@@ -126,8 +126,8 @@ async def claim_token(request: Request):
     The boot token (from QR code) can only be used once.
     After claiming, all subsequent API calls use the returned session token.
     """
-    from corvustunnel.auth.bearer import get_token_manager
     from corvustunnel.audit.deep_logger import get_deep_logger
+    from corvustunnel.auth.bearer import get_token_manager
     from corvustunnel.middleware.ip_ban import get_ban_tracker
 
     deep = get_deep_logger()
@@ -174,9 +174,9 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
     children) are visible.  No path outside the whitelist is reachable.
     """
     from pathlib import Path as P
-    from corvustunnel.config.settings import get_settings
 
     from corvustunnel.audit.deep_logger import get_deep_logger
+    from corvustunnel.config.settings import get_settings
     deep = get_deep_logger()
     client_ip = _get_client_ip(request)
 
@@ -242,6 +242,7 @@ async def check_agents(request: Request):
     """Check which AI agents are available on the system PATH."""
     import os
     from pathlib import Path
+
     from corvustunnel.config.settings import get_settings
 
     agy_path = shutil.which("agy")
@@ -277,10 +278,11 @@ async def check_agents(request: Request):
 @limiter.limit("10/minute")
 async def create_directory(request: Request):
     """Create a new subdirectory within an allowed directory."""
-    from pathlib import Path as P
-    from corvustunnel.config.settings import get_settings
-    from corvustunnel.audit.deep_logger import get_deep_logger
     import re
+    from pathlib import Path as P
+
+    from corvustunnel.audit.deep_logger import get_deep_logger
+    from corvustunnel.config.settings import get_settings
 
     body = await request.json()
     parent = body.get("parent", "")
@@ -415,6 +417,7 @@ async def create_ws_ticket(request: Request):
 def _validate_work_dir(work_dir: str) -> bool:
     """Check that work_dir falls under one of the ALLOWED_DIRS roots."""
     from pathlib import Path
+
     from corvustunnel.config.settings import get_settings
 
     settings = get_settings()
@@ -477,11 +480,11 @@ async def terminal_ws(
         {"type": "pong"}                            → keep-alive reply
         {"type": "error",  "message": "..."}        → error
     """
-    from corvustunnel.auth.bearer import get_token_manager
-    from corvustunnel.executor.term_session import get_terminal_session
     from corvustunnel.audit.deep_logger import get_deep_logger
-    from corvustunnel.middleware.ip_ban import get_ban_tracker
+    from corvustunnel.auth.bearer import get_token_manager
     from corvustunnel.crypto.e2e import get_e2e_crypto
+    from corvustunnel.executor.term_session import get_terminal_session
+    from corvustunnel.middleware.ip_ban import get_ban_tracker
 
     deep = get_deep_logger()
     ban_tracker = get_ban_tracker()

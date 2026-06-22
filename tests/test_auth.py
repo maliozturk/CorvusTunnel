@@ -14,7 +14,6 @@ import time
 from unittest.mock import patch
 
 import pytest
-import pytest_asyncio
 
 
 class TestTokenManager:
@@ -94,7 +93,7 @@ class TestTokenManager:
         mgr = TokenManager()
 
         session_token = mgr.claim_boot_token(env_token)
-        assert mgr.verify_session_token(session_token) is True
+        assert mgr.verify(session_token) is True
 
 
 class TestWSTicket:

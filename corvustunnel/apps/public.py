@@ -21,11 +21,11 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from corvustunnel.version import __version__
 from corvustunnel.routers.public import router as public_router
+from corvustunnel.version import __version__
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ app = FastAPI(
 
 # ── 1. Security Headers ─────────────────────────────────────────────
 from corvustunnel.middleware.security_headers import add_security_headers
+
 add_security_headers(app)
 
 
@@ -55,11 +56,13 @@ app.add_middleware(
 
 # ── 3. Rate Limiting ────────────────────────────────────────────────
 from corvustunnel.middleware.rate_limit import setup_rate_limiting
+
 setup_rate_limiting(app)
 
 
 # ── 4. IP Ban Middleware ─────────────────────────────────────────────
 from corvustunnel.middleware.ip_ban import add_ip_ban_middleware
+
 add_ip_ban_middleware(app)
 
 

@@ -75,8 +75,8 @@ def _register_relay_session(e2e_key: str = "") -> dict | None:
     Returns dict with session_id, cli_secret, phone_token, relay_url, ws_url.
     Returns None on failure.
     """
-    import urllib.request
     import json as _json
+    import urllib.request
 
     logger = logging.getLogger("corvustunnel")
     logger.info("Registering with relay at %s...", RELAY_API)
@@ -240,8 +240,8 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
       - Auto-re-registers a new relay session if the old one expires.
       - Retries indefinitely with exponential backoff.
     """
-    import json as _json
     import base64 as _b64
+    import json as _json
 
     logger = logging.getLogger("corvustunnel")
 

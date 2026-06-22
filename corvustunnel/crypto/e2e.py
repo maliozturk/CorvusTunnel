@@ -36,8 +36,8 @@ logger = logging.getLogger("corvustunnel.crypto")
 # Lazy import nacl to allow graceful fallback
 _nacl_available = False
 try:
-    import nacl.public
     import nacl.encoding
+    import nacl.public
     _nacl_available = True
 except ImportError:
     logger.warning(

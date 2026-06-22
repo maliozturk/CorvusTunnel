@@ -13,7 +13,6 @@ Covers:
 
 from __future__ import annotations
 
-import sys
 from unittest.mock import patch
 
 import pytest
@@ -37,7 +36,7 @@ class TestCryptoImport:
 
     def test_get_e2e_crypto_returns_instance(self, env_token):
         """get_e2e_crypto should return an E2ECrypto instance."""
-        from corvustunnel.crypto.e2e import get_e2e_crypto, E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto, get_e2e_crypto
         instance = get_e2e_crypto()
         assert isinstance(instance, E2ECrypto)
 
@@ -53,7 +52,7 @@ class TestBase64Helpers:
 
     def test_b64url_roundtrip(self):
         """Encoding then decoding should return the original bytes."""
-        from corvustunnel.crypto.e2e import _b64url_encode, _b64url_decode
+        from corvustunnel.crypto.e2e import _b64url_decode, _b64url_encode
 
         original = b"hello world! this is a test 1234"
         encoded = _b64url_encode(original)

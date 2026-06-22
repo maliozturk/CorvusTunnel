@@ -10,10 +10,8 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol
 
@@ -70,7 +68,7 @@ def _safe_read_jsonl(path: str | Path, max_lines: int = 50_000) -> list[dict]:
     """Read a JSONL file, skipping malformed lines."""
     results = []
     try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
+        with open(path, encoding="utf-8", errors="replace") as f:
             for i, line in enumerate(f):
                 if i >= max_lines:
                     break
@@ -213,7 +211,7 @@ class AntigravityParser:
 
         # Count total messages (read whole file for accurate count)
         try:
-            with open(transcript_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(transcript_path, encoding="utf-8", errors="replace") as f:
                 total_lines = sum(
                     1 for ln in f
                     if ln.strip() and '"source"' in ln
@@ -388,7 +386,7 @@ class ClaudeParser:
 
         # Count total content messages
         try:
-            with open(jsonl_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(jsonl_path, encoding="utf-8", errors="replace") as f:
                 total = sum(
                     1 for ln in f
                     if ln.strip()
@@ -547,7 +545,7 @@ class CodexParser:
 
         # Count total messages in file
         try:
-            with open(jsonl_path, "r", encoding="utf-8", errors="replace") as f:
+            with open(jsonl_path, encoding="utf-8", errors="replace") as f:
                 total = sum(
                     1 for ln in f
                     if ln.strip() and '"response_item"' in ln

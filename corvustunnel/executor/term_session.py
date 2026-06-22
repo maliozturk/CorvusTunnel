@@ -17,8 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
-
 import sys
 import threading
 import time
@@ -36,7 +34,7 @@ IS_WINDOWS = sys.platform == "win32"
 _TRUNCATION_MARKER = {"type": "output", "data": "\r\n\x1b[33m[output truncated]\x1b[0m\r\n"}
 
 
-def _enqueue(q: "asyncio.Queue", msg: dict) -> None:
+def _enqueue(q: asyncio.Queue, msg: dict) -> None:
     """Put *msg* on *q*, dropping oldest frames if full (runs on loop thread).
 
     When the queue is saturated (slow subscriber), we make room and surface a
@@ -81,6 +79,7 @@ class _WindowsProcess:
     def __init__(self, cmd: str, args: list[str], cwd: str,
                  rows: int = 30, cols: int = 120):
         import queue as _queue
+
         from winpty import PtyProcess
 
         self._pty = PtyProcess.spawn(
