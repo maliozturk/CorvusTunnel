@@ -17,7 +17,7 @@ from slowapi.util import get_remote_address
 def get_real_ip(request: Request) -> str:
     """Return the real client IP, trusting ``X-Forwarded-For`` only when it
     comes from a trusted proxy (see :mod:`middleware.client_ip`)."""
-    from middleware.client_ip import get_trusted_client_ip
+    from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
     ip = get_trusted_client_ip(request)
     return ip if ip != "unknown" else get_remote_address(request)

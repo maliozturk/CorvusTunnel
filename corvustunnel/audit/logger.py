@@ -114,6 +114,6 @@ class AuditLogger:
 @lru_cache(maxsize=1)
 def get_audit_logger() -> AuditLogger:
     """Return a singleton AuditLogger instance."""
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
     settings = get_settings()
     return AuditLogger(log_dir=settings.audit_log_dir)

@@ -7,7 +7,7 @@ events, errors, and timing.  Files are stored locally with daily
 rotation and are NEVER exposed through the public API.
 
 Usage:
-    from audit.deep_logger import deep_log
+    from corvustunnel.audit.deep_logger import deep_log
 
     deep_log("prompt_submitted", prompt="list files", job_id="abc123",
              client_ip="198.41.200.1", work_dir="C:\\projects\\demo")
@@ -259,7 +259,7 @@ def get_deep_logger() -> DeepLogger:
     Logs are stored at ``~/.corvustunnel/logs/deep/`` by default —
     outside any ALLOWED_DIRS path so they are unreachable from the tunnel.
     """
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
 
     settings = get_settings()
     return DeepLogger(log_dir=settings.resolved_deep_log_dir)

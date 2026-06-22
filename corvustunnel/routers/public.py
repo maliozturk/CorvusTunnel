@@ -24,9 +24,9 @@ from collections import defaultdict
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
-from auth.dependencies import require_public_auth
-from audit.logger import get_audit_logger
-from middleware.rate_limit import limiter
+from corvustunnel.auth.dependencies import require_public_auth
+from corvustunnel.audit.logger import get_audit_logger
+from corvustunnel.middleware.rate_limit import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +56,12 @@ async def health(request: Request):
     # Check E2E status
     e2e_enabled = False
     try:
-        from crypto.e2e import get_e2e_crypto
+        from corvustunnel.crypto.e2e import get_e2e_crypto
         e2e_enabled = get_e2e_crypto().available
     except Exception:
         pass
 
-    from _version import __version__
+    from corvustunnel.version import __version__
 
     return HealthResponse(
         status="ok",
@@ -80,7 +80,7 @@ async def e2e_key_exchange(request: Request):
     server returns its long-lived public key.
     The shared secret is derived via X25519 DH on both sides.
     """
-    from crypto.e2e import get_e2e_crypto
+    from corvustunnel.crypto.e2e import get_e2e_crypto
 
     crypto = get_e2e_crypto()
     if not crypto.available:
@@ -126,9 +126,9 @@ async def claim_token(request: Request):
     The boot token (from QR code) can only be used once.
     After claiming, all subsequent API calls use the returned session token.
     """
-    from auth.bearer import get_token_manager
-    from audit.deep_logger import get_deep_logger
-    from middleware.ip_ban import get_ban_tracker
+    from corvustunnel.auth.bearer import get_token_manager
+    from corvustunnel.audit.deep_logger import get_deep_logger
+    from corvustunnel.middleware.ip_ban import get_ban_tracker
 
     deep = get_deep_logger()
     ban_tracker = get_ban_tracker()
@@ -174,9 +174,9 @@ async def browse_directory(request: Request, path: str = Query(default=None)):
     children) are visible.  No path outside the whitelist is reachable.
     """
     from pathlib import Path as P
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
 
-    from audit.deep_logger import get_deep_logger
+    from corvustunnel.audit.deep_logger import get_deep_logger
     deep = get_deep_logger()
     client_ip = _get_client_ip(request)
 
@@ -242,7 +242,7 @@ async def check_agents(request: Request):
     """Check which AI agents are available on the system PATH."""
     import os
     from pathlib import Path
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
 
     agy_path = shutil.which("agy")
     codex_path = shutil.which("codex")
@@ -278,8 +278,8 @@ async def check_agents(request: Request):
 async def create_directory(request: Request):
     """Create a new subdirectory within an allowed directory."""
     from pathlib import Path as P
-    from config.settings import get_settings
-    from audit.deep_logger import get_deep_logger
+    from corvustunnel.config.settings import get_settings
+    from corvustunnel.audit.deep_logger import get_deep_logger
     import re
 
     body = await request.json()
@@ -352,7 +352,7 @@ async def list_history_sessions(
     Returns a paginated list of sessions sorted by date (newest first).
     Optionally filter by agent name.
     """
-    from history.service import get_history_service
+    from corvustunnel.history.service import get_history_service
     service = get_history_service()
     return service.list_sessions(agent=agent, limit=limit, offset=offset)
 
@@ -369,7 +369,7 @@ async def get_history_session(
 
     Session IDs are in the format 'agent:id' (e.g. 'claude:a71c6bda-...')
     """
-    from history.service import get_history_service
+    from corvustunnel.history.service import get_history_service
     service = get_history_service()
     result = service.get_session_messages(session_id, limit=limit, offset=offset)
     if "error" in result:
@@ -381,7 +381,7 @@ async def get_history_session(
 @limiter.limit("30/minute")
 async def history_stats(request: Request):
     """Quick stats about available chat sessions across all agents."""
-    from history.service import get_history_service
+    from corvustunnel.history.service import get_history_service
     service = get_history_service()
     return service.get_stats()
 
@@ -398,7 +398,7 @@ async def create_ws_ticket(request: Request):
     The ticket is valid for 30 seconds and can only be used once.
     This replaces passing the session token in the WebSocket URL.
     """
-    from auth.bearer import get_token_manager
+    from corvustunnel.auth.bearer import get_token_manager
 
     client_ip = _get_client_ip(request)
     manager = get_token_manager()
@@ -415,7 +415,7 @@ async def create_ws_ticket(request: Request):
 def _validate_work_dir(work_dir: str) -> bool:
     """Check that work_dir falls under one of the ALLOWED_DIRS roots."""
     from pathlib import Path
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
 
     settings = get_settings()
     roots = [Path(d).resolve() for d in settings.allowed_dir_list]
@@ -430,7 +430,7 @@ def _validate_work_dir(work_dir: str) -> bool:
 
 def _get_client_ip(request) -> str:
     """Extract client IP, trusting X-Forwarded-For only from a trusted proxy."""
-    from middleware.client_ip import get_trusted_client_ip
+    from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
     return get_trusted_client_ip(request)
 
@@ -440,7 +440,7 @@ def _get_client_ip(request) -> str:
 @limiter.limit("30/minute")
 async def terminal_status(request: Request):
     """Check if the terminal process is still alive."""
-    from executor.term_session import get_terminal_session
+    from corvustunnel.executor.term_session import get_terminal_session
     session = get_terminal_session()
     return {
         "alive": session.is_alive,
@@ -477,18 +477,18 @@ async def terminal_ws(
         {"type": "pong"}                            → keep-alive reply
         {"type": "error",  "message": "..."}        → error
     """
-    from auth.bearer import get_token_manager
-    from executor.term_session import get_terminal_session
-    from audit.deep_logger import get_deep_logger
-    from middleware.ip_ban import get_ban_tracker
-    from crypto.e2e import get_e2e_crypto
+    from corvustunnel.auth.bearer import get_token_manager
+    from corvustunnel.executor.term_session import get_terminal_session
+    from corvustunnel.audit.deep_logger import get_deep_logger
+    from corvustunnel.middleware.ip_ban import get_ban_tracker
+    from corvustunnel.crypto.e2e import get_e2e_crypto
 
     deep = get_deep_logger()
     ban_tracker = get_ban_tracker()
     crypto = get_e2e_crypto()
 
     # ── Extract client IP ─────────────────────────────────────────
-    from middleware.client_ip import get_trusted_client_ip
+    from corvustunnel.middleware.client_ip import get_trusted_client_ip
     client_ip = get_trusted_client_ip(websocket)
 
     # ── Check IP ban ──────────────────────────────────────────────

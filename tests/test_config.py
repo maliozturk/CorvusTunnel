@@ -27,7 +27,7 @@ class TestSettingsLoading:
         monkeypatch.setenv("AGENT_TOKEN", "test-token-xyz")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.agent_token == "test-token-xyz"
 
@@ -36,7 +36,7 @@ class TestSettingsLoading:
         monkeypatch.delenv("AGENT_TOKEN", raising=False)
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         with pytest.raises(ValidationError):
             Settings()
 
@@ -45,7 +45,7 @@ class TestSettingsLoading:
         monkeypatch.setenv("AGENT_TOKEN", "test")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.public_port == 8000
         assert s.internal_port == 8001
@@ -57,7 +57,7 @@ class TestSettingsLoading:
         monkeypatch.setenv("INTERNAL_PORT", "9001")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.public_port == 9000
         assert s.internal_port == 9001
@@ -66,7 +66,7 @@ class TestSettingsLoading:
         """get_settings should return the same instance (lru_cache)."""
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import get_settings
+        from corvustunnel.config.settings import get_settings
         s1 = get_settings()
         s2 = get_settings()
         assert s1 is s2
@@ -82,7 +82,7 @@ class TestPortValidation:
         monkeypatch.setenv("INTERNAL_PORT", "8000")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         with pytest.raises(ValidationError, match="must be different"):
             Settings()
 
@@ -93,7 +93,7 @@ class TestPortValidation:
         monkeypatch.setenv("INTERNAL_PORT", "8081")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.public_port == 8080
         assert s.internal_port == 8081
@@ -104,7 +104,7 @@ class TestPortValidation:
         monkeypatch.setenv("PUBLIC_PORT", "80")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         with pytest.raises(ValidationError):
             Settings()
 
@@ -114,7 +114,7 @@ class TestPortValidation:
         monkeypatch.setenv("PUBLIC_PORT", "70000")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         with pytest.raises(ValidationError):
             Settings()
 
@@ -129,7 +129,7 @@ class TestAllowedDirList:
         monkeypatch.setenv("ALLOWED_DIRS", "/workspace")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.allowed_dir_list == ["/workspace"]
 
@@ -139,7 +139,7 @@ class TestAllowedDirList:
         monkeypatch.setenv("ALLOWED_DIRS", "/home/user,/opt/projects, /tmp/test ")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         dirs = s.allowed_dir_list
         assert len(dirs) == 3
@@ -153,7 +153,7 @@ class TestAllowedDirList:
         monkeypatch.setenv("ALLOWED_DIRS", "")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(tmp_path / "logs"))
     
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert s.allowed_dir_list == [os.getcwd()]
 
@@ -169,7 +169,7 @@ class TestAuditLogDir:
         monkeypatch.setenv("AGENT_TOKEN", "test")
         monkeypatch.setenv("AUDIT_LOG_DIR", str(log_dir))
 
-        from config.settings import Settings
+        from corvustunnel.config.settings import Settings
         s = Settings()
         assert log_dir.exists()
         assert log_dir.is_dir()

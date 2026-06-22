@@ -265,7 +265,7 @@ class TestSecurityHeaders:
 
     @pytest.mark.asyncio
     async def test_health_has_security_headers(self, public_client):
-        """Responses should include security headers from middleware."""
+        """Responses should include security headers from corvustunnel.middleware."""
         resp = await public_client.get("/api/health")
         assert resp.status_code == 200
 

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 from fastapi import HTTPException, Request
 
-from auth.bearer import verify_bearer_token
-from audit.logger import get_audit_logger
+from corvustunnel.auth.bearer import verify_bearer_token
+from corvustunnel.audit.logger import get_audit_logger
 
 
 async def require_public_auth(request: Request) -> None:
@@ -25,9 +25,9 @@ async def require_public_auth(request: Request) -> None:
     This IP is forwarded to :func:`verify_bearer_token` so that
     IP-binding checks are enforced.
     """
-    from audit.deep_logger import get_deep_logger
+    from corvustunnel.audit.deep_logger import get_deep_logger
 
-    from middleware.client_ip import get_trusted_client_ip
+    from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
     authorization = request.headers.get("Authorization", "")
 

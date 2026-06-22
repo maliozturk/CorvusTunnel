@@ -21,7 +21,7 @@ class TestPrintQR:
 
     def test_print_qr_does_not_crash(self):
         """print_qr should run without raising exceptions."""
-        from boot import print_qr
+        from corvustunnel.boot import print_qr
 
         captured = StringIO()
         sys.stdout = captured
@@ -35,7 +35,7 @@ class TestPrintQR:
 
     def test_print_qr_with_url_and_fragment(self):
         """print_qr should handle URLs with hash fragments (token data)."""
-        from boot import print_qr
+        from corvustunnel.boot import print_qr
 
         captured = StringIO()
         sys.stdout = captured
@@ -55,7 +55,7 @@ class TestPrintQR:
 
     def test_print_qr_shows_label(self):
         """print_qr should display the provided label."""
-        from boot import print_qr
+        from corvustunnel.boot import print_qr
 
         captured = StringIO()
         sys.stdout = captured
@@ -69,7 +69,7 @@ class TestPrintQR:
 
     def test_print_qr_fallback_without_qrcode(self):
         """When qrcode is not installed, print_qr should print the URL directly."""
-        from boot import print_qr
+        from corvustunnel.boot import print_qr
 
         with patch.dict("sys.modules", {"qrcode": None}):
             # Force ImportError on import qrcode
@@ -90,7 +90,7 @@ class TestPrintQR:
 
     def test_print_qr_with_empty_data(self):
         """print_qr should handle empty string data without crashing."""
-        from boot import print_qr
+        from corvustunnel.boot import print_qr
 
         captured = StringIO()
         sys.stdout = captured

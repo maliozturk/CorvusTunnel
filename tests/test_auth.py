@@ -22,19 +22,19 @@ class TestTokenManager:
 
     def test_verify_with_boot_token(self, env_token):
         """Unclaimed boot token should be accepted by verify()."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
         assert mgr.verify(env_token) is True
 
     def test_verify_with_wrong_token(self, env_token):
         """An incorrect token should be rejected."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
         assert mgr.verify("wrong-token") is False
 
     def test_claim_boot_token(self, env_token):
         """Claiming the boot token should return a session token."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         session_token = mgr.claim_boot_token(env_token)
@@ -44,7 +44,7 @@ class TestTokenManager:
 
     def test_boot_token_consumed_after_claim(self, env_token):
         """Boot token should be rejected after it has been claimed."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         session_token = mgr.claim_boot_token(env_token)
@@ -57,7 +57,7 @@ class TestTokenManager:
 
     def test_claim_fails_with_wrong_token(self, env_token):
         """Claiming with a wrong token should return None."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         result = mgr.claim_boot_token("wrong-token")
@@ -66,7 +66,7 @@ class TestTokenManager:
 
     def test_double_claim_rejected(self, env_token):
         """Second claim attempt should return None."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         first = mgr.claim_boot_token(env_token)
@@ -77,7 +77,7 @@ class TestTokenManager:
 
     def test_session_token_ip_binding(self, env_token):
         """After claiming with IP binding, only the bound IP should be accepted."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         session_token = mgr.claim_boot_token(env_token, client_ip="1.2.3.4")
@@ -90,7 +90,7 @@ class TestTokenManager:
 
     def test_session_verify_without_ip_still_works(self, env_token):
         """Session token without IP should work when no IP bound."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         session_token = mgr.claim_boot_token(env_token)
@@ -102,7 +102,7 @@ class TestWSTicket:
 
     def test_create_and_consume_ticket(self, env_token):
         """A freshly created ticket should be consumable from the same IP."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         ticket = mgr.create_ws_ticket("10.0.0.1")
@@ -113,7 +113,7 @@ class TestWSTicket:
 
     def test_ticket_consumed_once(self, env_token):
         """A ticket should be rejected on second use (one-time)."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         ticket = mgr.create_ws_ticket("10.0.0.1")
@@ -123,7 +123,7 @@ class TestWSTicket:
 
     def test_ticket_ip_mismatch(self, env_token):
         """A ticket should be rejected when consumed from a different IP."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         ticket = mgr.create_ws_ticket("10.0.0.1")
@@ -131,19 +131,19 @@ class TestWSTicket:
 
     def test_ticket_expired(self, env_token):
         """An expired ticket should be rejected."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         ticket = mgr.create_ws_ticket("10.0.0.1")
 
         # Fast-forward time past TTL (30 seconds)
-        with patch("auth.bearer.time") as mock_time:
+        with patch("corvustunnel.auth.bearer.time") as mock_time:
             mock_time.monotonic.return_value = time.monotonic() + 60
             assert mgr.consume_ws_ticket(ticket, "10.0.0.1") is False
 
     def test_nonexistent_ticket(self, env_token):
         """A made-up ticket should be rejected."""
-        from auth.bearer import TokenManager
+        from corvustunnel.auth.bearer import TokenManager
         mgr = TokenManager()
 
         assert mgr.consume_ws_ticket("fake-ticket", "10.0.0.1") is False
@@ -154,27 +154,27 @@ class TestVerifyBearerToken:
 
     def test_valid_bearer_header(self, env_token):
         """A proper 'Bearer <token>' header with correct token should pass."""
-        from auth.bearer import verify_bearer_token
+        from corvustunnel.auth.bearer import verify_bearer_token
         assert verify_bearer_token(f"Bearer {env_token}") is True
 
     def test_invalid_bearer_header(self, env_token):
         """A proper 'Bearer <token>' header with wrong token should fail."""
-        from auth.bearer import verify_bearer_token
+        from corvustunnel.auth.bearer import verify_bearer_token
         assert verify_bearer_token("Bearer wrong-token") is False
 
     def test_missing_bearer_prefix(self, env_token):
         """Headers without 'Bearer ' prefix should fail."""
-        from auth.bearer import verify_bearer_token
+        from corvustunnel.auth.bearer import verify_bearer_token
         assert verify_bearer_token(env_token) is False
 
     def test_empty_authorization(self, env_token):
         """Empty authorization string should fail."""
-        from auth.bearer import verify_bearer_token
+        from corvustunnel.auth.bearer import verify_bearer_token
         assert verify_bearer_token("") is False
 
     def test_basic_auth_rejected(self, env_token):
         """'Basic' auth scheme should be rejected."""
-        from auth.bearer import verify_bearer_token
+        from corvustunnel.auth.bearer import verify_bearer_token
         assert verify_bearer_token(f"Basic {env_token}") is False
 
 

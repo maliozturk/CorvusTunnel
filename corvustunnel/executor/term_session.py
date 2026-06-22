@@ -271,7 +271,7 @@ class TerminalSession:
         )
         self._reader_thread.start()
 
-        from audit.deep_logger import get_deep_logger
+        from corvustunnel.audit.deep_logger import get_deep_logger
         get_deep_logger().log(
             "terminal_started", category="terminal",
             work_dir=work_dir, cols=cols, rows=rows,
@@ -290,7 +290,7 @@ class TerminalSession:
 
         self._input_count += 1
 
-        from audit.deep_logger import get_deep_logger
+        from corvustunnel.audit.deep_logger import get_deep_logger
         get_deep_logger().log(
             "terminal_input", category="terminal",
             seq=self._input_count,
@@ -339,7 +339,7 @@ class TerminalSession:
         # Flush remaining log buffer
         self._flush_log_buffer(force=True)
 
-        from audit.deep_logger import get_deep_logger
+        from corvustunnel.audit.deep_logger import get_deep_logger
         get_deep_logger().log(
             "terminal_stopped", category="terminal",
             total_inputs=self._input_count,
@@ -449,7 +449,7 @@ class TerminalSession:
                 logger.info("Process exited (code=%s)", exit_code)
                 self._broadcast({"type": "exited", "code": exit_code})
 
-                from audit.deep_logger import get_deep_logger
+                from corvustunnel.audit.deep_logger import get_deep_logger
                 self._flush_log_buffer(force=True)
                 get_deep_logger().log(
                     "terminal_process_exited", category="terminal",
@@ -518,7 +518,7 @@ class TerminalSession:
 
         self._last_log_flush = now
         try:
-            from audit.deep_logger import get_deep_logger
+            from corvustunnel.audit.deep_logger import get_deep_logger
             get_deep_logger().log(
                 "terminal_output", category="terminal",
                 output_length=len(buf),

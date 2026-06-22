@@ -20,7 +20,7 @@ _LOOPBACK = {"127.0.0.1", "::1"}
 
 
 def _trusted_proxies() -> set[str]:
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
 
     return _LOOPBACK | set(get_settings().trusted_proxy_list)
 

@@ -33,17 +33,17 @@ class TestCryptoImport:
 
     def test_crypto_module_imports(self):
         """crypto.e2e should import without raising an exception."""
-        import crypto.e2e  # noqa: F401
+        import corvustunnel.crypto.e2e  # noqa: F401
 
     def test_get_e2e_crypto_returns_instance(self, env_token):
         """get_e2e_crypto should return an E2ECrypto instance."""
-        from crypto.e2e import get_e2e_crypto, E2ECrypto
+        from corvustunnel.crypto.e2e import get_e2e_crypto, E2ECrypto
         instance = get_e2e_crypto()
         assert isinstance(instance, E2ECrypto)
 
     def test_available_property_reflects_nacl(self, env_token):
         """available property should match whether PyNaCl is installed."""
-        from crypto.e2e import get_e2e_crypto
+        from corvustunnel.crypto.e2e import get_e2e_crypto
         instance = get_e2e_crypto()
         assert instance.available == _nacl_available()
 
@@ -53,7 +53,7 @@ class TestBase64Helpers:
 
     def test_b64url_roundtrip(self):
         """Encoding then decoding should return the original bytes."""
-        from crypto.e2e import _b64url_encode, _b64url_decode
+        from corvustunnel.crypto.e2e import _b64url_encode, _b64url_decode
 
         original = b"hello world! this is a test 1234"
         encoded = _b64url_encode(original)
@@ -62,14 +62,14 @@ class TestBase64Helpers:
 
     def test_b64url_no_padding(self):
         """Base64url output should have no '=' padding."""
-        from crypto.e2e import _b64url_encode
+        from corvustunnel.crypto.e2e import _b64url_encode
 
         encoded = _b64url_encode(b"test")
         assert "=" not in encoded
 
     def test_b64url_url_safe_chars(self):
         """Output should use URL-safe characters (- and _ instead of + and /)."""
-        from crypto.e2e import _b64url_encode
+        from corvustunnel.crypto.e2e import _b64url_encode
 
         # Use bytes that would produce + or / in standard base64
         data = b"\xfb\xff\xfe"
@@ -82,7 +82,7 @@ def _client_pub_b64() -> str:
     """Generate a fresh client public key as base64url (test helper)."""
     import nacl.public
 
-    from crypto.e2e import _b64url_encode
+    from corvustunnel.crypto.e2e import _b64url_encode
 
     client_key = nacl.public.PrivateKey.generate().public_key
     return _b64url_encode(client_key.encode(encoder=nacl.encoding.RawEncoder))
@@ -94,7 +94,7 @@ class TestEphemeralExchangeKeys:
 
     def test_exchange_returns_ephemeral_public_key(self, env_token):
         """exchange() returns the session's ephemeral server public key."""
-        from crypto.e2e import E2ECrypto, _b64url_decode
+        from corvustunnel.crypto.e2e import E2ECrypto, _b64url_decode
 
         crypto = E2ECrypto()
         key_b64 = crypto.exchange("sess-a", _client_pub_b64())
@@ -104,14 +104,14 @@ class TestEphemeralExchangeKeys:
 
     def test_no_global_server_key(self, env_token):
         """There is no persistent global server key in the ephemeral model."""
-        from crypto.e2e import E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto
 
         crypto = E2ECrypto()
         assert crypto.server_public_key_b64 == ""
 
     def test_each_session_gets_a_different_key(self, env_token):
         """Two exchanges must yield different server keys (forward secrecy)."""
-        from crypto.e2e import E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto
 
         crypto = E2ECrypto()
         key1 = crypto.exchange("sess-1", _client_pub_b64())
@@ -127,7 +127,7 @@ class TestEncryptDecrypt:
         """Create a server and client, perform key exchange."""
         import nacl.public
 
-        from crypto.e2e import E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto
 
         server = E2ECrypto()
 
@@ -135,7 +135,7 @@ class TestEncryptDecrypt:
         client_private = nacl.public.PrivateKey.generate()
         client_public = client_private.public_key
 
-        from crypto.e2e import _b64url_encode
+        from corvustunnel.crypto.e2e import _b64url_encode
         client_pub_b64 = _b64url_encode(
             client_public.encode(encoder=nacl.encoding.RawEncoder)
         )
@@ -198,7 +198,7 @@ class TestKeyExchange:
         """After exchange, the session should exist."""
         import nacl.public
 
-        from crypto.e2e import E2ECrypto, _b64url_encode
+        from corvustunnel.crypto.e2e import E2ECrypto, _b64url_encode
 
         server = E2ECrypto()
         client_key = nacl.public.PrivateKey.generate().public_key
@@ -210,7 +210,7 @@ class TestKeyExchange:
         result = server.exchange(session_id, client_b64)
 
         # exchange returns the session's ephemeral server public key (32 bytes)
-        from crypto.e2e import _b64url_decode
+        from corvustunnel.crypto.e2e import _b64url_decode
         assert len(_b64url_decode(result)) == 32
         assert server.has_session(session_id) is True
 
@@ -218,7 +218,7 @@ class TestKeyExchange:
         """remove_session should delete encryption state."""
         import nacl.public
 
-        from crypto.e2e import E2ECrypto, _b64url_encode
+        from corvustunnel.crypto.e2e import E2ECrypto, _b64url_encode
 
         server = E2ECrypto()
         client_key = nacl.public.PrivateKey.generate().public_key
@@ -235,7 +235,7 @@ class TestKeyExchange:
 
     def test_exchange_invalid_key_raises(self, env_token):
         """Invalid client public key should raise ValueError."""
-        from crypto.e2e import E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto
 
         server = E2ECrypto()
         with pytest.raises(ValueError, match="Invalid client public key"):
@@ -255,7 +255,7 @@ class TestClientServerInterop:
     def _handshake(self):
         import nacl.public
 
-        from crypto.e2e import E2ECrypto, _b64url_decode, _b64url_encode
+        from corvustunnel.crypto.e2e import E2ECrypto, _b64url_decode, _b64url_encode
 
         server = E2ECrypto()
         client_priv = nacl.public.PrivateKey.generate()
@@ -271,7 +271,7 @@ class TestClientServerInterop:
 
     def test_server_to_client(self, env_token):
         """Client decrypts what the server encrypted."""
-        from crypto.e2e import _b64url_decode
+        from corvustunnel.crypto.e2e import _b64url_decode
 
         server, sid, client_box = self._handshake()
         ct = server.encrypt(sid, "output from PTY █ 日本語")
@@ -280,7 +280,7 @@ class TestClientServerInterop:
 
     def test_client_to_server(self, env_token):
         """Server decrypts what the client encrypted."""
-        from crypto.e2e import _b64url_encode
+        from corvustunnel.crypto.e2e import _b64url_encode
 
         server, sid, client_box = self._handshake()
         encrypted = client_box.encrypt(b"ls -la\r")  # nonce||ct
@@ -293,18 +293,18 @@ class TestCryptoFallback:
 
     def test_unavailable_when_nacl_missing(self, env_token):
         """When _nacl_available is False, E2ECrypto.available should be False."""
-        from crypto.e2e import E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto
 
-        with patch("crypto.e2e._nacl_available", False):
+        with patch("corvustunnel.crypto.e2e._nacl_available", False):
             crypto = E2ECrypto()
             assert crypto.available is False
             assert crypto.server_public_key_b64 == ""
 
     def test_exchange_raises_without_nacl(self, env_token):
         """exchange() should raise ValueError when PyNaCl is unavailable."""
-        from crypto.e2e import E2ECrypto
+        from corvustunnel.crypto.e2e import E2ECrypto
 
-        with patch("crypto.e2e._nacl_available", False):
+        with patch("corvustunnel.crypto.e2e._nacl_available", False):
             crypto = E2ECrypto()
             with pytest.raises(ValueError, match="not available"):
                 crypto.exchange("session", "some-key")

@@ -10,8 +10,8 @@ import logging
 
 from fastapi import FastAPI
 
-from _version import __version__
-from routers.internal import router as internal_router
+from corvustunnel.version import __version__
+from corvustunnel.routers.internal import router as internal_router
 
 logger = logging.getLogger(__name__)
 

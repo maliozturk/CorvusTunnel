@@ -66,38 +66,17 @@ Issues = "https://github.com/maliozturk/CorvusTunnel/issues"
 Changelog = "https://github.com/maliozturk/CorvusTunnel/blob/main/CHANGELOG.md"
 
 [project.scripts]
-corvustunnel = "cli:main"
+corvustunnel = "corvustunnel.cli:main"
 
-[tool.setuptools]
-packages = [
-    "auth",
-    "audit",
-    "config",
-    "executor",
-    "history",
-    "middleware",
-    "routers",
-    "crypto",
-    "static",
-    "static.assets",
-    "static.icons",
-]
-py-modules = [
-    "cli",
-    "main",
-    "boot",
-    "public_app",
-    "internal_app",
-    "_version",
-]
+[tool.setuptools.packages.find]
+include = ["corvustunnel*"]
 
 [tool.setuptools.dynamic]
-version = {attr = "_version.__version__"}
+version = {attr = "corvustunnel.__version__"}
 
 [tool.setuptools.package-data]
-"*" = [
-    "*.key", "*.html", "*.css", "*.js", "*.svg", "*.png", "*.ico", "*.json",
-    "**/*.key", "**/*.html", "**/*.css", "**/*.js", "**/*.svg", "**/*.png", "**/*.ico", "**/*.json"
+"corvustunnel" = [
+    "static/*", "static/**/*",
 ]
 
 [tool.pytest.ini_options]

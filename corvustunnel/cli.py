@@ -29,7 +29,7 @@ import subprocess
 import sys
 import time
 
-from _version import __version__
+from corvustunnel.version import __version__
 
 
 def _setup_logging(verbose: bool = False) -> None:
@@ -164,7 +164,7 @@ def _print_startup_info(
     claim_timeout: int = 60,
 ) -> None:
     """Print startup info with QR code."""
-    from boot import print_qr
+    from corvustunnel.boot import print_qr
 
     # Determine the URL for the QR code
     if relay_data:
@@ -179,7 +179,7 @@ def _print_startup_info(
     # Build E2E fragment
     e2e_key = ""
     try:
-        from crypto.e2e import get_e2e_crypto
+        from corvustunnel.crypto.e2e import get_e2e_crypto
         crypto = get_e2e_crypto()
         if crypto.available:
             e2e_key = crypto.server_public_key_b64
@@ -495,7 +495,7 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
         """Re-register with the relay for a new session."""
         e2e_key = ""
         try:
-            from crypto.e2e import get_e2e_crypto
+            from corvustunnel.crypto.e2e import get_e2e_crypto
             crypto = get_e2e_crypto()
             if crypto.available:
                 e2e_key = crypto.server_public_key_b64
@@ -563,14 +563,14 @@ async def _run_server(
     logger = logging.getLogger("corvustunnel")
 
     public_config = uvicorn.Config(
-        "public_app:app",
+        "corvustunnel.apps.public:app",
         host=bind_host,
         port=public_port,
         log_level="info",
         access_log=True,
     )
     internal_config = uvicorn.Config(
-        "internal_app:app",
+        "corvustunnel.apps.internal:app",
         host="127.0.0.1",
         port=internal_port,
         log_level="info",
@@ -593,7 +593,7 @@ async def _run_server(
 
     async def _claim_watchdog() -> None:
         """Shut the server down if the boot token isn't claimed in time."""
-        from auth.bearer import get_token_manager
+        from corvustunnel.auth.bearer import get_token_manager
 
         manager = get_token_manager()
         waited = 0.0
@@ -667,7 +667,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     # Get E2E key for relay registration
     e2e_key = ""
     try:
-        from crypto.e2e import get_e2e_crypto
+        from corvustunnel.crypto.e2e import get_e2e_crypto
         crypto = get_e2e_crypto()
         if crypto.available:
             e2e_key = crypto.server_public_key_b64
@@ -719,7 +719,7 @@ def cmd_start(args: argparse.Namespace) -> None:
     if relay_data:
         # E2E is active whenever PyNaCl is installed; the client performs a
         # live key exchange so the relay only ever forwards ciphertext.
-        from crypto.e2e import get_e2e_crypto
+        from corvustunnel.crypto.e2e import get_e2e_crypto
         secure = get_e2e_crypto().available
         logger.info(
             "Relay mode: traffic routes through %s (%s)",

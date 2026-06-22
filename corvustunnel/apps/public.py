@@ -24,8 +24,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from _version import __version__
-from routers.public import router as public_router
+from corvustunnel.version import __version__
+from corvustunnel.routers.public import router as public_router
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ app = FastAPI(
 
 
 # ── 1. Security Headers ─────────────────────────────────────────────
-from middleware.security_headers import add_security_headers
+from corvustunnel.middleware.security_headers import add_security_headers
 add_security_headers(app)
 
 
@@ -54,12 +54,12 @@ app.add_middleware(
 
 
 # ── 3. Rate Limiting ────────────────────────────────────────────────
-from middleware.rate_limit import setup_rate_limiting
+from corvustunnel.middleware.rate_limit import setup_rate_limiting
 setup_rate_limiting(app)
 
 
 # ── 4. IP Ban Middleware ─────────────────────────────────────────────
-from middleware.ip_ban import add_ip_ban_middleware
+from corvustunnel.middleware.ip_ban import add_ip_ban_middleware
 add_ip_ban_middleware(app)
 
 
@@ -92,7 +92,7 @@ async def body_size_limiter(request: Request, call_next):
 app.include_router(public_router)
 
 # ── Serve Chat UI ────────────────────────────────────────────────────
-STATIC_DIR = Path(__file__).parent / "static"
+STATIC_DIR = Path(__file__).parent.parent / "static"
 
 
 @app.get("/", include_in_schema=False)
@@ -108,7 +108,7 @@ async def serve_ui():
 @app.get("/health", include_in_schema=False)
 async def root_health(request: Request):
     """Root-level health check (redirects to API health)."""
-    from routers.public import health
+    from corvustunnel.routers.public import health
     return await health(request)
 
 

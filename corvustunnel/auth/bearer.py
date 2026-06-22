@@ -21,7 +21,7 @@ import secrets
 import threading
 import time
 
-from config.settings import get_settings
+from corvustunnel.config.settings import get_settings
 
 logger = logging.getLogger("corvustunnel.auth.bearer")
 

@@ -113,7 +113,7 @@ def get_ban_tracker() -> IPBanTracker:
 def get_client_ip(request: Request) -> str:
     """Extract the real client IP, trusting X-Forwarded-For only from a
     trusted proxy (see :mod:`middleware.client_ip`)."""
-    from middleware.client_ip import get_trusted_client_ip
+    from corvustunnel.middleware.client_ip import get_trusted_client_ip
 
     return get_trusted_client_ip(request)
 

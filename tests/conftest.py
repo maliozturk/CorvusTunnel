@@ -42,19 +42,19 @@ def _reset_singletons():
 
     # Clear lru_cache on get_settings, get_audit_logger, get_deep_logger
     try:
-        from config.settings import get_settings
+        from corvustunnel.config.settings import get_settings
         get_settings.cache_clear()
     except Exception:
         pass
 
     try:
-        from audit.logger import get_audit_logger
+        from corvustunnel.audit.logger import get_audit_logger
         get_audit_logger.cache_clear()
     except Exception:
         pass
 
     try:
-        from audit.deep_logger import get_deep_logger, DeepLogger
+        from corvustunnel.audit.deep_logger import get_deep_logger, DeepLogger
         get_deep_logger.cache_clear()
         DeepLogger._BOOT_LOGGED = False
     except Exception:
@@ -62,21 +62,21 @@ def _reset_singletons():
 
     # Reset bearer TokenManager singleton
     try:
-        import auth.bearer as _bearer
+        import corvustunnel.auth.bearer as _bearer
         _bearer._manager = None
     except Exception:
         pass
 
     # Reset E2ECrypto singleton
     try:
-        import crypto.e2e as _e2e
+        import corvustunnel.crypto.e2e as _e2e
         _e2e._e2e_crypto = None
     except Exception:
         pass
 
     # Reset IPBanTracker singleton
     try:
-        from middleware.ip_ban import IPBanTracker
+        from corvustunnel.middleware.ip_ban import IPBanTracker
         IPBanTracker._instance = None
     except Exception:
         pass
@@ -129,7 +129,7 @@ def env_full(monkeypatch, tmp_path):
 @pytest.fixture
 def settings(env_full):
     """Return a fresh Settings instance with test env vars."""
-    from config.settings import get_settings
+    from corvustunnel.config.settings import get_settings
     return get_settings()
 
 
@@ -139,7 +139,7 @@ def settings(env_full):
 async def public_client(env_full):
     """Async httpx client for the public FastAPI app (port 8000)."""
     # Import app after env is configured so Settings loads correctly
-    from public_app import app
+    from corvustunnel.apps.public import app
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
@@ -151,7 +151,7 @@ async def public_client(env_full):
 @pytest_asyncio.fixture
 async def internal_client(env_full):
     """Async httpx client for the internal FastAPI app (port 8001)."""
-    from internal_app import app
+    from corvustunnel.apps.internal import app
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
@@ -166,7 +166,7 @@ async def authed_public_client(env_full):
 
     The boot token (unclaimed) can be used for API calls before claiming.
     """
-    from public_app import app
+    from corvustunnel.apps.public import app
 
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),

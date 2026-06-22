@@ -12,7 +12,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from history.parsers import (
+from corvustunnel.history.parsers import (
     AntigravityParser,
     ChatMessage,
     ChatSession,
@@ -217,7 +217,7 @@ def get_history_service() -> HistoryService:
     if _service_instance is None:
         # Try to load custom dirs from settings
         try:
-            from config.settings import get_settings
+            from corvustunnel.config.settings import get_settings
             settings = get_settings()
             custom_dirs = getattr(settings, "chat_history_dirs", "") or ""
         except Exception:

@@ -14,8 +14,8 @@ import logging
 
 from fastapi import APIRouter, Depends
 
-from auth.dependencies import require_local_only
-from audit.logger import get_audit_logger
+from corvustunnel.auth.dependencies import require_local_only
+from corvustunnel.audit.logger import get_audit_logger
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ async def view_deep_log(limit: int = 100, date: str | None = None):
     Only accessible from localhost.  Shows terminal I/O, browse
     activity, auth events, and security blocks.
     """
-    from audit.deep_logger import get_deep_logger
+    from corvustunnel.audit.deep_logger import get_deep_logger
     dl = get_deep_logger()
     entries = dl.read_recent(limit=limit, date=date)
     dates = dl.list_dates()
@@ -59,6 +59,6 @@ async def view_deep_log(limit: int = 100, date: str | None = None):
 )
 async def terminal_status():
     """View the current terminal session status."""
-    from executor.term_session import get_terminal_session
+    from corvustunnel.executor.term_session import get_terminal_session
     session = get_terminal_session()
     return session.status()
