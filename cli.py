@@ -161,6 +161,7 @@ def _print_startup_info(
     public_port: int,
     relay_data: dict | None = None,
     host_url: str | None = None,
+    claim_timeout: int = 60,
 ) -> None:
     """Print startup info with QR code."""
     from boot import print_qr
@@ -213,8 +214,11 @@ def _print_startup_info(
     print_qr(qr_data, "Connect")
 
     print("-" * (W + 2))
+    if claim_timeout and claim_timeout > 0:
+        print(f"  Connect within {int(claim_timeout)}s or this code expires")
+        print("  (server stops; run 'corvustunnel start' for a new one)")
     if relay_data:
-        print("  Session auto-renews — stays open until you stop")
+        print("  Once connected, the session stays open until you stop it")
         print("  Press Ctrl+C to stop the server")
     else:
         print("  Token is one-time-use (consumed on first login)")
@@ -546,8 +550,14 @@ async def _run_server(
     internal_port: int,
     relay_data: dict | None = None,
     bind_host: str = "127.0.0.1",
+    claim_timeout: float = 60.0,
 ) -> None:
-    """Run both public and internal servers concurrently, plus relay bridge."""
+    """Run both public and internal servers concurrently, plus relay bridge.
+
+    If ``claim_timeout`` is positive and no client claims the boot token within
+    that many seconds, the server shuts down so a stale QR/link cannot linger.
+    The user simply runs ``corvustunnel start`` again for a fresh code.
+    """
     import uvicorn
 
     logger = logging.getLogger("corvustunnel")
@@ -572,20 +582,58 @@ async def _run_server(
 
     logger.info("Starting dual servers...")
 
-    tasks = [
-        public_server.serve(),
-        internal_server.serve(),
+    server_tasks = [
+        asyncio.create_task(public_server.serve()),
+        asyncio.create_task(internal_server.serve()),
     ]
+    bridge_task = (
+        asyncio.create_task(_relay_bridge(relay_data, public_port))
+        if relay_data else None
+    )
 
-    # Add relay bridge if in relay mode
-    if relay_data:
-        tasks.append(_relay_bridge(relay_data, public_port))
+    async def _claim_watchdog() -> None:
+        """Shut the server down if the boot token isn't claimed in time."""
+        from auth.bearer import get_token_manager
 
+        manager = get_token_manager()
+        waited = 0.0
+        step = 0.5
+        while waited < claim_timeout:
+            if manager.is_claimed:
+                return  # someone connected — disarm and run normally
+            await asyncio.sleep(step)
+            waited += step
+
+        if not manager.is_claimed:
+            logger.warning(
+                "No device connected within %ds — shutting down. "
+                "Run 'corvustunnel start' again for a fresh QR code.",
+                int(claim_timeout),
+            )
+            print(
+                f"\n  Link expired (no connection within {int(claim_timeout)}s)."
+                "\n  Run 'corvustunnel start' again to get a new QR code.\n"
+            )
+            public_server.should_exit = True
+            internal_server.should_exit = True
+            if bridge_task:
+                bridge_task.cancel()
+
+    watchdog = (
+        asyncio.create_task(_claim_watchdog()) if claim_timeout and claim_timeout > 0
+        else None
+    )
+
+    all_tasks = server_tasks + ([bridge_task] if bridge_task else [])
     try:
-        await asyncio.gather(*tasks)
+        await asyncio.gather(*all_tasks)
+    except asyncio.CancelledError:
+        pass  # watchdog cancelled the relay bridge during shutdown
     except (KeyboardInterrupt, SystemExit):
         logger.info("Shutdown signal received")
     finally:
+        if watchdog:
+            watchdog.cancel()
         logger.info("CorvusTunnel stopped")
 
 
@@ -681,11 +729,14 @@ def cmd_start(args: argparse.Namespace) -> None:
         )
 
     # Print startup info
-    _print_startup_info(token, public_port, relay_data, host_url)
+    claim_timeout = getattr(args, "claim_timeout", 60)
+    _print_startup_info(token, public_port, relay_data, host_url, claim_timeout)
 
-    # Run the server
+    # Run the server (claim_timeout resolved above for the banner)
     try:
-        asyncio.run(_run_server(public_port, internal_port, relay_data, bind_host))
+        asyncio.run(
+            _run_server(public_port, internal_port, relay_data, bind_host, claim_timeout)
+        )
     except KeyboardInterrupt:
         print("\nCorvusTunnel stopped.")
 
@@ -744,6 +795,13 @@ def main() -> None:
              "the LAN — only behind a trusted network.",
     )
     start_parser.add_argument(
+        "--claim-timeout",
+        type=int, default=60,
+        help="Seconds to wait for a device to connect before shutting down. "
+             "The QR/link is one-time; if unused within this window the server "
+             "exits and you run 'corvustunnel start' again. 0 disables.",
+    )
+    start_parser.add_argument(
         "--no-relay",
         action="store_true",
         help="Don't use roost.corvustunnel.com relay (try cloudflared instead)",
@@ -774,6 +832,7 @@ def main() -> None:
         args.workspace = None  # will use home + cwd default
         args.host = None
         args.bind = None
+        args.claim_timeout = 60
         args.no_relay = False
         args.no_tunnel = False
         args.verbose = False

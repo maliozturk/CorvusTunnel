@@ -17,6 +17,11 @@ All notable changes to CorvusTunnel will be documented in this file.
 - The public port now binds to `127.0.0.1` by default (relay/tunnel modes); use
   `--bind` to expose it. LAN mode (`--no-relay --no-tunnel`) still binds `0.0.0.0`.
 
+### Added
+- Connect-window timeout: if no device claims the boot token within 60s the
+  server shuts down so a stale QR/link can't linger — run `corvustunnel start`
+  again for a fresh code. Configurable via `--claim-timeout` (0 disables).
+
 ### Changed
 - Single source of truth for the version (`_version.py`); CLI, HTTP banner, package
   metadata, and `/health` no longer drift.
