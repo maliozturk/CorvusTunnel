@@ -67,7 +67,7 @@ class TestPrintQR:
             try:
                 import importlib
 
-                import boot
+                import corvustunnel.boot as boot
 
                 importlib.reload(boot)
                 boot.print_qr("https://example.com", "Fallback Test")
