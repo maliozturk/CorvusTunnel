@@ -59,23 +59,9 @@ def _reset_singletons():
         pass
 
     try:
-        import corvustunnel.crypto.e2e as _e2e
-
-        _e2e._e2e_crypto = None
-    except Exception:
-        pass
-
-    try:
         import corvustunnel.crypto.channel as _channel
 
         _channel._identity = None
-    except Exception:
-        pass
-
-    try:
-        from corvustunnel.middleware.ip_ban import IPBanTracker
-
-        IPBanTracker._instance = None
     except Exception:
         pass
 
@@ -144,17 +130,5 @@ async def internal_client(env_full):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
-    ) as client:
-        yield client
-
-
-@pytest_asyncio.fixture
-async def authed_public_client(env_full):
-    from corvustunnel.apps.public import app
-
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=app),
-        base_url="http://testserver",
-        headers={"Authorization": f"Bearer {TEST_TOKEN}"},
     ) as client:
         yield client

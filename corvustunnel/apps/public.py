@@ -19,7 +19,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from corvustunnel.middleware.ip_ban import add_ip_ban_middleware
 from corvustunnel.middleware.rate_limit import setup_rate_limiting
 from corvustunnel.middleware.security_headers import add_security_headers
 from corvustunnel.routers.channel import router as channel_router
@@ -48,23 +47,14 @@ app.add_middleware(
 
 setup_rate_limiting(app)
 
-add_ip_ban_middleware(app)
-
-MAX_BODY_SIZES = {
-    "/api/claim": 1024,
-    "/api/browse/mkdir": 1024,
-    "/api/ws-ticket": 512,
-}
-DEFAULT_MAX_BODY = 4096
+MAX_BODY_BYTES = 4096
 
 
 @app.middleware("http")
 async def body_size_limiter(request: Request, call_next):
     content_length = request.headers.get("content-length")
     if content_length:
-        size = int(content_length)
-        max_size = MAX_BODY_SIZES.get(request.url.path, DEFAULT_MAX_BODY)
-        if size > max_size:
+        if int(content_length) > MAX_BODY_BYTES:
             return Response(
                 content='{"detail":"Payload too large"}',
                 status_code=413,

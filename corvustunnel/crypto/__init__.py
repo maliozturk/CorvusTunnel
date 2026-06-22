@@ -8,6 +8,6 @@
 # Description: End-to-end encryption package.
 # \*---------------------------------------------------------------------*/
 
-from corvustunnel.crypto.e2e import E2ECrypto, get_e2e_crypto
+from corvustunnel.crypto.channel import ServerIdentity, get_server_identity
 
-__all__ = ["E2ECrypto", "get_e2e_crypto"]
+__all__ = ["ServerIdentity", "get_server_identity"]
