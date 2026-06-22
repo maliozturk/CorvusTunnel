@@ -66,6 +66,13 @@ def _reset_singletons():
         pass
 
     try:
+        import corvustunnel.crypto.channel as _channel
+
+        _channel._identity = None
+    except Exception:
+        pass
+
+    try:
         from corvustunnel.middleware.ip_ban import IPBanTracker
 
         IPBanTracker._instance = None

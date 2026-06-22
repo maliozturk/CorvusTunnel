@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 from corvustunnel.middleware.ip_ban import add_ip_ban_middleware
 from corvustunnel.middleware.rate_limit import setup_rate_limiting
 from corvustunnel.middleware.security_headers import add_security_headers
+from corvustunnel.routers.channel import router as channel_router
 from corvustunnel.routers.public import router as public_router
 from corvustunnel.version import __version__
 
@@ -73,6 +74,7 @@ async def body_size_limiter(request: Request, call_next):
 
 
 app.include_router(public_router)
+app.include_router(channel_router)
 
 STATIC_DIR = Path(__file__).parent.parent / "static"
 

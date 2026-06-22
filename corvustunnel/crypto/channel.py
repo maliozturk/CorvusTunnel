@@ -15,6 +15,7 @@
 import base64
 import hashlib
 import os
+import threading
 
 import nacl.bindings
 import nacl.exceptions
@@ -129,3 +130,16 @@ def client_handshake(server_identity_pub, client_eph_priv, client_nonce, server_
 def new_client_ephemeral():
     public, private = nacl.bindings.crypto_box_keypair()
     return public, private
+
+
+_identity = None
+_identity_lock = threading.Lock()
+
+
+def get_server_identity():
+    global _identity
+    if _identity is None:
+        with _identity_lock:
+            if _identity is None:
+                _identity = ServerIdentity()
+    return _identity
