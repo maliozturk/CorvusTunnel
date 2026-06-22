@@ -56,9 +56,10 @@ export const STATE = $state({
   term: null,
   fitAddon: null,
   channel: null,
-  identityPub: '',
-  relayWs: '',
+  identityPub: localStorage.getItem('corvus_idpub') || '',
+  relayWs: localStorage.getItem('corvus_relay') || '',
   sessionToken: localStorage.getItem('corvus_session') || '',
+  reconnecting: false,
   reconnectAttempt: 0,
   maxReconnect: 10,
   ctrlActive: false,
@@ -218,8 +219,13 @@ function showAuthErr(msg) {
 export function handleLogout() {
   STATE.token = '';
   STATE.sessionToken = '';
+  STATE.identityPub = '';
+  STATE.relayWs = '';
+  STATE.reconnecting = false;
   localStorage.removeItem('corvus_token');
   localStorage.removeItem('corvus_session');
+  localStorage.removeItem('corvus_idpub');
+  localStorage.removeItem('corvus_relay');
   if (STATE.healthTimer) {
     clearInterval(STATE.healthTimer);
     STATE.healthTimer = null;
@@ -239,8 +245,10 @@ export async function bootFromFragment() {
   const t = params.get('t');
   const k = params.get('k');
   const w = params.get('w');
-  if (k) STATE.identityPub = k;
-  if (w) STATE.relayWs = decodeURIComponent(w);
+  // Persist the reconnect material so this device can rejoin the same session
+  // until the server is stopped, even after the browser is closed and reopened.
+  if (k) { STATE.identityPub = k; localStorage.setItem('corvus_idpub', k); }
+  if (w) { STATE.relayWs = decodeURIComponent(w); localStorage.setItem('corvus_relay', STATE.relayWs); }
   if (t || k || w) {
     window.history.replaceState(null, '', window.location.pathname);
   }
@@ -254,6 +262,8 @@ export async function bootFromFragment() {
     await claimAndBoot(t);
   } else if (STATE.sessionToken) {
     await resumeAndBoot();
+  } else {
+    showAuthErr('Open the link from the QR code shown by "corvustunnel start".');
   }
 }
 
@@ -264,8 +274,8 @@ async function connectChannel() {
   ch.onEvent = handleTerminalEvent;
   ch.onClose = () => {
     STATE.connected = false;
-    if (STATE.wsStatus !== 'exited') STATE.wsStatus = 'disconnected';
-    if (STATE.phase === 'terminal') attemptReconnect();
+    if (STATE.wsStatus === 'connected') STATE.wsStatus = 'disconnected';
+    if (STATE.token) scheduleReconnect();
   };
   try {
     await ch.connect(wsUrl, STATE.identityPub);
@@ -277,6 +287,63 @@ async function connectChannel() {
     showAuthErr('Secure connection failed: ' + e.message);
     return false;
   }
+}
+
+// Re-establish the channel for the same session (after a drop or a reopen) and
+// resume; restart the terminal if the user was in it. Retries with backoff and
+// surfaces status through STATE.reconnecting / STATE.connected.
+async function reconnect() {
+  if (!STATE.identityPub || !STATE.sessionToken) return false;
+  const ok = await connectChannel();
+  if (!ok) return false;
+  try {
+    await STATE.channel.request('resume', { session_token: STATE.sessionToken });
+  } catch (e) {
+    showAuthErr('Session ended. Scan a new QR code from "corvustunnel start".');
+    handleLogout();
+    return false;
+  }
+  STATE.token = STATE.sessionToken;
+  STATE.connected = true;
+  if (STATE.phase === 'terminal') {
+    try {
+      await STATE.channel.request('term_start', {
+        work_dir: STATE.currentFolder,
+        agent: STATE.selectedAgent,
+      });
+      STATE.wsStatus = 'connected';
+    } catch (e) { /* surfaced via status */ }
+  }
+  return true;
+}
+
+let reconnectTimer = null;
+
+export function scheduleReconnect() {
+  if (STATE.reconnecting || !STATE.token) return;
+  STATE.reconnecting = true;
+  STATE.reconnectAttempt = 0;
+
+  const tryOnce = async () => {
+    STATE.reconnectAttempt += 1;
+    if (await reconnect()) {
+      STATE.reconnecting = false;
+      STATE.reconnectAttempt = 0;
+      return;
+    }
+    if (!STATE.token || STATE.reconnectAttempt >= STATE.maxReconnect) {
+      STATE.reconnecting = false;
+      return;
+    }
+    reconnectTimer = setTimeout(tryOnce, Math.min(1000 * STATE.reconnectAttempt, 5000));
+  };
+  tryOnce();
+}
+
+export function manualReconnect() {
+  clearTimeout(reconnectTimer);
+  STATE.reconnecting = false;
+  scheduleReconnect();
 }
 
 export async function claimAndBoot(token) {
@@ -412,7 +479,6 @@ export function removeFavorite(cmd) {
 }
 
 // ── Terminal connection (multiplexed over the encrypted channel) ──
-let reconnectTimer = null;
 
 export function disconnectTerminal(userExited = false) {
   clearTimeout(reconnectTimer);
@@ -462,26 +528,8 @@ export async function connectTerminal() {
     if (STATE.term) {
       STATE.term.writeln(`\r\n\x1b[31mConnection failed: ${err.message}\x1b[0m\r\n`);
     }
-    if (STATE.phase === 'terminal') attemptReconnect();
+    scheduleReconnect();
   }
-}
-
-function attemptReconnect() {
-  if (STATE.reconnectAttempt >= STATE.maxReconnect) {
-    if (STATE.term) {
-      STATE.term.writeln('\r\n\x1b[31mConnection lost. Max reconnect attempts reached.\x1b[0m\r\n');
-    }
-    return;
-  }
-
-  STATE.reconnectAttempt++;
-  if (STATE.term) {
-    STATE.term.writeln(`\r\n\x1b[33mReconnecting (attempt ${STATE.reconnectAttempt}/${STATE.maxReconnect})...\x1b[0m\r\n`);
-  }
-
-  reconnectTimer = setTimeout(() => {
-    connectTerminal();
-  }, Math.min(1000 * STATE.reconnectAttempt, 5000));
 }
 
 export function sendResize() {
@@ -492,12 +540,6 @@ export function sendResize() {
   } catch(e) {
     console.warn('Failed to resize terminal', e);
   }
-}
-
-// ── Manual Reconnect (for status bar tap) ─────────────────────────
-export function manualReconnect() {
-  STATE.reconnectAttempt = 0;
-  connectTerminal();
 }
 
 // URL detection toast (catches long wrapped URLs in terminal output)

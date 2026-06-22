@@ -1,34 +1,37 @@
 <script>
   import { STATE, manualReconnect } from './state.svelte.js';
-  import { Wifi, WifiOff, Loader } from 'lucide-svelte';
+  import { WifiOff, Loader } from 'lucide-svelte';
+
+  let status = $derived(
+    STATE.wsStatus === 'exited' ? 'exited'
+    : STATE.reconnecting || STATE.wsStatus === 'connecting' ? 'reconnecting'
+    : STATE.connected ? 'connected'
+    : 'disconnected'
+  );
 </script>
 
-{#if STATE.wsStatus !== 'connected'}
-  <div
-    class="status-bar"
-    class:connecting={STATE.wsStatus === 'connecting'}
-    class:disconnected={STATE.wsStatus === 'disconnected' || STATE.wsStatus === 'exited'}
-    role="status"
-    aria-live="polite"
-  >
-    {#if STATE.wsStatus === 'connecting'}
-      <Loader size={12} class="spin-anim" />
-      <span>RECONNECTING{STATE.reconnectAttempt > 0 ? ` (${STATE.reconnectAttempt}/${STATE.maxReconnect})` : ''}...</span>
-    {:else if STATE.wsStatus === 'exited'}
-      <WifiOff size={12} />
-      <span>SESSION ENDED</span>
-    {:else}
-      <WifiOff size={12} />
-      <span>DISCONNECTED</span>
-      <button class="reconnect-btn" onclick={manualReconnect}>
-        TAP TO RECONNECT
-      </button>
-    {/if}
-  </div>
-{:else}
-  <div class="status-bar online" role="status" aria-live="polite">
+{#if status === 'connected'}
+  <div class="status-bar online" role="status" aria-live="polite"
+       title="This device stays connected while corvustunnel is running. If it drops, it reconnects automatically — or reopen this page.">
     <span class="status-dot"></span>
     <span>CONNECTED</span>
+  </div>
+{:else if status === 'reconnecting'}
+  <div class="status-bar connecting" role="status" aria-live="polite">
+    <Loader size={12} class="spin-anim" />
+    <span>RECONNECTING{STATE.reconnectAttempt > 0 ? ` (${STATE.reconnectAttempt}/${STATE.maxReconnect})` : ''}...</span>
+  </div>
+{:else if status === 'exited'}
+  <div class="status-bar disconnected" role="status" aria-live="polite">
+    <WifiOff size={12} />
+    <span>SESSION ENDED</span>
+    <button class="reconnect-btn" onclick={manualReconnect}>RECONNECT</button>
+  </div>
+{:else}
+  <div class="status-bar disconnected" role="status" aria-live="polite">
+    <WifiOff size={12} />
+    <span>DISCONNECTED</span>
+    <button class="reconnect-btn" onclick={manualReconnect}>RECONNECT</button>
   </div>
 {/if}
 

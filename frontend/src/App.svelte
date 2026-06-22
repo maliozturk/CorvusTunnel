@@ -11,6 +11,7 @@
   import ExitConfirmDialog from './lib/ExitConfirmDialog.svelte';
   import CorvusIcon from './lib/CorvusIcon.svelte';
   import ThemeToggle from './lib/ThemeToggle.svelte';
+  import ConnectionStatusBar from './lib/ConnectionStatusBar.svelte';
   import { Bell, X } from 'lucide-svelte';
 
   onMount(async () => {
@@ -107,6 +108,7 @@
           <ThemeToggle />
         </div>
       </div>
+      <ConnectionStatusBar />
       <LauncherScreen />
     {:else}
       <TerminalScreen />
