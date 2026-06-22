@@ -212,8 +212,11 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
     local_url = f"ws://127.0.0.1:{public_port}/api/channel"
 
     async def _pump(src, dst):
-        async for message in src:
-            await dst.send(message)
+        try:
+            async for message in src:
+                await dst.send(message)
+        except websockets.exceptions.ConnectionClosed:
+            pass
 
     async def bridge():
         async with websockets.connect(
@@ -225,9 +228,11 @@ async def _relay_bridge(relay_data: dict, public_port: int) -> None:
                     asyncio.create_task(_pump(relay_ws, local_ws)),
                     asyncio.create_task(_pump(local_ws, relay_ws)),
                 ]
-                _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-                for task in pending:
+                await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for task in tasks:
                     task.cancel()
+                # Retrieve every task result so no exception is left unhandled.
+                await asyncio.gather(*tasks, return_exceptions=True)
 
     attempt = 0
     while True:
