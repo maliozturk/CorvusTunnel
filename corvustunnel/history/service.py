@@ -1,16 +1,15 @@
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        corvustunnel/history/service.py
 # Description: Discovers and serves agent chat sessions across
 #              Antigravity, Claude, and Codex.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
+
 
 import logging
 import time

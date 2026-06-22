@@ -1,16 +1,15 @@
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        tests/conftest.py
 # Description: Shared pytest fixtures, environment setup, and singleton
 #              resets.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
+
 
 import sys
 from pathlib import Path

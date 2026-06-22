@@ -1,194 +1,143 @@
 # Contributing to CorvusTunnel
 
-Thank you for your interest in contributing to CorvusTunnel! 🪶
+Thanks for your interest in CorvusTunnel. It is a free, open-source, non-profit
+project, and contributions of every kind are welcome: bug fixes, features,
+documentation, tests, and ideas. This guide covers how to get set up and what we
+expect from a change.
 
-We welcome contributions of all kinds — bug fixes, features, documentation, tests, and ideas. This guide will help you get started.
+## Before you begin
 
-## 📋 Before You Begin
+### Contributor License Agreement
 
-### Contributor License Agreement (CLA)
+By opening a pull request you agree to the
+[Contributor License Agreement](https://corvustunnel.com/landing/cla.html). In short:
 
-By submitting a pull request, you agree to our [Contributor License Agreement](https://corvustunnel.com/landing/cla.html). In short:
+- You keep ownership of your contributions.
+- You grant KALAI a license to use your code under the MIT License.
+- You confirm the work is your own, or that you have permission to submit it.
 
-- You retain ownership of your contributions
-- You grant KALAI a license to use your code under the MIT License
-- You confirm the work is original (or you have permission)
-
-Your first PR constitutes acceptance of the CLA.
+Your first pull request counts as acceptance of the CLA.
 
 ### Requirements
 
-- **Python 3.10+** (we use modern type hints and syntax)
-- **Git** for version control
-- A GitHub account
+- Python 3.10 or newer
+- Git
+- Node.js (only if you are working on the web UI in `frontend/`)
 
-## 🚀 How to Contribute
-
-### 1. Fork & Clone
+## Getting set up
 
 ```bash
-# Fork the repo on GitHub, then:
-git clone https://github.com/YOUR_USERNAME/corvustunnel.git
-cd corvustunnel
-```
+git clone https://github.com/maliozturk/CorvusTunnel.git
+cd CorvusTunnel
 
-### 2. Create a Branch
-
-```bash
-git checkout -b feature/your-feature-name
-# or
-git checkout -b fix/your-bugfix-name
-```
-
-Use descriptive branch names:
-- `feature/voice-language-detection`
-- `fix/websocket-reconnect`
-- `docs/api-reference`
-
-### 3. Set Up Development Environment
-
-```bash
-# Create a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\activate   # Windows
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
-# Install in development mode
 pip install -e ".[dev]"
 ```
 
-### 4. Make Your Changes
-
-Write your code, tests, and documentation. Follow the code style guidelines below.
-
-### 5. Run Tests & Lint
+Run it locally:
 
 ```bash
-# Run tests
-pytest tests/
-
-# Run linter
-ruff check .
-
-# Auto-fix lint issues
-ruff check . --fix
-
-# Format code
-ruff format .
+AGENT_TOKEN=dev-token corvustunnel start --verbose
 ```
 
-All tests must pass and code must be lint-free before submitting.
+## Making a change
 
-### 6. Commit & Push
+1. Branch from `master` with a descriptive name, for example
+   `fix/websocket-reconnect` or `feature/custom-relay-url`.
+2. Make your change, with tests where it makes sense.
+3. Run the tests and the linter (see below). Both must be clean.
+4. Commit and open a pull request against `maliozturk/CorvusTunnel` with a clear
+   description of what changed and why.
+
+We use [Conventional Commits](https://www.conventionalcommits.org/) for commit
+messages: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`.
+
+## Tests and linting
 
 ```bash
-git add .
-git commit -m "feat: add support for custom relay URLs"
-git push origin feature/your-feature-name
+python -m pytest                 # run the suite
+python -m pytest --cov=corvustunnel
+
+ruff check .                     # lint
+ruff check . --fix               # auto-fix what it can
+ruff format .                    # format
 ```
 
-We follow [Conventional Commits](https://www.conventionalcommits.org/):
-- `feat:` — New feature
-- `fix:` — Bug fix
-- `docs:` — Documentation changes
-- `test:` — Adding or updating tests
-- `refactor:` — Code refactoring (no functional change)
-- `chore:` — Maintenance tasks
+All tests must pass and `ruff check .` must report no problems before a change is
+merged.
 
-### 7. Open a Pull Request
+## Code style
 
-1. Go to the [CorvusTunnel repository](https://github.com/corvustunnel/corvustunnel)
-2. Click "New Pull Request"
-3. Select your fork and branch
-4. Fill in the PR template with a clear description
-5. Link any related issues
+Configuration lives in [`pyproject.toml`](pyproject.toml). The essentials:
 
-## 🎨 Code Style
+- Lines are at most 100 characters.
+- Double quotes.
+- Type hints everywhere; we target Python 3.10+.
+- Imports are sorted by ruff.
 
-We use **[ruff](https://docs.astral.sh/ruff/)** for linting and formatting. Configuration is in [`pyproject.toml`](pyproject.toml).
-
-Key guidelines:
-
-- **Line length**: 120 characters max
-- **Quotes**: Double quotes
-- **Type hints**: Use them everywhere — we target Python 3.10+
-- **Docstrings**: Google style
-- **Imports**: Sorted by ruff (isort-compatible)
+CorvusTunnel keeps source files free of inline comments and docstrings. Instead,
+every file starts with a single header banner that names the file and describes
+its purpose in a line or two, and the code below is written to be readable on its
+own through clear names and small functions. When you add a file, copy the banner
+from a neighboring file and write a short, honest `Description`:
 
 ```python
-# ✅ Good
-def encrypt_message(plaintext: str, key: bytes) -> bytes:
-    """Encrypt a message using NaCl SecretBox.
+# /*--------------------------------*- py -*-----------------------------*\
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
+# *----------------------------------------------------------------------*/
+# File:        corvustunnel/example.py
+# Description: One or two lines on what this module is for.
+# \*---------------------------------------------------------------------*/
 
-    Args:
-        plaintext: The message to encrypt.
-        key: The 32-byte encryption key.
-
-    Returns:
-        The encrypted ciphertext as bytes.
-    """
-    box = SecretBox(key)
-    return box.encrypt(plaintext.encode())
+from __future__ import annotations
 ```
 
-## 🧪 Testing
+If a piece of logic feels like it needs an explanatory comment, prefer a clearer
+name or a small helper function instead.
 
-- Write tests for all new functionality
-- Place tests in the `tests/` directory, mirroring the source structure
-- Use `pytest` fixtures and parametrize for clean test code
-- Aim for meaningful coverage, not just line coverage
-
-```bash
-# Run all tests
-pytest tests/
-
-# Run with coverage
-pytest tests/ --cov=corvustunnel
-
-# Run a specific test file
-pytest tests/test_encryption.py
-
-# Run in verbose mode
-pytest tests/ -v
-```
-
-## 📁 Project Structure
+## Project layout
 
 ```
 corvustunnel/
-├── corvustunnel/          # Main package
-│   ├── server/            # FastAPI server
-│   ├── client/            # Mobile web client
-│   ├── crypto/            # Encryption (NaCl/libsodium)
-│   ├── agents/            # Agent adapters (Claude, Codex, etc.)
-│   └── utils/             # Shared utilities
-├── tests/                 # Test suite
-├── docs/                  # Documentation
-├── landing/               # Website
-├── pyproject.toml         # Project config & ruff settings
-└── LICENSE                # MIT License
+├── cli.py            command-line entry point: servers, relay, the QR code
+├── boot.py           renders the QR code in the terminal
+├── version.py        single source of the version string
+├── apps/             FastAPI apps: public (8000) and internal (8001)
+├── auth/             boot/session tokens, IP binding, WebSocket tickets
+├── crypto/           end-to-end encryption (X25519 + NaCl Box)
+├── executor/         the PTY session that runs the agent
+├── routers/          HTTP and WebSocket route handlers
+├── middleware/       client-IP trust, IP bans, rate limits, security headers
+├── audit/            audit and forensic logging
+├── config/           settings loaded from the environment
+├── history/          reads past Claude / Codex / Antigravity sessions
+└── static/           the built web UI
+frontend/             web UI source (Svelte + Vite)
+tests/                test suite
 ```
 
-## 🐛 Reporting Bugs
+The web UI is built with `npm install && npm run build` inside `frontend/`, which
+writes the bundle into `corvustunnel/static/`.
 
-1. Check [existing issues](https://github.com/corvustunnel/corvustunnel/issues) first
-2. Use the bug report template
-3. Include: Python version, OS, CorvusTunnel version, steps to reproduce
+## Reporting bugs
 
-## 🔒 Security Vulnerabilities
+Open an issue at
+[github.com/maliozturk/CorvusTunnel/issues](https://github.com/maliozturk/CorvusTunnel/issues).
+Please include your Python version, operating system, the CorvusTunnel version,
+and clear steps to reproduce.
 
-**Do NOT create public issues for security vulnerabilities.**
+## Security issues
 
-Email: **security@kalai-tech.com**
+Do not open public issues for security vulnerabilities. Email
+admin@kalai-tech.com privately instead.
 
-See [SECURITY.md](SECURITY.md) for our full security policy.
+## Links
 
-## 💬 Questions?
-
-- [GitHub Discussions](https://github.com/corvustunnel/corvustunnel/discussions)
-- [Discord](https://discord.gg/corvustunnel)
-- [Telegram](https://t.me/corvustunnel)
-
----
-
-Thank you for helping make CorvusTunnel better! 🪶
+- Website: [corvustunnel.com](https://corvustunnel.com)
+- Maintained by: [kalai-tech.com](https://kalai-tech.com)
+- Contact: admin@kalai-tech.com

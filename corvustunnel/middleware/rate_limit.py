@@ -1,15 +1,14 @@
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        corvustunnel/middleware/rate_limit.py
 # Description: Per-IP request rate limiting via slowapi.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
+
 
 from fastapi import FastAPI, Request
 from slowapi import Limiter, _rate_limit_exceeded_handler

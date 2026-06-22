@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [svelte()],
   base: '/static/', // Match the FastAPI static mounting prefix
   build: {
-    outDir: '../static',
+    outDir: '../corvustunnel/static',
     emptyOutDir: false, // Keep manifest.json, sw.js, and icons
   }
 })

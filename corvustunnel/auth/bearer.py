@@ -1,16 +1,15 @@
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        corvustunnel/auth/bearer.py
 # Description: Boot/session token management, IP binding, and one-time
 #              WebSocket tickets.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
+
 
 import hmac
 import logging

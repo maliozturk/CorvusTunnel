@@ -1,16 +1,15 @@
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        corvustunnel/apps/internal.py
 # Description: Internal FastAPI app (port 8001, localhost only): admin
 #              and status views.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
+
 
 import logging
 

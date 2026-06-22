@@ -1,16 +1,15 @@
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        corvustunnel/middleware/ip_ban.py
 # Description: In-memory IP auto-ban after repeated authentication
 #              failures.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
+
 
 import logging
 import threading
@@ -28,10 +27,10 @@ _BAN_DURATION_SECONDS: float = 15 * 60
 
 
 class IPBanTracker:
-    _instance: IPBanTracker | None = None
+    _instance: "IPBanTracker | None" = None
     _instance_lock: threading.Lock = threading.Lock()
 
-    def __new__(cls) -> IPBanTracker:
+    def __new__(cls) -> "IPBanTracker":
         if cls._instance is None:
             with cls._instance_lock:
                 if cls._instance is None:

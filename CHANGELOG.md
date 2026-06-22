@@ -2,7 +2,28 @@
 
 All notable changes to CorvusTunnel will be documented in this file.
 
-## [1.1.0] - 2026-06-22
+## [1.1.1] - 2026-06-22
+
+### Added
+- Connect-window timeout: if no device claims the boot token within 60 seconds the
+  server shuts down so a stale QR/link cannot linger. Configurable with
+  `--claim-timeout` (`0` disables).
+
+### Fixed
+- Terminal input now works in desktop browsers: clicking the terminal focuses it,
+  the terminal auto-focuses on connect, and mouse-wheel scrolling works. Mobile
+  behavior is unchanged.
+
+### Changed
+- The Python code is now a single `corvustunnel/` package (entry point
+  `corvustunnel.cli:main`; apps under `corvustunnel/apps/`; the web UI ships at
+  `corvustunnel/static/`). The redundant `main.py` launcher was removed.
+- Source files carry a single header banner and no other comments or docstrings;
+  removed dead code and brought the tree to a clean `ruff` state.
+- Rewrote the README and trimmed API endpoint listings from the docs.
+- Frontend build output now targets `corvustunnel/static/`.
+
+## [1.1.0] - 2026-06-14
 
 ### Security
 - **End-to-end encryption is now wired into the live data path.** Previously the

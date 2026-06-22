@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # /*--------------------------------*- py -*-----------------------------*\
-# | ___                 _____                  _                          |
-# || _ \___ _ ___ ___ _|_   _|  _ _ _  _ _  ___| |                         |
-# ||   / _ \ '_\ V / || || || || | ' \| ' \/ -_) |                         |
-# ||_|_\___/_|  \_/ \_,_||_| \_,_|_||_|_||_\___|_|                         |
-# |  CorvusTunnel  -  control AI agents from your phone  -  MIT            |
+# |     __                                                               |
+# |   <(o )___    CorvusTunnel                                           |
+# |    ( ._> /    control AI agents from any device                      |
+# |     `---'     self-hosted · E2E encrypted · MIT                      |
 # *----------------------------------------------------------------------*/
 # File:        corvustunnel/cli.py
 # Description: Command-line entry point: starts the public/internal
@@ -12,7 +11,6 @@
 #              relay bridge, and enforces the connect-window timeout.
 # \*---------------------------------------------------------------------*/
 
-from __future__ import annotations
 
 import argparse
 import asyncio
