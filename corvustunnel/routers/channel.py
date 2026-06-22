@@ -102,7 +102,18 @@ async def channel_ws(websocket: WebSocket):
                     continue
                 state["claimed"] = True
                 deep.log("channel_claim_success", category="auth")
-                await reply(rid, {"ok": True})
+                await reply(rid, {"session_token": session_token})
+                continue
+
+            if op == "resume":
+                if get_token_manager().verify(msg.get("session_token", "")):
+                    state["claimed"] = True
+                    await reply(rid, {"resumed": True})
+                    continue
+                state["fails"] += 1
+                await reply_err(rid, 401, "Invalid session token")
+                if state["fails"] >= _MAX_CLAIM_FAILURES:
+                    break
                 continue
 
             if not state["claimed"]:

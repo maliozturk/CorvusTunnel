@@ -57,20 +57,28 @@ def _get_local_ip() -> str:
 
 
 RELAY_API = "https://roost.corvustunnel.com"
+APP_ORIGIN = os.environ.get("CORVUS_APP_ORIGIN", "https://corvustunnel.com/app")
 
 
-def _register_relay_session(e2e_key: str = "") -> dict | None:
+def _identity_pubkey() -> str:
+    try:
+        from corvustunnel.crypto.channel import get_server_identity
+
+        return get_server_identity().public_key_b64
+    except Exception:
+        return ""
+
+
+def _register_relay_session() -> dict | None:
     import json as _json
     import urllib.request
 
     logger = logging.getLogger("corvustunnel")
     logger.info("Registering with relay at %s...", RELAY_API)
 
-    payload = _json.dumps({"server_public_key": e2e_key}).encode("utf-8")
-
     req = urllib.request.Request(
         f"{RELAY_API}/api/tunnel/create",
-        data=payload,
+        data=b"{}",
         headers={
             "Content-Type": "application/json",
             "User-Agent": f"CorvusTunnel/{__version__}",
@@ -81,7 +89,7 @@ def _register_relay_session(e2e_key: str = "") -> dict | None:
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = _json.loads(resp.read().decode("utf-8"))
-            logger.info("Relay session: %s", data.get("relay_url", ""))
+            logger.info("Relay session established")
             return data
     except Exception as e:
         logger.warning("Relay registration failed: %s", e)
@@ -142,47 +150,35 @@ def _print_startup_info(
     host_url: str | None = None,
     claim_timeout: int = 60,
 ) -> None:
+    from urllib.parse import quote
+
     from corvustunnel.boot import print_qr
 
+    idpub = _identity_pubkey()
+    fragment = f"t={token}&k={idpub}"
+
     if relay_data:
-        base_url = relay_data["relay_url"]
+        fragment += f"&w={quote(relay_data['ws_browser'], safe='')}"
+        qr_data = f"{APP_ORIGIN}/#{fragment}"
     elif host_url:
-        base_url = host_url.rstrip("/")
+        qr_data = f"{host_url.rstrip('/')}/#{fragment}"
     else:
         local_ip = _get_local_ip()
-        base_url = f"http://{local_ip}:{public_port}"
-
-    e2e_key = ""
-    try:
-        from corvustunnel.crypto.e2e import get_e2e_crypto
-
-        crypto = get_e2e_crypto()
-        if crypto.available:
-            e2e_key = crypto.server_public_key_b64
-    except Exception:
-        pass
-
-    fragment = f"token={token}"
-    if e2e_key:
-        fragment += f"&e2e={e2e_key}"
-    qr_data = f"{base_url}/#{fragment}"
+        qr_data = f"http://{local_ip}:{public_port}/#{fragment}"
 
     W = 58
     print()
     print("+" + "=" * W + "+")
     print("|" + "  CORVUSTUNNEL v" + __version__.ljust(W - 17) + "|")
-    print("|" + "  AI Agent Control from Your Phone".ljust(W) + "|")
+    print("|" + "  AI Agent Control from Any Device".ljust(W) + "|")
     print("+" + "=" * W + "+")
     print("|" + f"  Local:  http://localhost:{public_port}".ljust(W) + "|")
     if relay_data:
-        print("|" + f"  Roost:  {base_url}".ljust(W) + "|")
-        print("|" + "  Mode:   Relay (roost.corvustunnel.com)".ljust(W) + "|")
+        print("|" + "  Mode:   Relay (end-to-end encrypted)".ljust(W) + "|")
     elif host_url:
         print("|" + f"  Remote: {host_url}".ljust(W) + "|")
-    if e2e_key:
-        print("|" + "  E2E:    [LOCKED] Enabled".ljust(W) + "|")
     print("+" + "=" * W + "+")
-    print("|" + "  Scan QR to connect from your phone:".ljust(W) + "|")
+    print("|" + "  Scan QR to connect from any device:".ljust(W) + "|")
     print("+" + "=" * W + "+")
     print()
 
@@ -204,311 +200,49 @@ def _print_startup_info(
 
 
 async def _relay_bridge(relay_data: dict, public_port: int) -> None:
-    import base64 as _b64
-    import json as _json
-
     logger = logging.getLogger("corvustunnel")
 
     try:
         import websockets
     except ImportError:
-        logger.error(
-            "websockets package required for relay mode. Install with: pip install websockets"
-        )
+        logger.error("websockets package required for relay mode. pip install websockets")
         return
 
-    try:
-        import httpx
-    except ImportError:
-        logger.error("httpx package required for relay mode. Install with: pip install httpx")
-        return
+    ws_cli = relay_data["ws_cli"]
+    local_url = f"ws://127.0.0.1:{public_port}/api/channel"
 
-    current = {
-        "ws_url": relay_data["ws_url"],
-        "cli_secret": relay_data["cli_secret"],
-        "session_id": relay_data["session_id"],
-    }
-
-    def _rewrite_html(html: str) -> str:
-        prefix = f"/{current['session_id']}"
-
-        html = html.replace('href="/static/', f'href="{prefix}/static/')
-        html = html.replace('src="/static/', f'src="{prefix}/static/')
-        html = html.replace("href='/static/", f"href='{prefix}/static/")
-        html = html.replace("src='/static/", f"src='{prefix}/static/")
-
-        inject = (
-            "<script>"
-            "(function(){"
-            f"var S='{prefix}';"
-            "var of=window.fetch;"
-            "window.fetch=function(u,o){"
-            "if(typeof u==='string'&&u.startsWith('/'))u=S+u;"
-            "return of.call(this,u,o);"
-            "};"
-            "var OW=window.WebSocket;"
-            "window.WebSocket=function(u,p){"
-            "var h=location.host;"
-            "u=u.replace('://'+h+'/','://'+h+S+'/');"
-            "return new OW(u,p);"
-            "};"
-            "window.WebSocket.prototype=OW.prototype;"
-            "window.WebSocket.CONNECTING=OW.CONNECTING;"
-            "window.WebSocket.OPEN=OW.OPEN;"
-            "window.WebSocket.CLOSING=OW.CLOSING;"
-            "window.WebSocket.CLOSED=OW.CLOSED;"
-            "var fg=new URLSearchParams(location.hash.substring(1));"
-            "var bt=fg.get('token');"
-            "if(bt){history.replaceState(null,'',location.pathname);"
-            "window._corvusAutoToken=bt;}"
-            "})();"
-            "</script>"
-        )
-
-        auto_claim = (
-            "<script>"
-            "if(window._corvusAutoToken){"
-            "window.addEventListener('DOMContentLoaded',function(){"
-            "setTimeout(function(){"
-            "if(typeof claimAndBoot==='function')"
-            "claimAndBoot(window._corvusAutoToken);"
-            "},200);"
-            "});"
-            "}"
-            "</script>"
-        )
-
-        html = html.replace("<head>", "<head>" + inject, 1)
-        html = html.replace("</body>", auto_claim + "</body>", 1)
-
-        return html
-
-    async def _heartbeat(ws):
-        try:
-            while True:
-                await asyncio.sleep(30)
-                try:
-                    await ws.send(_json.dumps({"type": "heartbeat"}))
-                except Exception:
-                    break
-        except asyncio.CancelledError:
-            pass
+    async def _pump(src, dst):
+        async for message in src:
+            await dst.send(message)
 
     async def bridge():
         async with websockets.connect(
-            current["ws_url"],
-            max_size=2**20,
-            ping_interval=20,
-            ping_timeout=20,
-        ) as ws:
-            await ws.send(
-                _json.dumps(
-                    {
-                        "type": "auth",
-                        "token": current["cli_secret"],
-                    }
-                )
-            )
-            auth_msg = _json.loads(await ws.recv())
-            if auth_msg.get("type") != "auth_ok":
-                logger.error("Relay auth failed: %s", auth_msg)
-                return
-
-            logger.info("Relay bridge connected and authenticated")
-
-            hb_task = asyncio.create_task(_heartbeat(ws))
-
-            local_ws = None
-            local_ws_task = None
-            http_client = httpx.AsyncClient(timeout=25, follow_redirects=True)
-
-            try:
-
-                async def _fwd_local_to_relay(lws, rws):
-                    try:
-                        async for msg in lws:
-                            await rws.send(_json.dumps({"type": "ws_fwd", "data": msg}))
-                    except websockets.exceptions.ConnectionClosed:
-                        pass
-                    except Exception as e:
-                        logger.debug("Local→relay WS error: %s", e)
-
-                async for message in ws:
-                    try:
-                        msg = _json.loads(message)
-                    except Exception:
-                        continue
-
-                    msg_type = msg.get("type", "")
-
-                    if msg_type == "http_req":
-                        req_id = msg.get("id")
-                        method = msg.get("method", "GET")
-                        path = msg.get("path", "/")
-                        headers = msg.get("headers", {})
-                        body = msg.get("body")
-
-                        try:
-                            url = f"http://localhost:{public_port}{path}"
-                            resp = await http_client.request(
-                                method,
-                                url,
-                                headers=headers,
-                                content=body.encode("utf-8") if body else None,
-                            )
-
-                            ct = resp.headers.get("content-type", "")
-                            is_text = ct.startswith(
-                                (
-                                    "text/",
-                                    "application/json",
-                                    "application/javascript",
-                                    "application/xml",
-                                )
-                            )
-
-                            if is_text:
-                                resp_body = resp.text
-                                encoding = None
-                                if "text/html" in ct:
-                                    resp_body = _rewrite_html(resp_body)
-                            else:
-                                resp_body = _b64.b64encode(resp.content).decode("ascii")
-                                encoding = "base64"
-
-                            resp_headers = dict(resp.headers)
-                            for h in ("transfer-encoding", "connection", "keep-alive"):
-                                resp_headers.pop(h, None)
-
-                            await ws.send(
-                                _json.dumps(
-                                    {
-                                        "type": "http_res",
-                                        "id": req_id,
-                                        "status": resp.status_code,
-                                        "headers": resp_headers,
-                                        "body": resp_body,
-                                        "encoding": encoding,
-                                    }
-                                )
-                            )
-                        except Exception as e:
-                            logger.warning("Proxy error for %s %s: %s", method, path, e)
-                            await ws.send(
-                                _json.dumps(
-                                    {
-                                        "type": "http_res",
-                                        "id": req_id,
-                                        "status": 502,
-                                        "headers": {"content-type": "application/json"},
-                                        "body": _json.dumps({"error": str(e)}),
-                                    }
-                                )
-                            )
-
-                    elif msg_type == "ws_open":
-                        ws_path = msg.get("path", "/api/terminal/ws")
-                        local_url = f"ws://localhost:{public_port}{ws_path}"
-                        try:
-                            local_ws = await websockets.connect(local_url, max_size=2**20)
-                            local_ws_task = asyncio.create_task(_fwd_local_to_relay(local_ws, ws))
-                            logger.info("Local terminal WebSocket bridged: %s", ws_path)
-                        except Exception as e:
-                            logger.warning("Local WS connect failed: %s", e)
-                            await ws.send(
-                                _json.dumps(
-                                    {
-                                        "type": "ws_fwd",
-                                        "data": _json.dumps(
-                                            {
-                                                "type": "error",
-                                                "message": f"Terminal connection failed: {e}",
-                                            }
-                                        ),
-                                    }
-                                )
-                            )
-
-                    elif msg_type == "ws_fwd":
-                        if local_ws:
-                            try:
-                                data = msg.get("data", "")
-                                await local_ws.send(data)
-                            except Exception as e:
-                                logger.debug("WS forward error: %s", e)
-
-                    elif msg_type == "ws_close":
-                        if local_ws:
-                            try:
-                                await local_ws.close()
-                            except Exception:
-                                pass
-                            local_ws = None
-                        if local_ws_task:
-                            local_ws_task.cancel()
-                            local_ws_task = None
-
-            finally:
-                hb_task.cancel()
-                await http_client.aclose()
-                if local_ws:
-                    try:
-                        await local_ws.close()
-                    except Exception:
-                        pass
-                if local_ws_task:
-                    local_ws_task.cancel()
-
-    def _re_register() -> bool:
-        e2e_key = ""
-        try:
-            from corvustunnel.crypto.e2e import get_e2e_crypto
-
-            crypto = get_e2e_crypto()
-            if crypto.available:
-                e2e_key = crypto.server_public_key_b64
-        except Exception:
-            pass
-
-        new_data = _register_relay_session(e2e_key)
-        if new_data:
-            current["ws_url"] = new_data["ws_url"]
-            current["cli_secret"] = new_data["cli_secret"]
-            current["session_id"] = new_data["session_id"]
-            logger.info(
-                "Re-registered relay session: %s",
-                new_data.get("relay_url", ""),
-            )
-            return True
-        return False
+            ws_cli, max_size=2**20, ping_interval=20, ping_timeout=20
+        ) as relay_ws:
+            async with websockets.connect(local_url, max_size=2**20) as local_ws:
+                logger.info("Relay bridge connected")
+                tasks = [
+                    asyncio.create_task(_pump(relay_ws, local_ws)),
+                    asyncio.create_task(_pump(local_ws, relay_ws)),
+                ]
+                _done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for task in pending:
+                    task.cancel()
 
     attempt = 0
-    max_backoff = 30
     while True:
         try:
             await bridge()
-            logger.info("Relay bridge disconnected, re-registering...")
             attempt = 0
-            if not _re_register():
-                logger.warning("Re-registration failed, retrying in 5s...")
-                await asyncio.sleep(5)
-                continue
+            await asyncio.sleep(1)
         except asyncio.CancelledError:
             logger.info("Relay bridge task cancelled")
             break
         except Exception as e:
             attempt += 1
-            wait = min(2 ** min(attempt, 5), max_backoff)
-            logger.warning(
-                "Relay bridge error (attempt %d), reconnecting in %ds: %s",
-                attempt,
-                wait,
-                e,
-            )
+            wait = min(2 ** min(attempt, 5), 30)
+            logger.warning("Relay bridge error, reconnecting in %ds: %s", wait, e)
             await asyncio.sleep(wait)
-            if attempt % 3 == 0:
-                logger.info("Attempting relay re-registration...")
-                _re_register()
 
 
 async def _run_server(
@@ -615,15 +349,12 @@ def cmd_start(args: argparse.Namespace) -> None:
     public_port = int(os.environ.get("PUBLIC_PORT", "8000"))
     internal_port = int(os.environ.get("INTERNAL_PORT", "8001"))
 
-    e2e_key = ""
-    try:
-        from corvustunnel.crypto.e2e import get_e2e_crypto
-
-        crypto = get_e2e_crypto()
-        if crypto.available:
-            e2e_key = crypto.server_public_key_b64
-    except Exception:
-        pass
+    logger = logging.getLogger("corvustunnel")
+    if not _identity_pubkey():
+        logger.error(
+            "PyNaCl is required for end-to-end encryption. Install it with: pip install PyNaCl"
+        )
+        sys.exit(1)
 
     relay_data = None
     host_url = None
@@ -633,7 +364,7 @@ def cmd_start(args: argparse.Namespace) -> None:
         if not host_url.startswith("http"):
             host_url = f"https://{host_url}"
     elif not args.no_relay:
-        relay_data = _register_relay_session(e2e_key)
+        relay_data = _register_relay_session()
         if not relay_data:
             logging.getLogger("corvustunnel").info("Relay unavailable, trying cloudflared...")
             if not args.no_tunnel:
@@ -641,7 +372,6 @@ def cmd_start(args: argparse.Namespace) -> None:
     elif not args.no_tunnel:
         host_url = _start_cloudflared(public_port)
 
-    logger = logging.getLogger("corvustunnel")
     if args.bind:
         bind_host = args.bind
     elif relay_data or host_url:
@@ -658,15 +388,10 @@ def cmd_start(args: argparse.Namespace) -> None:
         )
 
     if relay_data:
-        from corvustunnel.crypto.e2e import get_e2e_crypto
-
-        secure = get_e2e_crypto().available
         logger.info(
-            "Relay mode: traffic routes through %s (%s)",
+            "Relay mode: traffic routes through %s (end-to-end encrypted — "
+            "the relay only ever forwards ciphertext)",
             RELAY_API.replace("https://", ""),
-            "end-to-end encrypted — relay sees only ciphertext"
-            if secure
-            else "TLS to relay only; install PyNaCl for E2E",
         )
 
     claim_timeout = getattr(args, "claim_timeout", 60)
