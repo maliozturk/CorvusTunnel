@@ -31,8 +31,9 @@ app = FastAPI(
     title="CorvusTunnel",
     description="Remote Agent Control System",
     version=__version__,
-    docs_url="/docs",
+    docs_url=None,
     redoc_url=None,
+    openapi_url=None,
 )
 
 add_security_headers(app)
