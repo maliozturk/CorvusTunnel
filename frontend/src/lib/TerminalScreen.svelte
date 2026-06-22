@@ -56,6 +56,12 @@
     }
   });
 
+  // Keep the xterm palette in sync with the app theme (live toggle).
+  $effect(() => {
+    const theme = STATE.theme;
+    if (STATE.term) applyXtermTheme(STATE.term, theme);
+  });
+
   // Suggested patterns for chips
   const chipPatterns = [
     { regex: /\b(approve|permission|allow|accept)\b.*\?/i, chips: [
@@ -117,8 +123,8 @@
   onMount(() => {
     if (!terminalContainer) return;
 
-    // Get terminal theme
-    const termTheme = STATE.terminalTheme;
+    // Terminal follows the single app theme.
+    const termTheme = STATE.theme;
 
     // Create Terminal Instance
     const term = new Xterm({
@@ -400,9 +406,11 @@
         <Star size={14} />
       </button>
 
-      <button class="header-ctrl-btn kb-btn" onclick={toggleKeyboard} title="Toggle keyboard">
-        <Keyboard size={14} />
-      </button>
+      {#if !isDesktop}
+        <button class="header-ctrl-btn kb-btn" onclick={toggleKeyboard} title="Toggle keyboard">
+          <Keyboard size={14} />
+        </button>
+      {/if}
 
       <ThemeToggle />
     </div>
@@ -465,16 +473,16 @@
     </div>
   {/if}
 
-  <!-- Quick Actions -->
-  <QuickActions onSend={handleKeySend} />
-
-  <!-- Infinite Keypad Carousel -->
-  <InfiniteKeypad onSend={handleKeySend} />
-
-  <!-- Floating launcher shortcut -->
-  <button class="launcher-fab" onclick={requestExitToLauncher} title="Back to launcher">
-    <Home size={16} />
-  </button>
+  <!-- Touch-only controls: on-screen keypad, quick actions, and the floating
+       home button are hidden on desktop (a physical keyboard makes them
+       redundant). -->
+  {#if !isDesktop}
+    <QuickActions onSend={handleKeySend} />
+    <InfiniteKeypad onSend={handleKeySend} />
+    <button class="launcher-fab" onclick={requestExitToLauncher} title="Back to launcher">
+      <Home size={16} />
+    </button>
+  {/if}
 
 </div>
 

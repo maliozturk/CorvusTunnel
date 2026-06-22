@@ -1,6 +1,6 @@
 <script>
-  import { STATE, connectTerminal, handleLogout, toggleTerminalTheme, hapticTap, resetOnboarding } from './state.svelte.js';
-  import { FolderOpen, Play, AlertTriangle, ChevronDown, ChevronUp, Settings, LogOut, Monitor, Bell, BellOff, HelpCircle, Star, ExternalLink } from 'lucide-svelte';
+  import { STATE, connectTerminal, handleLogout, hapticTap, resetOnboarding } from './state.svelte.js';
+  import { FolderOpen, Play, AlertTriangle, ChevronDown, ChevronUp, Settings, LogOut, Bell, BellOff, HelpCircle, Star, ExternalLink } from 'lucide-svelte';
   import ThemeToggle from './ThemeToggle.svelte';
   import CorvusIcon from './CorvusIcon.svelte';
 
@@ -151,25 +151,13 @@
 
       {#if STATE.showSettings}
         <div class="settings-body">
-          <!-- App Theme -->
+          <!-- Theme (drives both the app and the terminal) -->
           <div class="setting-row">
             <div class="setting-info">
-              <div class="setting-label">App Theme</div>
+              <div class="setting-label">Theme</div>
               <div class="setting-desc">Switch between dark and light mode</div>
             </div>
             <ThemeToggle />
-          </div>
-
-          <!-- Terminal Theme -->
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">Terminal Theme</div>
-              <div class="setting-desc">{STATE.terminalTheme === 'dark' ? 'Dark background' : 'Light background'}</div>
-            </div>
-            <button class="setting-toggle-btn" onclick={() => { hapticTap(); toggleTerminalTheme(); }}>
-              <Monitor size={14} />
-              <span>{STATE.terminalTheme.toUpperCase()}</span>
-            </button>
           </div>
 
           <!-- Notifications -->

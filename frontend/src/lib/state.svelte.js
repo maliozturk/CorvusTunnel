@@ -99,6 +99,9 @@ function setTheme(theme) {
   STATE.theme = theme;
   localStorage.setItem('corvus_theme', theme);
   applyThemeToDOM(theme);
+  // Keep the terminal in lockstep with the app theme so there is one
+  // consistent light/dark mode, not two that can drift apart.
+  setTerminalTheme(theme);
 }
 
 export function toggleTheme() {
@@ -115,9 +118,6 @@ function setTerminalTheme(theme) {
   }
 }
 
-export function toggleTerminalTheme() {
-  setTerminalTheme(STATE.terminalTheme === 'dark' ? 'light' : 'dark');
-}
 
 export function applyXtermTheme(term, theme) {
   if (theme === 'light') {
@@ -169,6 +169,10 @@ export function applyXtermTheme(term, theme) {
       brightWhite: '#ffffff',
     };
   }
+  // Force the (canvas) renderer to repaint with the new palette immediately.
+  try {
+    term.refresh(0, Math.max(0, term.rows - 1));
+  } catch (e) { /* ignore */ }
 }
 
 // ── Onboarding Management ─────────────────────────────────────────
