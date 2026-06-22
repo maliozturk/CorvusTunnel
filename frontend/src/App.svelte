@@ -55,7 +55,7 @@
         localStorage.setItem('corvus_notif_enabled', 'true');
         new Notification('CorvusTunnel', {
           body: 'Notifications active! Get notified when coding agents finish execution.',
-          icon: '/static/icons/icon-192.png'
+          icon: '/app/icons/icon-192.png'
         });
       }
     });
@@ -68,7 +68,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/static/sw.js')
+      navigator.serviceWorker.register('/app/sw.js')
         .then(() => console.log('[PWA] Service worker registered'))
         .catch((err) => console.warn('[PWA] Service worker registration failed:', err));
     }

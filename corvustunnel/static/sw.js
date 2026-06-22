@@ -3,10 +3,10 @@ const CACHE_NAME = 'corvus-v5';
 
 // App shell resources to cache aggressively
 const APP_SHELL = [
-  '/static/index.html',
-  '/static/manifest.json',
-  '/static/icons/icon.svg',
-  '/static/icons/icon-192.png',
+  '/app/index.html',
+  '/app/manifest.json',
+  '/app/icons/icon.svg',
+  '/app/icons/icon-192.png',
 ];
 
 // Install: pre-cache app shell
@@ -48,7 +48,7 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.startsWith('/api/')) return;
 
   // Static assets: cache-first with network fallback
-  if (url.pathname.startsWith('/static/')) {
+  if (url.pathname.startsWith('/app/')) {
     event.respondWith(
       caches.match(event.request).then((cached) => {
         if (cached) {
@@ -82,7 +82,7 @@ self.addEventListener('fetch', (event) => {
           .catch(() => {
             // Offline fallback for HTML pages
             if (event.request.destination === 'document') {
-              return caches.match('/static/index.html');
+              return caches.match('/app/index.html');
             }
             return new Response('Offline', { status: 503 });
           });
@@ -106,7 +106,7 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          return caches.match('/static/index.html')
+          return caches.match('/app/index.html')
             .then((cached) => cached || new Response('Offline — please reconnect to your CorvusTunnel server.', {
               status: 503,
               headers: { 'Content-Type': 'text/html' }

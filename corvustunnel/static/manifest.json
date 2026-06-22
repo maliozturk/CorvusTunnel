@@ -2,7 +2,8 @@
   "name": "CorvusTunnel",
   "short_name": "CorvusTunnel",
   "description": "Control AI coding agents from your phone",
-  "start_url": "/",
+  "start_url": "/app/",
+  "scope": "/app/",
   "display": "standalone",
   "background_color": "#0f0f17",
   "theme_color": "#8b5cf6",
@@ -10,19 +11,19 @@
   "categories": ["developer", "productivity", "utilities"],
   "icons": [
     {
-      "src": "/static/icons/icon.svg",
+      "src": "/app/icons/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "/static/icons/icon-192.png",
+      "src": "/app/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/static/icons/icon-512.png",
+      "src": "/app/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

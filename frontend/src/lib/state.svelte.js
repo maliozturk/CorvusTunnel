@@ -596,7 +596,7 @@ function sendBrowserNotification(title, body) {
   
   new Notification(title, {
     body,
-    icon: '/static/icons/icon-192.png',
+    icon: '/app/icons/icon-192.png',
     tag: 'corvus-agent',
     renotify: true,
   });

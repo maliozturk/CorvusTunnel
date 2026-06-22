@@ -161,10 +161,10 @@ def _print_startup_info(
         fragment += f"&w={quote(relay_data['ws_browser'], safe='')}"
         qr_data = f"{APP_ORIGIN}/#{fragment}"
     elif host_url:
-        qr_data = f"{host_url.rstrip('/')}/#{fragment}"
+        qr_data = f"{host_url.rstrip('/')}/app/#{fragment}"
     else:
         local_ip = _get_local_ip()
-        qr_data = f"http://{local_ip}:{public_port}/#{fragment}"
+        qr_data = f"http://{local_ip}:{public_port}/app/#{fragment}"
 
     W = 58
     print()

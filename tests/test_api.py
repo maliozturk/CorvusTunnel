@@ -43,11 +43,16 @@ class TestRootHealthEndpoint:
 
 class TestUIEndpoint:
     @pytest.mark.asyncio
-    async def test_root_returns_html_or_json(self, public_client):
+    async def test_root_redirects_to_app(self, public_client):
         resp = await public_client.get("/")
+        assert resp.status_code in (307, 308)
+        assert resp.headers.get("location") == "/app/"
+
+    @pytest.mark.asyncio
+    async def test_app_serves_ui(self, public_client):
+        resp = await public_client.get("/app/")
         assert resp.status_code == 200
-        content_type = resp.headers.get("content-type", "")
-        assert "text/html" in content_type or "application/json" in content_type
+        assert "text/html" in resp.headers.get("content-type", "")
 
 
 class TestSecurityHeaders:

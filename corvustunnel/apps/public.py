@@ -16,7 +16,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from corvustunnel.middleware.rate_limit import setup_rate_limiting
@@ -70,11 +70,8 @@ STATIC_DIR = Path(__file__).parent.parent / "static"
 
 
 @app.get("/", include_in_schema=False)
-async def serve_ui():
-    index_path = STATIC_DIR / "index.html"
-    if index_path.exists():
-        return FileResponse(index_path, media_type="text/html")
-    return {"message": "CorvusTunnel API is running. Chat UI not found."}
+async def serve_root():
+    return RedirectResponse(url="/app/")
 
 
 @app.get("/health", include_in_schema=False)
@@ -84,4 +81,4 @@ async def root_health(request: Request):
     return await health(request)
 
 
-app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+app.mount("/app", StaticFiles(directory=str(STATIC_DIR), html=True), name="app")

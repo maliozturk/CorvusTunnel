@@ -4,7 +4,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [svelte()],
-  base: '/static/', // Match the FastAPI static mounting prefix
+  base: '/app/', // Match the FastAPI static mounting prefix
   build: {
     outDir: '../corvustunnel/static',
     emptyOutDir: false, // Keep manifest.json, sw.js, and icons
