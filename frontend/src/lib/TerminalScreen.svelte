@@ -31,6 +31,30 @@
   // Cleanup refs
   let cleanupTwoFingerScroll = null;
   let cleanupKeyboardResize = null;
+  let cleanupClickFocus = null;
+
+  // Desktop = a precise pointer (mouse) and no coarse/touch pointer.
+  // Used to auto-focus the terminal so a physical keyboard works without
+  // requiring a tap, while leaving mobile behavior (no keyboard auto-pop) intact.
+  const isDesktop =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(pointer: fine)').matches &&
+    !window.matchMedia('(pointer: coarse)').matches;
+
+  // Focus the xterm textarea (physical keyboard / click-to-focus).
+  function focusTerminal() {
+    if (STATE.term) {
+      try { STATE.term.focus(); } catch (e) {}
+    }
+  }
+
+  // Re-focus the terminal on desktop whenever the socket (re)connects, so
+  // typing works immediately without a manual click.
+  $effect(() => {
+    if (isDesktop && STATE.wsStatus === 'connected') {
+      setTimeout(focusTerminal, 50);
+    }
+  });
 
   // Suggested patterns for chips
   const chipPatterns = [
@@ -174,7 +198,18 @@
       try {
         fitAddon.fit();
       } catch(e) {}
+      // On desktop, focus the terminal so the physical keyboard works
+      // right away. On touch devices we skip this to avoid popping the
+      // on-screen keyboard unexpectedly.
+      if (isDesktop) focusTerminal();
     }, 150);
+
+    // Click/tap anywhere in the terminal focuses it (fixes desktop typing,
+    // harmless on mobile where xterm already focuses on touch).
+    const onPointerDown = () => focusTerminal();
+    terminalContainer.addEventListener('pointerdown', onPointerDown);
+    cleanupClickFocus = () =>
+      terminalContainer.removeEventListener('pointerdown', onPointerDown);
 
     // Save references to STATE
     STATE.term = term;
@@ -242,6 +277,7 @@
     if (chipTimer) clearTimeout(chipTimer);
     if (cleanupTwoFingerScroll) cleanupTwoFingerScroll();
     if (cleanupKeyboardResize) cleanupKeyboardResize();
+    if (cleanupClickFocus) cleanupClickFocus();
     
     if (STATE.term) {
       try { STATE.term.dispose(); } catch(e) {}
@@ -578,7 +614,15 @@
     padding: 4px;
     /* Prevent iOS overscroll on terminal area */
     overscroll-behavior: none;
-    touch-action: none;
+  }
+
+  /* touch-action:none is only needed on touch devices (tame iOS overscroll/
+     gestures); on desktop it's unnecessary and can interfere with pointer
+     handling, so scope it to coarse pointers. */
+  @media (pointer: coarse) {
+    .terminal-wrapper {
+      touch-action: none;
+    }
   }
 
   .terminal-container {
