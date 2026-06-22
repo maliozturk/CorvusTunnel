@@ -1,21 +1,14 @@
-import { api } from './api.js';
-import {
-  establishE2E, isE2EActive, encryptMsg, decryptMsg, newSessionId, resetE2E,
-} from './e2e.js';
+import { ChannelClient } from './channel.js';
 
-/**
- * Send an object over the terminal WebSocket, encrypting it end-to-end when
- * a secure session has been established. Returns false if the socket is not open.
- */
+// Map terminal messages onto channel ops. Kept as wsSend() so the terminal
+// components do not need to change.
 export function wsSend(obj) {
-  const ws = STATE.ws;
-  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
-  try {
-    ws.send(isE2EActive() ? encryptMsg(obj) : JSON.stringify(obj));
-    return true;
-  } catch (e) {
-    return false;
-  }
+  const ch = STATE.channel;
+  if (!ch || !ch.ready) return false;
+  if (obj.type === 'input') ch.send('term_input', { data: obj.data });
+  else if (obj.type === 'resize') ch.send('term_resize', { cols: obj.cols, rows: obj.rows });
+  else if (obj.type === 'ping') ch.send('ping');
+  return true;
 }
 
 // Screen Wake Lock reference
@@ -63,6 +56,10 @@ export const STATE = $state({
   term: null,
   fitAddon: null,
   ws: null,
+  channel: null,
+  identityPub: '',
+  relayWs: '',
+  sessionToken: localStorage.getItem('corvus_session') || '',
   reconnectAttempt: 0,
   maxReconnect: 10,
   ctrlActive: false,
@@ -217,45 +214,105 @@ function showAuthErr(msg) {
 
 export function handleLogout() {
   STATE.token = '';
+  STATE.sessionToken = '';
   localStorage.removeItem('corvus_token');
+  localStorage.removeItem('corvus_session');
   if (STATE.healthTimer) {
     clearInterval(STATE.healthTimer);
     STATE.healthTimer = null;
   }
-  
+
   disconnectTerminal(true);
+  if (STATE.channel) {
+    STATE.channel.close();
+    STATE.channel = null;
+  }
+  STATE.connected = false;
   STATE.phase = 'launcher';
+}
+
+export async function bootFromFragment() {
+  const params = new URLSearchParams(window.location.hash.substring(1));
+  const t = params.get('t');
+  const k = params.get('k');
+  const w = params.get('w');
+  if (k) STATE.identityPub = k;
+  if (w) STATE.relayWs = decodeURIComponent(w);
+  if (t || k || w) {
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+  if (!STATE.identityPub) {
+    showAuthErr('Open the link from the QR code shown by "corvustunnel start".');
+    return;
+  }
+  const ok = await connectChannel();
+  if (!ok) return;
+  if (t) {
+    await claimAndBoot(t);
+  } else if (STATE.sessionToken) {
+    await resumeAndBoot();
+  }
+}
+
+async function connectChannel() {
+  const wsUrl = STATE.relayWs ||
+    ((window.location.protocol === 'https:' ? 'wss' : 'ws') + '://' + window.location.host + '/api/channel');
+  const ch = new ChannelClient();
+  ch.onEvent = handleTerminalEvent;
+  ch.onClose = () => {
+    STATE.connected = false;
+    if (STATE.wsStatus !== 'exited') STATE.wsStatus = 'disconnected';
+    if (STATE.phase === 'terminal') attemptReconnect();
+  };
+  try {
+    await ch.connect(wsUrl, STATE.identityPub);
+    STATE.channel = ch;
+    STATE.connected = true;
+    return true;
+  } catch (e) {
+    console.error('[channel] connect failed', e);
+    showAuthErr('Secure connection failed: ' + e.message);
+    return false;
+  }
 }
 
 export async function claimAndBoot(token) {
   try {
-    const resp = await fetch('/api/claim', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: token }),
-    });
-    
-    if (resp.ok) {
-      const data = await resp.json();
-      STATE.token = data.session_token;
-      localStorage.setItem('corvus_token', data.session_token);
-      bootApp();
-      return;
-    }
-    
-    // If claim fails, try token directly as session token
-    STATE.token = token;
-    localStorage.setItem('corvus_token', token);
-    const health = await fetch('/api/health');
-    if (health.ok) {
-      bootApp();
-    } else {
-      showAuthErr('Token rejected — it may have already been used.');
-      handleLogout();
-    }
+    const data = await STATE.channel.request('claim', { token });
+    STATE.sessionToken = data.session_token;
+    localStorage.setItem('corvus_session', data.session_token);
+    STATE.token = data.session_token;
+    localStorage.setItem('corvus_token', data.session_token);
+    bootApp();
   } catch (e) {
-    showAuthErr('Connection error: ' + e.message);
+    showAuthErr('Token rejected — it may have already been used.');
     handleLogout();
+  }
+}
+
+async function resumeAndBoot() {
+  try {
+    await STATE.channel.request('resume', { session_token: STATE.sessionToken });
+    STATE.token = STATE.sessionToken;
+    bootApp();
+  } catch (e) {
+    handleLogout();
+  }
+}
+
+function handleTerminalEvent(msg) {
+  if (msg.ev === 'output' || msg.ev === 'replay') {
+    if (STATE.term && msg.data) {
+      STATE.term.write(msg.data);
+      detectUrl(msg.data);
+    }
+  } else if (msg.ev === 'exited') {
+    STATE.wsStatus = 'exited';
+    if (STATE.term) {
+      STATE.term.writeln(`\r\n\x1b[31m[${STATE.selectedAgent} exited with code ${msg.code ?? '?'}]\x1b[0m`);
+    }
+    sendBrowserNotification('Agent Exited', `${STATE.selectedAgent} exited with code ${msg.code ?? '?'}`);
+    setTimeout(() => { STATE.phase = 'launcher'; }, 2000);
   }
 }
 
@@ -271,37 +328,25 @@ export function bootApp() {
 
 function startHealth() {
   if (STATE.healthTimer) clearInterval(STATE.healthTimer);
-  
-  const checkHealth = async () => {
-    try {
-      const resp = await api('/api/health');
-      if (resp.ok) {
-        STATE.connected = true;
-      } else {
-        STATE.connected = false;
-      }
-    } catch (e) {
-      STATE.connected = false;
-    }
+
+  const checkHealth = () => {
+    STATE.connected = !!(STATE.channel && STATE.channel.ready);
+    if (STATE.connected) STATE.channel.send('ping');
   };
-  
+
   checkHealth();
-  STATE.healthTimer = setInterval(checkHealth, 10000);
+  STATE.healthTimer = setInterval(checkHealth, 15000);
 }
 
 async function checkAgentAvailability() {
   if (STATE.checkingAvailability) return;
   STATE.checkingAvailability = true;
   try {
-    const r = await api('/api/check-agents');
-    if (r.ok) {
-      const data = await r.json();
-      STATE.agents = data.agents || [];
-      // Auto-set working directory if not already chosen
-      if (!STATE.currentFolder && data.default_work_dir) {
-        STATE.currentFolder = data.default_work_dir;
-        localStorage.setItem('corvus_workdir', data.default_work_dir);
-      }
+    const data = await STATE.channel.request('check_agents');
+    STATE.agents = data.agents || [];
+    if (!STATE.currentFolder && data.default_work_dir) {
+      STATE.currentFolder = data.default_work_dir;
+      localStorage.setItem('corvus_workdir', data.default_work_dir);
     }
   } catch (e) {
     console.warn('Failed to check agent availability', e);
@@ -363,29 +408,22 @@ export function removeFavorite(cmd) {
   localStorage.setItem('corvus_favorites', JSON.stringify(favs));
 }
 
-// ── Terminal WebSocket connections ───────────────────────────
+// ── Terminal connection (multiplexed over the encrypted channel) ──
 let reconnectTimer = null;
 
 export function disconnectTerminal(userExited = false) {
   clearTimeout(reconnectTimer);
-  if (STATE.ws) {
-    if (userExited) {
-      // Send exit command (encrypted if E2E is active)
-      wsSend({ type: 'input', data: '\x03' });
-    }
-    STATE.ws.close();
-    STATE.ws = null;
+  if (userExited) {
+    wsSend({ type: 'input', data: '\x03' });
   }
-
-  resetE2E();
   STATE.wsStatus = 'disconnected';
   releaseWakeLock();
 }
 
 export async function connectTerminal() {
-  disconnectTerminal();
+  clearTimeout(reconnectTimer);
   STATE.wsStatus = 'connecting';
-  
+
   _urlBuf = '';
   _lastShownLen = 0;
   _autoScrollSent = false;
@@ -393,98 +431,35 @@ export async function connectTerminal() {
     clearTimeout(_urlToastTimer);
     _urlToastTimer = null;
   }
-  
+
   if (STATE.term) {
     STATE.term.write('\r\n\x1b[33mConnecting to ' + STATE.currentFolder + '...\x1b[0m\r\n');
   }
-  
-  try {
-    // 1. Get ticket
-    const ticketResp = await api('/api/ws-ticket', { method: 'POST' });
-    if (!ticketResp.ok) {
-      throw new Error('Failed to get WebSocket ticket');
-    }
-    
-    const ticketData = await ticketResp.json();
-    const ticket = ticketData.ticket;
 
-    // 2. Establish end-to-end encryption (ephemeral key exchange).
-    //    If the server lacks PyNaCl this returns false and we fall back to
-    //    plaintext — the session_id is then omitted so the server matches.
-    const sessionId = newSessionId();
-    const secure = await establishE2E(sessionId);
-
-    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    let url = `${proto}://${window.location.host}/api/terminal/ws`
-      + `?ticket=${encodeURIComponent(ticket)}`
-      + `&work_dir=${encodeURIComponent(STATE.currentFolder)}`
-      + `&agent=${encodeURIComponent(STATE.selectedAgent)}`;
-    if (secure) {
-      url += `&session_id=${encodeURIComponent(sessionId)}`;
-    }
-
-    const ws = new WebSocket(url);
-    STATE.ws = ws;
-    
-    ws.onopen = () => {
-      STATE.reconnectAttempt = 0;
-      STATE.wsStatus = 'connected';
-      acquireWakeLock();
-      
-      // Send initial resize
-      sendResize();
-      
-      // Ping interval to avoid tunnel timeouts
-      ws.pingInterval = setInterval(() => {
-        wsSend({ type: 'ping' });
-      }, 15000);
-    };
-
-    ws.onmessage = (ev) => {
+  if (!STATE.channel || !STATE.channel.ready) {
+    const ok = await connectChannel();
+    if (ok && STATE.sessionToken) {
       try {
-        const msg = isE2EActive() ? decryptMsg(ev.data) : JSON.parse(ev.data);
-        if (!msg) return;
-        if (msg.type === 'output' || msg.type === 'replay') {
-          if (STATE.term && msg.data) {
-            STATE.term.write(msg.data);
-            detectUrl(msg.data);
-          }
-        } else if (msg.type === 'exited') {
-          STATE.wsStatus = 'exited';
-          if (STATE.term) {
-            STATE.term.writeln(`\r\n\x1b[31m[${STATE.selectedAgent} exited with code ${msg.code ?? '?'}]\x1b[0m`);
-          }
-          sendBrowserNotification('Agent Exited', `${STATE.selectedAgent} exited with code ${msg.code ?? '?'}`);
-          
-          setTimeout(() => {
-            STATE.phase = 'launcher';
-          }, 2000);
-        }
-      } catch (e) {
-        console.warn('[terminal] Parse error:', e);
-      }
-    };
-    
-    ws.onclose = (ev) => {
-      if (ws.pingInterval) clearInterval(ws.pingInterval);
-      
-      if (STATE.wsStatus === 'exited') return;
-      STATE.wsStatus = 'disconnected';
-      
-      // Attempt reconnect if unexpected
-      if (STATE.phase === 'terminal') {
-        attemptReconnect();
-      }
-    };
-    
-    ws.onerror = (err) => {
-      console.error('WebSocket error:', err);
-    };
+        await STATE.channel.request('resume', { session_token: STATE.sessionToken });
+      } catch (e) { /* will surface on term_start */ }
+    }
+  }
+
+  try {
+    await STATE.channel.request('term_start', {
+      work_dir: STATE.currentFolder,
+      agent: STATE.selectedAgent,
+    });
+    STATE.reconnectAttempt = 0;
+    STATE.wsStatus = 'connected';
+    acquireWakeLock();
+    sendResize();
   } catch (err) {
     STATE.wsStatus = 'disconnected';
     if (STATE.term) {
       STATE.term.writeln(`\r\n\x1b[31mConnection failed: ${err.message}\x1b[0m\r\n`);
     }
+    if (STATE.phase === 'terminal') attemptReconnect();
   }
 }
 
@@ -495,26 +470,22 @@ function attemptReconnect() {
     }
     return;
   }
-  
+
   STATE.reconnectAttempt++;
   if (STATE.term) {
     STATE.term.writeln(`\r\n\x1b[33mReconnecting (attempt ${STATE.reconnectAttempt}/${STATE.maxReconnect})...\x1b[0m\r\n`);
   }
-  
+
   reconnectTimer = setTimeout(() => {
     connectTerminal();
   }, Math.min(1000 * STATE.reconnectAttempt, 5000));
 }
 
 export function sendResize() {
-  if (!STATE.term || !STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
-  
-  // In Svelte, fit addon fits to the container
+  if (!STATE.term || !STATE.channel || !STATE.channel.ready) return;
   try {
     STATE.fitAddon.fit();
-    const cols = STATE.term.cols;
-    const rows = STATE.term.rows;
-    wsSend({ type: 'resize', cols, rows });
+    wsSend({ type: 'resize', cols: STATE.term.cols, rows: STATE.term.rows });
   } catch(e) {
     console.warn('Failed to resize terminal', e);
   }

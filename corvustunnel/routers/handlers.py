@@ -146,3 +146,9 @@ def history_get(session_id, limit=200, offset=0):
     if "error" in result:
         raise AppError(404, result["error"])
     return result
+
+
+def history_stats():
+    from corvustunnel.history.service import get_history_service
+
+    return get_history_service().get_stats()

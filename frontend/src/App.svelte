@@ -1,7 +1,6 @@
 <script>
   import { onMount } from 'svelte';
-  import { STATE, claimAndBoot, bootApp, handleLogout } from './lib/state.svelte.js';
-  import { api } from './lib/api.js';
+  import { STATE, bootFromFragment } from './lib/state.svelte.js';
   import AuthScreen from './lib/AuthScreen.svelte';
   import LauncherScreen from './lib/LauncherScreen.svelte';
   import TerminalScreen from './lib/TerminalScreen.svelte';
@@ -15,44 +14,11 @@
   import { Bell, X } from 'lucide-svelte';
 
   onMount(async () => {
-    // 1. Check url hash for token (direct/LAN mode)
-    const hash = window.location.hash;
-    let hashToken = null;
-    if (hash && hash.length > 1) {
-      const params = new URLSearchParams(hash.substring(1));
-      hashToken = params.get('token');
-    }
-    
-    // 2. Fallback: check window._corvusAutoToken (set by relay HTML rewriter)
-    if (!hashToken && window._corvusAutoToken) {
-      hashToken = window._corvusAutoToken;
-      delete window._corvusAutoToken;
-    }
-    
-    if (hashToken) {
-      // Clear hash from URL immediately for security
-      window.history.replaceState(null, '', window.location.pathname);
-      localStorage.removeItem('corvus_token');
-      STATE.token = '';
-      await claimAndBoot(hashToken);
-    } else if (STATE.token) {
-      // We have a stored token, let's verify it with the server
-      try {
-        const resp = await fetch('/api/browse', {
-          headers: { 'Authorization': 'Bearer ' + STATE.token },
-        });
-        if (resp.ok) {
-          bootApp();
-        } else {
-          handleLogout();
-        }
-      } catch (e) {
-        // network issue, keep token but proceed to launcher
-        bootApp();
-      }
-    }
+    // Read the QR fragment (token, pinned identity key, relay URL), open the
+    // authenticated channel, and claim/resume the session.
+    await bootFromFragment();
 
-    // 3. Check for local browser notification permissions request
+    // Check for local browser notification permissions request
     checkNotificationStatus();
     
     // 4. Register service worker for PWA caching

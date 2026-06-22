@@ -149,6 +149,8 @@ async def channel_ws(websocket: WebSocket):
                             offset=int(msg.get("offset", 0)),
                         ),
                     )
+                elif op == "history_stats":
+                    await reply(rid, handlers.history_stats())
                 elif op == "term_start":
                     work_dir = msg.get("work_dir", "")
                     agent = msg.get("agent", "agy")
