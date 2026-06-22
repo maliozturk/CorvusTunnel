@@ -1,0 +1,19 @@
+name = "corvustunnel-relay"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+routes = [
+  { pattern = "roost.corvustunnel.com", custom_domain = true },
+]
+
+[[durable_objects.bindings]]
+name = "TUNNEL"
+class_name = "TunnelSession"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TunnelSession"]
+
+[observability]
+enabled = true
