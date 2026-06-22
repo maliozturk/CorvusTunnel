@@ -324,7 +324,7 @@
 
   // Handle suggestion chip click
   function sendChip(cmd) {
-    if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
+    if (!STATE.channel || !STATE.channel.ready) return;
     hapticTap();
     wsSend({ type: 'input', data: cmd });
     suggestionChips = [];
@@ -350,7 +350,7 @@
   }
 
   function runFavorite(fav) {
-    if (!STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) return;
+    if (!STATE.channel || !STATE.channel.ready) return;
     hapticTap();
     wsSend({ type: 'input', data: fav + '\r\n' });
     addRecent(fav);

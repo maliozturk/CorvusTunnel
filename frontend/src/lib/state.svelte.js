@@ -55,7 +55,6 @@ export const STATE = $state({
   // Terminal state
   term: null,
   fitAddon: null,
-  ws: null,
   channel: null,
   identityPub: '',
   relayWs: '',
@@ -562,12 +561,12 @@ function detectUrl(chunk) {
     showUrlToast(url, looksComplete);
 
     // If URL is incomplete and we haven't auto-scrolled yet, send Down keys to advance pager
-    if (!looksComplete && !_autoScrollSent && STATE.ws && STATE.ws.readyState === WebSocket.OPEN) {
+    if (!looksComplete && !_autoScrollSent && STATE.channel && STATE.channel.ready) {
       _autoScrollSent = true;
       // Send space/down keys with delay to scroll through the pager
       let scrollCount = 0;
       const scrollInterval = setInterval(function() {
-        if (scrollCount >= 15 || !STATE.ws || STATE.ws.readyState !== WebSocket.OPEN) {
+        if (scrollCount >= 15 || !STATE.channel || !STATE.channel.ready) {
           clearInterval(scrollInterval);
           return;
         }

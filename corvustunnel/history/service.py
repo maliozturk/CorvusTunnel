@@ -158,12 +158,6 @@ class HistoryService:
             },
         }
 
-    def force_refresh(self) -> dict:
-        self._cache_time = 0
-        self._ensure_cache()
-        return self.get_stats()
-
-
 _service_instance: HistoryService | None = None
 
 

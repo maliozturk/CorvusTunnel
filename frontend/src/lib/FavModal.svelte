@@ -23,7 +23,7 @@
   }
 
   function useFavorite(cmd) {
-    if (STATE.term && STATE.ws && STATE.ws.readyState === 1) {
+    if (STATE.term && STATE.channel && STATE.channel.ready) {
       wsSend({ type: 'input', data: cmd + '\r' });
       handleClose();
     }
