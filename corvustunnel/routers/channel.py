@@ -169,9 +169,9 @@ async def channel_ws(websocket: WebSocket):
                     if session.is_alive and (
                         session.work_dir != work_dir or session.command != agent
                     ):
-                        session.stop()
+                        await session.stop_async()
                     if not session.is_alive:
-                        session.start(
+                        await session.start_async(
                             work_dir,
                             command=agent,
                             flags=handlers.filter_flags(msg.get("flags")),

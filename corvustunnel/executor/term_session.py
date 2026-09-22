@@ -48,6 +48,13 @@ def _enqueue(q: asyncio.Queue, msg: dict) -> None:
             pass
 
 
+def _running_loop() -> asyncio.AbstractEventLoop | None:
+    try:
+        return asyncio.get_running_loop()
+    except RuntimeError:
+        return None
+
+
 class _TimeoutError(Exception):
     pass
 
@@ -165,6 +172,8 @@ class TerminalSession:
 
         self._grace_timer: asyncio.TimerHandle | None = None
 
+        self._lifecycle_lock: threading.RLock = threading.RLock()
+
     @property
     def is_alive(self) -> bool:
         return self._alive and self._process is not None
@@ -184,73 +193,73 @@ class TerminalSession:
         rows: int = 30,
         command: str = "agy",
         flags: list[str] | None = None,
+        loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
-        if self.is_alive:
-            self.stop()
+        with self._lifecycle_lock:
+            if self.is_alive:
+                self.stop()
 
-        self._work_dir = work_dir
-        self._command = command
-        self._loop = asyncio.get_event_loop()
-        self._alive = True
-        self._started_at = time.time()
-        self._replay_buf = ""
-        self._log_buf = ""
-        self._input_count = 0
-        self._last_log_flush = time.time()
+            self._work_dir = work_dir
+            self._command = command
+            self._loop = loop or _running_loop() or self._loop
+            self._alive = True
+            self._started_at = time.time()
+            self._replay_buf = ""
+            self._log_buf = ""
+            self._input_count = 0
+            self._last_log_flush = time.time()
 
-        if self._grace_timer:
-            self._grace_timer.cancel()
-            self._grace_timer = None
+            self._cancel_grace_timer()
 
-        args = list(flags) if flags else []
-        cmd = command
+            args = list(flags) if flags else []
+            cmd = command
 
-        logger.info(
-            "Starting terminal session in %s (%dx%d) cmd=%s args=%s",
-            work_dir,
-            cols,
-            rows,
-            cmd,
-            args,
-        )
-
-        if IS_WINDOWS:
-            self._process = _WindowsProcess(
+            logger.info(
+                "Starting terminal session in %s (%dx%d) cmd=%s args=%s",
+                work_dir,
+                cols,
+                rows,
                 cmd,
                 args,
-                cwd=work_dir,
-                rows=rows,
+            )
+
+            if IS_WINDOWS:
+                self._process = _WindowsProcess(
+                    cmd,
+                    args,
+                    cwd=work_dir,
+                    rows=rows,
+                    cols=cols,
+                )
+            else:
+                import pexpect
+
+                self._process = pexpect.spawn(
+                    cmd,
+                    args=args,
+                    cwd=work_dir,
+                    dimensions=(rows, cols),
+                    encoding=None,
+                    codec_errors="replace",
+                )
+
+            self._reader_thread = threading.Thread(
+                target=self._read_loop,
+                daemon=True,
+                name="term-reader",
+            )
+            self._reader_thread.start()
+
+            from corvustunnel.audit.deep_logger import get_deep_logger
+
+            get_deep_logger().log(
+                "terminal_started",
+                category="terminal",
+                work_dir=work_dir,
                 cols=cols,
+                rows=rows,
+                flags=flags or [],
             )
-        else:
-            import pexpect
-
-            self._process = pexpect.spawn(
-                cmd,
-                args=args,
-                cwd=work_dir,
-                dimensions=(rows, cols),
-                encoding=None,
-                codec_errors="replace",
-            )
-
-        self._reader_thread = threading.Thread(
-            target=self._read_loop,
-            daemon=True,
-            name="term-reader",
-        )
-        self._reader_thread.start()
-
-        from corvustunnel.audit.deep_logger import get_deep_logger
-
-        get_deep_logger().log(
-            "terminal_started",
-            category="terminal",
-            work_dir=work_dir,
-            cols=cols,
-            rows=rows,
-            flags=flags or [],
-        )
 
     def send_input(self, data: str) -> None:
         if not self.is_alive:
@@ -282,51 +291,78 @@ class TerminalSession:
             logger.warning("Failed to resize terminal: %s", e)
 
     def stop(self) -> None:
-        if not self._alive:
+        with self._lifecycle_lock:
+            if not self._alive:
+                return
+
+            logger.info("Stopping terminal session")
+            self._alive = False
+
+            self._cancel_grace_timer()
+
+            if self._process and self._process.isalive():
+                try:
+                    self._process.sendline("exit")
+                    time.sleep(0.3)
+                except Exception:
+                    pass
+                try:
+                    self._process.terminate(force=True)
+                except Exception:
+                    pass
+
+            self._broadcast({"type": "exited", "code": self._get_exit_status()})
+
+            self._flush_log_buffer(force=True)
+
+            from corvustunnel.audit.deep_logger import get_deep_logger
+
+            get_deep_logger().log(
+                "terminal_stopped",
+                category="terminal",
+                total_inputs=self._input_count,
+                uptime_s=round(time.time() - self._started_at, 1) if self._started_at else 0,
+                work_dir=self._work_dir,
+            )
+
+            self._process = None
+
+    async def start_async(
+        self,
+        work_dir: str,
+        cols: int = 120,
+        rows: int = 30,
+        command: str = "agy",
+        flags: list[str] | None = None,
+    ) -> None:
+        """Spawn the PTY in a worker thread; start() blocks for ~0.5s."""
+        loop = asyncio.get_running_loop()
+        await asyncio.to_thread(self.start, work_dir, cols, rows, command, flags, loop)
+
+    async def stop_async(self) -> None:
+        """Tear the PTY down in a worker thread; stop() sleeps 0.3s."""
+        await asyncio.to_thread(self.stop)
+
+    def _cancel_grace_timer(self) -> None:
+        timer, self._grace_timer = self._grace_timer, None
+        if timer is None:
             return
-
-        logger.info("Stopping terminal session")
-        self._alive = False
-
-        if self._grace_timer:
-            self._grace_timer.cancel()
-            self._grace_timer = None
-
-        if self._process and self._process.isalive():
+        loop = self._loop
+        if loop is not None and _running_loop() is not loop:
             try:
-                self._process.sendline("exit")
-                time.sleep(0.3)
-            except Exception:
+                loop.call_soon_threadsafe(timer.cancel)
+                return
+            except RuntimeError:
                 pass
-            try:
-                self._process.terminate(force=True)
-            except Exception:
-                pass
-
-        self._broadcast({"type": "exited", "code": self._get_exit_status()})
-
-        self._flush_log_buffer(force=True)
-
-        from corvustunnel.audit.deep_logger import get_deep_logger
-
-        get_deep_logger().log(
-            "terminal_stopped",
-            category="terminal",
-            total_inputs=self._input_count,
-            uptime_s=round(time.time() - self._started_at, 1) if self._started_at else 0,
-            work_dir=self._work_dir,
-        )
-
-        self._process = None
+        timer.cancel()
 
     def subscribe(self) -> tuple[asyncio.Queue, str]:
         q: asyncio.Queue = asyncio.Queue(maxsize=4096)
         with self._sub_lock:
             self._subscribers.append(q)
 
-        if self._grace_timer:
-            self._grace_timer.cancel()
-            self._grace_timer = None
+        if self._grace_timer is not None:
+            self._cancel_grace_timer()
             logger.info("Grace period cancelled — new subscriber connected")
 
         with self._replay_lock:
@@ -358,9 +394,10 @@ class TerminalSession:
             )
 
     def _grace_expired(self) -> None:
+        self._grace_timer = None
         if len(self._subscribers) == 0 and self.is_alive:
             logger.info("Grace period expired — stopping terminal session")
-            self.stop()
+            threading.Thread(target=self.stop, daemon=True, name="term-stop").start()
         else:
             logger.info("Grace period expired but subscribers exist — keeping session")
 
